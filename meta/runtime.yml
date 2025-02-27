@@ -1,0 +1,5 @@
+# Collection meta data for the Ansible runtime / environment
+
+---
+
+requires_ansible: ">=2.16.0"

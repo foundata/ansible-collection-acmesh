@@ -1,0 +1,34 @@
+# Role argument validation.
+#
+# See defaults/main.yml for details on each variable. For more information on
+# the argument_specs.yml format, refer to the official Ansible documentation:
+# https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_reuse_roles.html#role-argument-validation
+
+---
+
+argument_specs:
+
+  # foundata.acmesh/roles/run/tasks/main.yml entry point
+  main:
+    short_description: "Main entry point for the foundata.acmesh.run role"
+    options:
+
+      run_acmesh_state:
+        type: "str"
+        required: false
+        choices:
+          - "present"
+          - "absent"
+
+      run_acmesh_service_state:
+        type: "str"
+        required: false
+        choices:
+          - "enabled"
+          - "disabled"
+          - "running"
+          - "unmanaged"
+
+      run_acmesh_autoupgrade:
+        type: "bool"
+        required: false

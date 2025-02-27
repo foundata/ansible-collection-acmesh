@@ -1,0 +1,105 @@
+# Internal role variables and values that must NOT be overridden by the user.
+#
+# Variables defined here usually override earlier definitions due to the high
+# precedence of this file. Each variable should have a concise comment above
+# it, describing its purpose and how it fits into the role's functionality.
+
+---
+
+# List of facts used by the role (gathered on a best-effort basis if needed).
+#
+# To identify which subset a fact belongs to during development, you can use
+# the following snippet:
+#
+# - ansible.builtin.setup:
+#     gather_subset:
+#       - '!min'
+#       - '<subset_name, see parameter doc for details>'
+__run_acmesh_used_facts:
+  # from subset "distribution"
+  - "distribution"
+  - "distribution_major_version"
+  - "distribution_version"
+  - "os_family"
+
+
+# List of platforms this role supports and was designed for.
+#
+# A warning will be issued if the list contains values and the role is executed
+# on an unknown (not listed) platform, but execution will continue. Example:
+#
+# - name: "Fedora" # a value from ansible_facts['distribution']
+#   versions:
+#     - "all" # a value from ansible_facts['distribution_version'] or "all"
+# - name: "Ubuntu"
+#   versions:
+#     - "22.04"
+#     - "24.04"
+# - name: "RedHat"
+#   versions:
+#     - "all"
+# - name: "CentOS"
+#   versions:
+#     - "all"
+# - name: "Debian"
+#   versions:
+#     - "all"
+__run_acmesh_supported_platforms:
+  - name: "Fedora"
+    versions:
+      - "all"
+  - name: "Ubuntu"
+    versions:
+      - "all"
+
+
+# List of package names to be installed when __run_acmesh_state is
+# set to "present".
+__run_acmesh_packages_install:
+  # dependencies of this role or Ansible itself
+  - "curl" #  to determine latest version (playbook dependency)
+  - "jq" # to determine latest version (playbook dependency)
+  # dependencies of acme.sh
+  - "git" # to get the upstream release
+  - "oathtool" # to create 2FA TOTP tokens (e.g. needed for dns_inwx if 2FA is enabled)
+  - "openssl"
+
+
+# List of package names to be uninstalled when __run_acmesh_state is
+# set to "absent". This variable is useful when __run_acmesh_packages_install
+# contains packages that are required for the managed software to function but
+# should not be removed during uninstallation, as doing so could break other
+# software. This is usually the case if there are common dependencies like
+# "curl" or "openssl" which typically should remain installed even after
+# uninstalling the software managed by this role.
+__run_acmesh_packages_uninstall:
+  [] # Remove the "[]" when adding values to this list.
+
+
+# List of package names to be removed unconditionally before installation
+# (e.g., to prevent conflicts or resolve incompatibilities).
+__run_acmesh_packages_removal:
+  [] # Remove the "[]" when adding values to this list.
+
+
+# String. Specifies the Git repository URL for acme.sh.
+# This is used to fetch the acme.sh source code during installation or updates.
+__run_acme_sh_git_url: "https://github.com/acmesh-official/acme.sh.git"
+
+
+# String. Defines the Git branch to use as "latest" if no specific version
+# branch or tag is available.
+# See the following for more information on "master" branch as latest:
+# https://github.com/acmesh-official/acme.sh/issues/1162
+__run_acme_sh_git_fallback_version_branch: "master"
+
+
+# String. URL of the GitHub API endpoint to fetch the latest acme.sh release
+# information. This is used to determine the most recent version available
+# for installation or updates.
+__run_acme_sh_githubapi_release_latest_url: "https://api.github.com/repos/acmesh-official/acme.sh/releases/latest"
+
+
+# Override defaults of dependencies used by this role (if any).
+
+# nothing right now

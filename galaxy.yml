@@ -1,0 +1,35 @@
+# Collection meta data for Galaxy (needed to to build a collection artifact)
+
+---
+
+namespace: "foundata"
+name: "acmesh"
+version: "0.1.0"
+license:
+  # See https://spdx.org/licenses/ for valid IDs and syntax. The project's
+  # REUSE.toml file provides detailed licensing and copyright information
+  # in a human- and machine-readable format.
+  - "GPL-3.0-or-later"
+authors:
+  - "Andreas Haerter <ah@foundata.com>"
+
+readme: "README.md"
+description: "Manage acme.sh (shell script implementing the ACME client protocol)."
+repository: "https://github.com/foundata/ansible-collection-acmesh"
+tags:
+  - "application"
+  - "security"
+  - "tools"
+
+# Collections that this collection requires to be installed.
+# Note: "*" selects the latest version available (not: "any")
+dependencies:
+  "ansible.utils": ">=5.1.0"
+  "ansible.posix": ">=2.0.0"
+
+# List of file glob-like patterns to filter files or directories that should
+# not be included in the build artifact. Some are always filtered, e.g.:
+# galaxy.yml, *.pyc, *.retry, and .git
+build_ignore:
+  - ".gitignore"
+  - "changelogs/.plugin-cache.yaml"

@@ -1,0 +1,144 @@
+# Default variables and values for this role.
+#
+# These variables are designed to be easily overridden (as they have a low
+# precedence) and typically allow users to customize the role's behavior.
+# Each variable should have a clear comment above it, describing its purpose
+# and how it fits into the role's functionality.
+
+---
+
+# String. Determines whether the managed resources should be "present" or
+# "absent". Defaults to "present". Possible values:
+#
+# - "present": Ensures that required components, such as software packages,
+#   are installed and configured.
+# - "absent": Reverts changes as much as possible, such as removing packages,
+#   deleting created users, stopping services, restoring modified settings, …
+run_acmesh_state: "present"
+
+
+# Boolean. If set to true, all managed packages will be upgraded during each
+# Ansible run (e.g., when the package provider detects a newer version than
+# the currently installed one). Defaults to false.
+run_acmesh_autoupgrade: false
+
+
+# String. Defines the status of the service(s). Defaults to "enabled".
+# Possible values:
+#
+# - "enabled": Service is running and will start automatically at boot.
+# - "disabled": Service is stopped and will not start automatically at boot.
+# - "running": Service is running but will not start automatically at boot.
+#   This can be used to start a service on the first Ansible run without
+#   enabling it for boot.
+# - "unmanaged": Service will not start at boot, and Ansible will not
+#   manage its running state. This is primarily useful when services are
+#   monitored and managed by systems other than Ansible.
+#
+# The singular form ("service") is used for simplicity. However, the defined
+# status applies to all services if multiple are being managed by this role.
+run_acmesh_service_state: "enabled"
+
+
+# String. Specifies the email address to be associated with the ACME account.
+# This email is used for expiration notices and recovery purposes.
+# If not set, some ACME providers might refuse to issue certificates.
+run_acmesh_account_email: ""
+
+
+# Dictionary. Defines environment variables required for ACME DNS challenges.
+#
+# This is typically needed for DNS challenge plugins, such as those requiring
+# DNS API credentials (e.g., "HETZNER_Token", "INWX_User", "INWX_Password").
+# Multiple variables can be defined in parallel to support different providers
+# for different domains on the same server. For more details on acme.sh's
+# DNS API support see https://github.com/acmesh-official/acme.sh/wiki/dnsapi
+#
+# Example:
+#   run_acmesh_environment:
+#     "HETZNER_Token": "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
+#
+run_acmesh_environment:
+  [] # Remove the "[]" when adding values to this list.
+
+
+# FIXME description
+#     run_acmesh_certs:
+#       - domains:
+#           - name: "foo.example.com"
+#             challenge:  # optional parameters depend on type
+#               type: "dns"
+#               dns_provider: "dns_hetzner"
+#               challenge_alias: "foo.example.com.example.net"
+#           - name: "bar.example.com"
+#             challenge:  # optional parameters depend on type
+#               type: "dns"
+#               dns_provider: "dns_hetzner"
+#               challenge_alias: "bar.example.com.example.net"
+#         install:
+#           ca_file: "/etc/pki/tls/certs/foo.example.com/ca.cer"
+#           cert_file: "/etc/pki/tls/certs/foo.example.com/cert.cer"
+#           fullcain_file: "/etc/pki/tls/certs/foo.example.com/fullchain.cer"
+#           key_file: "/etc/pki/tls/certs/foo.example.com/cert.key"
+#           reloadcmd: "systemctl reload nginx.service; systemctl restart postfix.service"
+#         #server: "google_test" # optional, CA alias or URL, defaults to "letsencrypt". "{letsencrypt,buypass,google}_test" for staging, see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
+#         force: false  # optional
+#         debug: false # optional
+#         #post_hook: ""  # optional
+#         #renews_hook: "" # optional
+#         #extra_flags: "workaround for edge cases, put --whatever in here, used during issuing a cert"
+#       - domains:
+#           - name: "baz.example.com"
+#             challenge:  # optional parameters depend on type
+#               type: "dns"
+#               dns_provider: "dns_hetzner"
+#               challenge_alias: "example.net"
+#         install:
+#           ca_file: "/etc/pki/tls/certs/baz.example.com/ca.cer"
+#           cert_file: "/etc/pki/tls/certs/baz.example.com/cert.cer"
+#           fullcain_file: "/etc/pki/tls/certs/baz.example.com/fullchain.cer"
+#           key_file: "/etc/pki/tls/certs/baz.example.com/cert.key"
+#           reloadcmd: "systemctl reload nginx.service; systemctl restart postfix.service"
+#         #server: "google_test" # optional, CA alias or URL, defaults to "letsencrypt". "{letsencrypt,buypass,google}_test" for staging, see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
+#         force: false  # optional
+#         debug: false # optional
+#         #post_hook: ""  # optional
+#         #renews_hook: "" # optional
+#         #extra_flags: "workaround for edge cases, put --whatever in here, used during issuing a cert"
+run_acmesh_certs: []
+
+
+# String. Specifies the service user account that runs acme.sh and owns
+# relevant files and directories.
+run_acmesh_user: "acmesh"
+
+# String. Specifies the group associated with the service user for managing
+# acme.sh and its file permissions.
+run_acmesh_group: "acmesh"
+
+
+# Dictionary. Defines configuration options for acme.sh.
+#
+# - home:
+#   String. Specifies the installation directory for the acme.sh software
+#   (relates to acme.sh option --home). Defaults to "/opt/acme.sh".
+# - config_home:
+#   String. Defines where configuration files are stored (relates to acme.sh
+#   option --config-home). Defaults to "/etc/acme.sh".
+# - cert_home:
+#   String. Specifies the directory where certificates are maintained by
+#   acme.sh (relates to acme.sh option --certhome). Defaults to
+#   "/var/opt/acme.sh". ⚠️ Do not rely on the files in this directory directly.
+#   Instead, copy the certificates where needed using the "install" key of
+#   run_acmesh_certs (relates to acme.sh option --install-cert). This ensures
+#   that the certificates are properly maintained and automatically reinstalled
+#   upon renewal. See the following for more information:
+#   https://github.com/acmesh-official/acme.sh/issues/2350#issuecomment-1449235599
+# - logfile:
+#   String. Path to the log file where acme.sh logs its operations (relates to
+#   acme.sh option --log).
+run_acmesh_config:
+  home: "/opt/acme.sh"
+  config_home: "/etc/acme.sh"
+  cert_home: "/var/opt/acme.sh"
+  logfile: "/var/log/acme.sh.log"

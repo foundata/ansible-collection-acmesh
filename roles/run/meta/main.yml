@@ -1,0 +1,22 @@
+# Role meta data
+
+---
+
+galaxy_info:
+  description: "foundata.acmesh run role"
+  license: "GPL-3.0-or-later" # See https://spdx.org/licenses/ for valid IDs and syntax.
+  author: "Andreas Haerter <ah@foundata.com>"
+  company: "foundata GmbH (https://foundata.com)"
+
+  standalone: false # This role is part of a collection (useful hint for ansible-lint)
+  min_ansible_version: "2.16.0"
+  platforms:
+    [] # Remove the "[]" when adding values to this list.
+  #  - name: "Fedora"
+  #    versions:
+  #      - "all"
+
+
+# Roles that this role requires to be installed.
+dependencies:
+  [] # Remove the "[]" when adding values to this list.
