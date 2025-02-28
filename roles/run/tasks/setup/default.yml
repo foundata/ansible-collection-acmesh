@@ -52,6 +52,7 @@
         __run_acmesh_version_upstream=''
       fi
       printf '%s' "${__run_acmesh_version_upstream}"
+      exit 0
     executable: "/usr/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
   register: __run_acmesh_version_upstream_result
   ignore_errors: true
@@ -66,45 +67,6 @@
 - name: "Setup | Default | Display latest upstream version (if any, false means \"nothing detected\")"
   ansible.builtin.debug:
     var: __run_acmesh_version_upstream
-    verbosity: 1
-
-
-- name: "Setup | Default | Determine installed version (if any)"
-  # The shell module is used here. This approach is justified:
-  #
-  # - No built-in Ansible module provides a direct way to retrieve the version.
-  # - The script includes inline logic to handle potential edge cases (e.g.,
-  #   non-numeric output) while only using standard tooling. A replacement
-  #   would require many additional tasks with little to no benefit.
-  # - Using ansible.builtin.stat and/or ansible.builtin.command for a safer exec
-  #   environment would require additional tasks with little to no benefit.
-  # - Security concerns are mitigated by strict path usage and input validation.
-  ansible.builtin.shell:
-    cmd: |
-      __run_acmesh_version_installed=""
-      if command -v '{{ run_acmesh_cfg_home }}/acme.sh' > /dev/null 2>&1
-      then
-        __run_acmesh_version_installed="$({{ run_acmesh_cfg_home }}/acme.sh --version | tail -1 | sed -e 's/^v//g')"
-        if ! printf '%s' "${__run_acmesh_version_installed}" | grep -E -q -e '^[[:digit:]\.]*$'
-        then
-          __run_acmesh_version_installed=''
-        fi
-      fi
-      printf '%s' "${__run_acmesh_version_installed}"
-    executable: "/usr/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
-  register: __run_acmesh_version_installed_result
-  ignore_errors: true
-  changed_when: false
-
-
-- name: "Setup | Default | Set installed version as fact"
-  ansible.builtin.set_fact:
-    __run_acmesh_version_installed: "{{ (__run_acmesh_version_installed_result) | ternary(__run_acmesh_version_installed_result['stdout'], false) }}"
-
-
-- name: "Setup | Default | Display installed version (if any, false means \"not installed\")"
-  ansible.builtin.debug:
-    var: __run_acmesh_version_installed
     verbosity: 1
 
 
@@ -216,10 +178,10 @@
     cmd:
       ./acme.sh
         --install
-        --home {{ run_acmesh_cfg_home }}
-        --config-home {{ run_acmesh_cfg_config_home }}
-        --certhome {{ run_acmesh_cfg_cert_home }}
-        --log {{ run_acmesh_cfg_logfile }}
+        --home "{{ run_acmesh_cfg_home }}"
+        --config-home "{{ run_acmesh_cfg_config_home }}"
+        --certhome "{{ run_acmesh_cfg_cert_home }}"
+        --log "{{ run_acmesh_cfg_logfile }}"
         --log-level {{ run_acmesh_cfg_log_level }}
         --syslog {{ run_acmesh_cfg_syslog }}
         {{ '--auto-upgrade 1'
@@ -251,18 +213,18 @@
   # Notes on the command itself:
   #
   # The --upgrade parameter alone would generally be sufficient. However, acme.sh
-  # can update, modify, or correct configuration values during execution of every
-  # subcommand. Setting the configuration parameters again ensures consistency and
+  # can update, modify, or correct configuration values during execution of most
+  # subcommands. Setting the configuration parameters again ensures consistency and
   # does no harm. See the official documentation for a explanation of the parameters:
   # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
   ansible.builtin.command:
     cmd:
       ./acme.sh
         --upgrade
-        --home {{ run_acmesh_cfg_home }}
-        --config-home {{ run_acmesh_cfg_config_home }}
-        --certhome {{ run_acmesh_cfg_cert_home }}
-        --log {{ run_acmesh_cfg_logfile }}
+        --home "{{ run_acmesh_cfg_home }}"
+        --config-home "{{ run_acmesh_cfg_config_home }}"
+        --certhome "{{ run_acmesh_cfg_cert_home }}"
+        --log "{{ run_acmesh_cfg_logfile }}"
         --log-level {{ run_acmesh_cfg_log_level }}
         --syslog {{ run_acmesh_cfg_syslog }}
         {{ '--auto-upgrade 1'
@@ -284,7 +246,9 @@
     - run_acmesh_autoupgrade
     - __run_acmesh_version_installed is version(__run_acmesh_version_upstream, 'lt', version_type='semver')
   register: __run_acmesh_upgrade_result
-  changed_when: __run_acmesh_upgrade_result.rc == 0 and "Upgrade success" in __run_acmesh_upgrade_result.stdout
+  changed_when:
+    - __run_acmesh_upgrade_result.rc == 0
+    - "'Upgrade success' in __run_acmesh_upgrade_result.stdout"
   become_user: "{{ run_acmesh_user }}"
 
 
@@ -301,7 +265,7 @@
   # - Security concerns are mitigated by strict path usage and input validation.
   ansible.builtin.shell:
     cmd: |
-      __run_acmesh_version_installed=""
+      __run_acmesh_version_installed=''
       if command -v '{{ run_acmesh_cfg_home }}/acme.sh' > /dev/null 2>&1
       then
         __run_acmesh_version_installed="$({{ run_acmesh_cfg_home }}/acme.sh --version | tail -1 | sed -e 's/^v//g')"
@@ -311,6 +275,7 @@
         fi
       fi
       printf '%s' "${__run_acmesh_version_installed}"
+      exit 0
     executable: "/usr/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
   register: __run_acmesh_version_installed_result
   ignore_errors: true
@@ -480,8 +445,8 @@
     cmd:
       ./acme.sh
         --issue
-        --config-home {{ run_acmesh_cfg_config_home }}
-        --certhome {{ run_acmesh_cfg_cert_home }}
+        --config-home "{{ run_acmesh_cfg_config_home }}"
+        --certhome "{{ run_acmesh_cfg_cert_home }}"
         {% for item_domain in item['domains'] %}
           --domain "{{ item_domain['name'] }}"
           {{ '--dns "' ~ item_domain['challenge']['dns_provider'] ~ '"'
@@ -546,9 +511,12 @@
   loop: "{{ run_acmesh_certs }}"
   environment: "{{ run_acmesh_environment | default(omit) }}"
   register: __run_acmesh_issue_result
-  changed_when: __run_acmesh_issue_result.rc == 0 and 'Cert success' in __run_acmesh_issue_result.stdout
-  failed_when: (run_acmesh_certs is not defined) or
-               (__run_acmesh_issue_result.rc != 0 and 'Domains not changed' not in __run_acmesh_issue_result.stdout)
+  changed_when:
+    - __run_acmesh_issue_result.rc == 0
+    - "'Cert success' in __run_acmesh_issue_result.stdout"
+  failed_when: >
+    (run_acmesh_certs is not defined) or
+    (__run_acmesh_issue_result.rc != 0 and 'Domains not changed' not in __run_acmesh_issue_result.stdout)
   become_user: "{{ run_acmesh_user }}"
   when:
     - __run_acmesh_version_installed
@@ -617,8 +585,8 @@
     cmd:
       ./acme.sh
         --install-cert
-        --config-home {{ run_acmesh_cfg_config_home }}
-        --certhome {{ run_acmesh_cfg_cert_home }}
+        --config-home "{{ run_acmesh_cfg_config_home }}"
+        --certhome "{{ run_acmesh_cfg_cert_home }}"
         --domain "{{ item['domains'][0]['name'] }}"
         {{ '--ca-file "' ~ item['install']['ca_file'] ~ '"'
             if ((item['install']['ca_file'] is defined) and
@@ -650,13 +618,14 @@
   loop: "{{ run_acmesh_certs }}"
   environment: "{{ run_acmesh_environment | default(omit) }}"
   register: __run_acmesh_install_result
-  changed_when: __run_acmesh_install_result.rc == 0 and "Cert success" in __run_acmesh_install_result.stdout
+  changed_when:
+    - __run_acmesh_install_result.rc == 0
+    - "'Cert success' in __run_acmesh_install_result.stdout"
   # We ignore error triggered by --reloadcmd to prevent chicken-egg problems
   # as these are usually because of yet missing services (which needs working)
   # certificates upfront and so on. Services using certs and are managed by
   # Ansible should hopefull trigger other error later.
-  failed_when: |
-    (acmesh is not defined) or
+  failed_when: >
     (run_acmesh_certs is not defined) or
     (__run_acmesh_install_result.rc != 0 and 'Installing' not in __run_acmesh_install_result.stdout) or
     (__run_acmesh_install_result.rc != 0 and ((__run_acmesh_install_result.stderr_lines | length) > 0) and 'Reload error' not in __run_acmesh_install_result.stderr)

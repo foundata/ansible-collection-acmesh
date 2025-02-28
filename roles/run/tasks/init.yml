@@ -79,6 +79,9 @@
     - __run_acmesh_vars_file is file
 
 
+### acme.sh specific
+
+
 - name: "Init | Show certificate settings"
   ansible.builtin.debug:
     var: run_acmesh_certs
@@ -105,3 +108,43 @@
   when:
     - run_acmesh_certs is defined
     - (run_acmesh_certs | length) > 0
+
+
+
+- name: "Init | Determine installed version (if any)"
+  # The shell module is used here. This approach is justified:
+  #
+  # - No built-in Ansible module provides a direct way to retrieve the version.
+  # - The script includes inline logic to handle potential edge cases (e.g.,
+  #   non-numeric output) while only using standard tooling. A replacement
+  #   would require many additional tasks with little to no benefit.
+  # - Using ansible.builtin.stat and/or ansible.builtin.command for a safer exec
+  #   environment would require additional tasks with little to no benefit.
+  # - Security concerns are mitigated by strict path usage and input validation.
+  ansible.builtin.shell:
+    cmd: |
+      __run_acmesh_version_installed=""
+      if command -v '{{ run_acmesh_cfg_home }}/acme.sh' > /dev/null 2>&1
+      then
+        __run_acmesh_version_installed="$({{ run_acmesh_cfg_home }}/acme.sh --version | tail -1 | sed -e 's/^v//g')"
+        if ! printf '%s' "${__run_acmesh_version_installed}" | grep -E -q -e '^[[:digit:]\.]*$'
+        then
+          __run_acmesh_version_installed=''
+        fi
+      fi
+      printf '%s' "${__run_acmesh_version_installed}"
+    executable: "/usr/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
+  register: __run_acmesh_version_installed_result
+  ignore_errors: true
+  changed_when: false
+
+
+- name: "Init | Set installed version as fact"
+  ansible.builtin.set_fact:
+    __run_acmesh_version_installed: "{{ (__run_acmesh_version_installed_result) | ternary(__run_acmesh_version_installed_result['stdout'], false) }}"
+
+
+- name: "Init | Display installed version (if any, false means \"not installed\")"
+  ansible.builtin.debug:
+    var: __run_acmesh_version_installed
+    verbosity: 1
