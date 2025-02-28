@@ -33,7 +33,16 @@
 
 
 - name: "Setup | Default | Determine upstream version (latest)"
-  # FIXME replace with native Ansible solution ASAP and remove "jq" and "curl" dependency
+  # The shell module is used here, but this approach is NOT justified and
+  # should be replaced in a future version of this role. Reasons:
+  #
+  # - ansible.builtin.uri provides comparable functionality to curl
+  #   (so introducing a dependency on the target machine it not justified).
+  # - community.general.json_query offers comparable capabilities as jq
+  #   (so introducing a dependency on the target machine it not justified).
+  #
+  # After replacing the shell-based implementation, review the package
+  # installation lists in /vars/*.yml to determine if any can be removed.
   ansible.builtin.shell:
     cmd: |
       __run_acmesh_version_upstream=''
@@ -61,6 +70,15 @@
 
 
 - name: "Setup | Default | Determine installed version (if any)"
+  # The shell module is used here. This approach is justified:
+  #
+  # - No built-in Ansible module provides a direct way to retrieve the version.
+  # - The script includes inline logic to handle potential edge cases (e.g.,
+  #   non-numeric output) which would require many additional tasks with little
+  #   to no benefit.
+  # - Using ansible.builtin.stat and/or ansible.builtin.command for a safer exec
+  #   environment would require additional tasks with little to no benefit.
+  # - Security concerns are mitigated by strict path usage and input validation.
   ansible.builtin.shell:
     cmd: |
       __run_acmesh_version_installed=""
@@ -215,7 +233,15 @@
 
 
 - name: "Setup | Default | Upgrade acme.sh"
-  # --upgrade as single parameter would be sufficient in general.  However, acme.sh
+  # The command module is used here. This approach is justified:
+  #
+  # - No built-in Ansible module provides a direct way to interact with acme.sh.
+  # - Inline templating allows for safe and efficient parameter handling,
+  #   avoiding the need for multiple additional tasks with little to no benefit.
+  #
+  # Notes on the command itself:
+  #
+  # --upgrade as single parameter would be sufficient in general. However, acme.sh
   # can update / change / correct defined config values if needed in one step during
   # upgrade, so it does no harm to set the parameters known from --install again.
   ansible.builtin.command:
@@ -253,6 +279,15 @@
 
 # update facts related to state of the local installation
 - name: "Setup | Default | Determine installed version again"
+  # The shell module is used here. This approach is justified:
+  #
+  # - No built-in Ansible module provides a direct way to retrieve the version.
+  # - The script includes inline logic to handle potential edge cases (e.g.,
+  #   non-numeric output) which would require many additional tasks with little
+  #   to no benefit.
+  # - Using ansible.builtin.stat and/or ansible.builtin.command for a safer exec
+  #   environment would require additional tasks with little to no benefit.
+  # - Security concerns are mitigated by strict path usage and input validation.
   ansible.builtin.shell:
     cmd: |
       __run_acmesh_version_installed=""
@@ -423,6 +458,11 @@
 
 
 - name: "Setup | Default | issue certificate(s)"
+  # The command module is used here. This approach is justified:
+  #
+  # - No built-in Ansible module provides a direct way to interact with acme.sh.
+  # - Inline templating allows for safe and efficient parameter handling,
+  #   avoiding the need for multiple additional tasks with little to no benefit.
   ansible.builtin.command:
     cmd:
       ./acme.sh
@@ -555,6 +595,11 @@
 
 
 - name: "Setup | Default | install certificate(s)"
+  # The command module is used here. This approach is justified:
+  #
+  # - No built-in Ansible module provides a direct way to interact with acme.sh.
+  # - Inline templating allows for safe and efficient parameter handling,
+  #   avoiding the need for multiple additional tasks with little to no benefit.
   ansible.builtin.command:
     cmd:
       ./acme.sh
