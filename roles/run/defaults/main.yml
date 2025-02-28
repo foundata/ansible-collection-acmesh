@@ -40,12 +40,6 @@ run_acmesh_autoupgrade: false
 run_acmesh_service_state: "enabled"
 
 
-# String. Specifies the email address to be associated with the ACME account.
-# This email is used for expiration notices and recovery purposes.
-# If not set, some ACME providers might refuse to issue certificates.
-run_acmesh_account_email: ""
-
-
 # Dictionary. Defines environment variables required for ACME DNS challenges.
 #
 # This is typically needed for DNS challenge plugins, such as those requiring
@@ -112,33 +106,48 @@ run_acmesh_certs: []
 # relevant files and directories.
 run_acmesh_user: "acmesh"
 
+
 # String. Specifies the group associated with the service user for managing
 # acme.sh and its file permissions.
 run_acmesh_group: "acmesh"
 
 
-# Dictionary. Defines configuration options for acme.sh.
-#
-# - home:
-#   String. Specifies the installation directory for the acme.sh software
-#   (relates to acme.sh option --home). Defaults to "/opt/acme.sh".
-# - config_home:
-#   String. Defines where configuration files are stored (relates to acme.sh
-#   option --config-home). Defaults to "/etc/acme.sh".
-# - cert_home:
-#   String. Specifies the directory where certificates are maintained by
-#   acme.sh (relates to acme.sh option --certhome). Defaults to
-#   "/var/opt/acme.sh". ⚠️ Do not rely on the files in this directory directly.
-#   Instead, copy the certificates where needed using the "install" key of
-#   run_acmesh_certs (relates to acme.sh option --install-cert). This ensures
-#   that the certificates are properly maintained and automatically reinstalled
-#   upon renewal. See the following for more information:
-#   https://github.com/acmesh-official/acme.sh/issues/2350#issuecomment-1449235599
-# - logfile:
-#   String. Path to the log file where acme.sh logs its operations (relates to
-#   acme.sh option --log).
-run_acmesh_config:
-  home: "/opt/acme.sh"
-  config_home: "/etc/acme.sh"
-  cert_home: "/var/opt/acme.sh"
-  logfile: "/var/log/acme.sh.log"
+### configuration options for acme.sh.
+
+# String. Specifies the email address to be associated with the ACME account.
+# This email is used for expiration notices and recovery purposes.
+# If not set, some ACME providers might refuse to issue certificates.
+run_acmesh_cfg_accountemail: ""
+
+# String. Specifies the installation directory for the acme.sh software
+# (relates to acme.sh option --home). Defaults to "/opt/acme.sh".
+run_acmesh_cfg_home: "/opt/acme.sh"
+
+# String. Defines where configuration files are stored (relates to acme.sh
+# option --config-home). Defaults to "/etc/acme.sh".
+run_acmesh_cfg_config_home: "/etc/acme.sh"
+
+
+# String. Specifies the directory where certificates are maintained by
+# acme.sh (relates to acme.sh option --certhome). Defaults to
+# "/var/opt/acme.sh". ⚠️ Do not rely on the files in this directory directly.
+# Instead, copy the certificates where needed using the "install" key of
+# run_acmesh_certs (relates to acme.sh option --install-cert). This ensures
+# that the certificates are properly maintained and automatically reinstalled
+# upon renewal. See the following for more information:
+# https://github.com/acmesh-official/acme.sh/issues/2350#issuecomment-1449235599
+run_acmesh_cfg_cert_home: "/var/opt/acme.sh"
+
+# String. Path to the log file where acme.sh logs its operations (relates to
+# acme.sh option --log). Defaults to "/var/log/acme.sh.log".
+run_acmesh_cfg_logfile: "/var/log/acme.sh.log"
+
+
+# Integer. Specifies the log level (relates to acme.sh option --log-level).
+# Defaults to 1. Possible values are 1 (less logging) and 2 (more logging).
+run_acmesh_cfg_log_level: 1
+
+# Integer. Specifies what to log (relates to acme.sh option --syslog).
+# Defaults to 3. Possible values are 0 (disable syslog), 3 (errors),
+# 6 (info) and y (debug)
+run_acmesh_cfg_syslog: 3

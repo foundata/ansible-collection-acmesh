@@ -74,17 +74,17 @@
   #
   # - No built-in Ansible module provides a direct way to retrieve the version.
   # - The script includes inline logic to handle potential edge cases (e.g.,
-  #   non-numeric output) which would require many additional tasks with little
-  #   to no benefit.
+  #   non-numeric output) while only using standard tooling. A replacement
+  #   would require many additional tasks with little to no benefit.
   # - Using ansible.builtin.stat and/or ansible.builtin.command for a safer exec
   #   environment would require additional tasks with little to no benefit.
   # - Security concerns are mitigated by strict path usage and input validation.
   ansible.builtin.shell:
     cmd: |
       __run_acmesh_version_installed=""
-      if command -v '{{ run_acmesh_config['home'] }}/acme.sh' > /dev/null 2>&1
+      if command -v '{{ run_acmesh_cfg_home }}/acme.sh' > /dev/null 2>&1
       then
-        __run_acmesh_version_installed="$({{ run_acmesh_config['home'] }}/acme.sh --version | tail -1 | sed -e 's/^v//g')"
+        __run_acmesh_version_installed="$({{ run_acmesh_cfg_home }}/acme.sh --version | tail -1 | sed -e 's/^v//g')"
         if ! printf '%s' "${__run_acmesh_version_installed}" | grep -E -q -e '^[[:digit:]\.]*$'
         then
           __run_acmesh_version_installed=''
@@ -114,7 +114,7 @@
     create_home: true
     force: true
     # group: the (primary) group gets created automatically with the same GID as the UID when the parameter is omitted
-    home: "{{ run_acmesh_config['home'] }}"
+    home: "{{ run_acmesh_cfg_home }}"
     # We first used "acme.sh" as username. However, a dot is not allowed in the
     # "User=" directive of systemd versions shipped with RHEL8 in October 2019, cf:
     # - https://github.com/systemd/systemd/issues/12754
@@ -184,9 +184,9 @@
     group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0750
   loop:
-    - "{{ run_acmesh_config['home'] }}"
-    - "{{ run_acmesh_config['config_home'] }}"
-    - "{{ run_acmesh_config['cert_home'] }}"
+    - "{{ run_acmesh_cfg_home }}"
+    - "{{ run_acmesh_cfg_config_home }}"
+    - "{{ run_acmesh_cfg_cert_home }}"
 
 
 - name: "Setup | Default | Ensure that needed files are existing"
@@ -198,7 +198,7 @@
     group: "{{ run_acmesh_group }}"
     mode: "u=rw,g=r,o=" # 0640
   loop:
-    - "{{ run_acmesh_config['logfile'] }}"
+    - "{{ run_acmesh_cfg_logfile }}"
 
 
 - name: "Setup | Default | Install acme.sh"
@@ -207,27 +207,27 @@
     cmd:
       ./acme.sh
         --install
-        --home {{ run_acmesh_config['home'] }}
-        --config-home {{ run_acmesh_config['config_home'] }}
-        --certhome {{ run_acmesh_config['cert_home'] }}
-        --log {{ run_acmesh_config['logfile'] }}
-        --log-level 1
-        --syslog 3
+        --home {{ run_acmesh_cfg_home }}
+        --config-home {{ run_acmesh_cfg_config_home }}
+        --certhome {{ run_acmesh_cfg_cert_home }}
+        --log {{ run_acmesh_cfg_logfile }}
+        --log-level {{ run_acmesh_cfg_log_level }}
+        --syslog {{ run_acmesh_cfg_syslog }}
         {{ '--auto-upgrade 1'
           if ((run_acmesh_autoupgrade is defined) and
               (run_acmesh_autoupgrade))
           else
           '--auto-upgrade 0' }}
-        {{ '--accountemail "' ~ run_acmesh_account_email ~ '"'
-          if ((run_acmesh_account_email is defined) and
-              (run_acmesh_account_email))
+        {{ '--accountemail "' ~ run_acmesh_cfg_accountemail ~ '"'
+          if ((run_acmesh_cfg_accountemail is defined) and
+              (run_acmesh_cfg_accountemail))
           else
           '' }}
   args:
     chdir: "{{ acmesh_tempdir['path'] }}"
     creates:
-      - "{{ run_acmesh_config['home'] }}/acme.sh"
-      - "{{ run_acmesh_config['home'] }}/acme.sh.env"
+      - "{{ run_acmesh_cfg_home }}/acme.sh"
+      - "{{ run_acmesh_cfg_home }}/acme.sh.env"
   become_user: "{{ run_acmesh_user }}"
   when: not __run_acmesh_version_installed
 
@@ -243,29 +243,29 @@
   #
   # --upgrade as single parameter would be sufficient in general. However, acme.sh
   # can update / change / correct defined config values if needed in one step during
-  # upgrade, so it does no harm to set the parameters known from --install again.
+  # every command, so it does no harm to set configuration parameters again.
   ansible.builtin.command:
     cmd:
       ./acme.sh
         --upgrade
-        --home {{ run_acmesh_config['home'] }}
-        --config-home {{ run_acmesh_config['config_home'] }}
-        --certhome {{ run_acmesh_config['cert_home'] }}
-        --log {{ run_acmesh_config['logfile'] }}
-        --log-level 1
-        --syslog 3
+        --home {{ run_acmesh_cfg_home }}
+        --config-home {{ run_acmesh_cfg_config_home }}
+        --certhome {{ run_acmesh_cfg_cert_home }}
+        --log {{ run_acmesh_cfg_logfile }}
+        --log-level {{ run_acmesh_cfg_log_level }}
+        --syslog {{ run_acmesh_cfg_syslog }}
         {{ '--auto-upgrade 1'
           if ((run_acmesh_autoupgrade is defined) and
               (run_acmesh_autoupgrade))
           else
           '--auto-upgrade 0' }}
-        {{ '--accountemail "' ~ run_acmesh_account_email ~ '"'
-          if ((run_acmesh_account_email is defined) and
-              (run_acmesh_account_email))
+        {{ '--accountemail "' ~ run_acmesh_cfg_accountemail ~ '"'
+          if ((run_acmesh_cfg_accountemail is defined) and
+              (run_acmesh_cfg_accountemail))
           else
           '' }}
   args:
-    chdir: "{{ run_acmesh_config['home'] }}"
+    chdir: "{{ run_acmesh_cfg_home }}"
   when:
     - __run_acmesh_version_installed
     - __run_acmesh_version_upstream
@@ -283,17 +283,17 @@
   #
   # - No built-in Ansible module provides a direct way to retrieve the version.
   # - The script includes inline logic to handle potential edge cases (e.g.,
-  #   non-numeric output) which would require many additional tasks with little
-  #   to no benefit.
+  #   non-numeric output) while only using standard tooling. A replacement
+  #   would require many additional tasks with little to no benefit.
   # - Using ansible.builtin.stat and/or ansible.builtin.command for a safer exec
   #   environment would require additional tasks with little to no benefit.
   # - Security concerns are mitigated by strict path usage and input validation.
   ansible.builtin.shell:
     cmd: |
       __run_acmesh_version_installed=""
-      if command -v '{{ run_acmesh_config['home'] }}/acme.sh' > /dev/null 2>&1
+      if command -v '{{ run_acmesh_cfg_home }}/acme.sh' > /dev/null 2>&1
       then
-        __run_acmesh_version_installed="$({{ run_acmesh_config['home'] }}/acme.sh --version | tail -1 | sed -e 's/^v//g')"
+        __run_acmesh_version_installed="$({{ run_acmesh_cfg_home }}/acme.sh --version | tail -1 | sed -e 's/^v//g')"
         if ! printf '%s' "${__run_acmesh_version_installed}" | grep -E -q -e '^[[:digit:]\.]*$'
         then
           __run_acmesh_version_installed=''
@@ -323,7 +323,7 @@
 # the source-call from the user's .bashrc
 - name: "Setup | Default | Symlink env file for profile.d"
   ansible.builtin.file:
-    src: "{{ run_acmesh_config['home'] }}/acme.sh.env"
+    src: "{{ run_acmesh_cfg_home }}/acme.sh.env"
     dest: "/etc/profile.d/acme.sh.env.sh"
     state: "link"
 
@@ -332,7 +332,7 @@
   ansible.builtin.lineinfile:
     path: "~/.bashrc"
     state: "absent"
-    regexp: "^\\. \"{{ run_acmesh_config['home'] }}/acme.sh.env\"$"
+    regexp: "^\\. \"{{ run_acmesh_cfg_home }}/acme.sh.env\"$"
   become_user: "{{ run_acmesh_user }}"
 
 
@@ -343,7 +343,7 @@
     group: "{{ run_acmesh_group }}"
     mode: "u=rw,g=r,o=r" # 0644
   loop:
-    - "{{ run_acmesh_config['home'] }}/acme.sh.env"
+    - "{{ run_acmesh_cfg_home }}/acme.sh.env"
 
 
 # This is an additional safeguard (block group member's too) as the config
@@ -355,13 +355,15 @@
     group: "{{ run_acmesh_group }}"
     mode: "u=rw,g=,o=" # 0600
   loop:
-    - "{{ run_acmesh_config['config_home'] }}/account.conf"
+    - "{{ run_acmesh_cfg_config_home }}/account.conf"
 
 
+# TODO: To be removed in future versions of this role once all acme.sh versions ≤ 3.0.6
+# are guaranteed to be absent in all environments, or by mid-2025—whichever comes first.
 # https://github.com/acmesh-official/acme.sh/issues/4763#issuecomment-1695832047
 - name: "Setup | Default | Temporary workaround for issue 4763 (dns_inwx broken in versions <= 3.0.6)"
   ansible.builtin.lineinfile:
-    path: "{{ run_acmesh_config['home'] }}/dnsapi/dns_inwx.sh"
+    path: "{{ run_acmesh_cfg_home }}/dnsapi/dns_inwx.sh"
     regexp: '^([\t ]+?INWX_Cookie.+)grep \"\^(.+)$'
     line: '\1grep -i "^\2'
     backrefs: true
@@ -398,7 +400,7 @@
 - name: "Setup | Default | pre-seed already issued certs (RSA) from local source (if any)"
   ansible.builtin.copy:
     src: "{{ item['stat']['path'] }}"
-    dest: "{{ run_acmesh_config['cert_home'] }}"
+    dest: "{{ run_acmesh_cfg_cert_home }}"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
     directory_mode: "u=rwx,g=rx,o=" # 0750
@@ -440,7 +442,7 @@
 - name: "Setup | Default | pre-seed already issued certs (ECC) from local source (if any)"
   ansible.builtin.copy:
     src: "{{ item['stat']['path'] }}"
-    dest: "{{ run_acmesh_config['cert_home'] }}"
+    dest: "{{ run_acmesh_cfg_cert_home }}"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
     directory_mode: "u=rwx,g=rx,o=" # 0750
@@ -467,8 +469,8 @@
     cmd:
       ./acme.sh
         --issue
-        --config-home {{ run_acmesh_config['config_home'] }}
-        --certhome {{ run_acmesh_config['cert_home'] }}
+        --config-home {{ run_acmesh_cfg_config_home }}
+        --certhome {{ run_acmesh_cfg_cert_home }}
         {% for item_domain in item['domains'] %}
           --domain "{{ item_domain['name'] }}"
           {{ '--dns "' ~ item_domain['challenge']['dns_provider'] ~ '"'
@@ -529,7 +531,7 @@
             else
             '' }}
   args:
-    chdir: "{{ run_acmesh_config['home'] }}"
+    chdir: "{{ run_acmesh_cfg_home }}"
   loop: "{{ run_acmesh_certs }}"
   environment: "{{ run_acmesh_environment | default(omit) }}"
   register: issue_result
@@ -604,8 +606,8 @@
     cmd:
       ./acme.sh
         --install-cert
-        --config-home {{ run_acmesh_config['config_home'] }}
-        --certhome {{ run_acmesh_config['cert_home'] }}
+        --config-home {{ run_acmesh_cfg_config_home }}
+        --certhome {{ run_acmesh_cfg_cert_home }}
         --domain "{{ item['domains'][0]['name'] }}"
         {{ '--ca-file "' ~ item['install']['ca_file'] ~ '"'
             if ((item['install']['ca_file'] is defined) and
@@ -633,7 +635,7 @@
             else
             '' }}
   args:
-    chdir: "{{ run_acmesh_config['home'] }}"
+    chdir: "{{ run_acmesh_cfg_home }}"
   loop: "{{ run_acmesh_certs }}"
   environment: "{{ run_acmesh_environment | default(omit) }}"
   register: install_result
@@ -647,7 +649,7 @@
     (run_acmesh_certs is not defined) or
     (install_result.rc != 0 and 'Installing' not in install_result.stdout) or
     (install_result.rc != 0 and ((install_result.stderr_lines | length) > 0) and 'Reload error' not in install_result.stderr)
-  become_user: "root" # run as root and specify --config-home {{ run_acmesh_config['config_home'] }} to be able to install the files whereever needed
+  become_user: "root" # run as root and specify --config-home {{ run_acmesh_cfg_config_home }} to be able to install the files whereever needed
   when:
     - __run_acmesh_version_installed
     - run_acmesh_certs is defined
@@ -655,9 +657,9 @@
 
 - name: "Setup | Default | gather certificate information"
   ansible.builtin.command:
-    cmd: "./acme.sh --list --certhome {{ run_acmesh_config['cert_home'] }}"
+    cmd: "./acme.sh --list --certhome {{ run_acmesh_cfg_cert_home }}"
   args:
-    chdir: "{{ run_acmesh_config['home'] }}"
+    chdir: "{{ run_acmesh_cfg_home }}"
   changed_when: false
   register: acmesh_list_domains
   become_user: "{{ run_acmesh_user }}"
