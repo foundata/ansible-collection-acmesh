@@ -32,22 +32,22 @@
     - "run_acmesh_setup"
 
 
-# - name: "Main | Include configuration tasks: default first, then best platform match (if any)"
-#   ansible.builtin.include_tasks:
-#     file: "{{ __run_acmesh_task_file }}"
-#     apply:
-#       tags:
-#         - "run_acmesh_config"
-#   loop: "{{ ['default.yml'] + __run_acmesh_platform_filenames_most_specific_first }}"
-#   loop_control:
-#     index_var: "__run_acmesh_loop_index"
-#   vars:
-#     __run_acmesh_task_file: "{{ role_path }}/tasks/config/{{ item }}"
-#   when:
-#     - __run_acmesh_task_file is file
-#     - __run_acmesh_loop_index <= 1
-#   tags:
-#     - "run_acmesh_config"
+- name: "Main | Include configuration tasks: default first, then best platform match (if any)"
+  ansible.builtin.include_tasks:
+    file: "{{ __run_acmesh_task_file }}"
+    apply:
+      tags:
+        - "run_acmesh_config"
+  loop: "{{ ['default.yml'] + __run_acmesh_platform_filenames_most_specific_first }}"
+  loop_control:
+    index_var: "__run_acmesh_loop_index"
+  vars:
+    __run_acmesh_task_file: "{{ role_path }}/tasks/config/{{ item }}"
+  when:
+    - __run_acmesh_task_file is file
+    - __run_acmesh_loop_index <= 1
+  tags:
+    - "run_acmesh_config"
 
 
 # - name: "Main | Include service or daemon management tasks: default first, then best platform match (if any)"

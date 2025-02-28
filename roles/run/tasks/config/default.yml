@@ -2,13 +2,60 @@
 
 ---
 
-# these steps should configure the remote host/software
-# Eg. configuration files for services which change often
+- name: "Config | Default | Configure acme.sh"
+  # The command module is used here. This approach is justified:
+  #
+  # - No built-in Ansible module provides a direct way to interact with acme.sh.
+  # - Inline templating allows for safe and efficient parameter handling,
+  #   avoiding the need for multiple additional tasks with little to no benefit.
+  #
+  # Notes on the command itself:
+  #
+  # acme.sh can update, modify, or correct configuration values during
+  # execution of most subcommands. Therefore, we simply call the --info command,
+  # which itself does not perform any certificate-related actions but allows
+  # us to update the configuration. See the official documentation for a
+  # explanation of the parameters:
+  # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
+  ansible.builtin.shell:
+    cmd: |
+      __run_acmesh_checksum_before="$(sha1sum '{{ run_acmesh_cfg_config_home }}/account.conf')"
 
-# - name: "Config | Default | Copy NGINX configuration"
-#   ansible.builtin.template:
-#     src: "nginx.conf.j2"
-#     dest: "/etc/nginx/nginx.conf"
-#     owner: "root"
-#     group: "root"
-#   notify: "restart_nginx"
+      if ! ./acme.sh \
+            --info \
+            --home "{{ run_acmesh_cfg_home }}" \
+            --config-home "{{ run_acmesh_cfg_config_home }}" \
+            --certhome "{{ run_acmesh_cfg_cert_home }}" \
+            --log "{{ run_acmesh_cfg_logfile }}" \
+            --log-level {{ run_acmesh_cfg_log_level }} \
+            --syslog {{ run_acmesh_cfg_syslog }} \
+            {{ '--auto-upgrade 1'
+              if ((run_acmesh_autoupgrade is defined) and
+                  (run_acmesh_autoupgrade))
+              else
+              '--auto-upgrade 0' }} \
+            {{ '--accountemail "' ~ run_acmesh_cfg_accountemail ~ '"'
+              if ((run_acmesh_cfg_accountemail is defined) and
+                  (run_acmesh_cfg_accountemail))
+              else
+              '' }}
+      then
+        exit 1
+      fi
+
+      if [ "${__run_acmesh_checksum_before}" != "$(sha1sum '{{ run_acmesh_cfg_config_home }}/account.conf')" ]
+      then
+        printf 'Changed config file: {{ run_acmesh_cfg_config_home }}/account.conf'
+      fi
+
+      exit 0
+    executable: "/usr/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
+  args:
+    chdir: "{{ run_acmesh_cfg_home }}"
+  when:
+    - __run_acmesh_version_installed
+  register: __run_acmesh_config_result
+  changed_when:
+    - __run_acmesh_config_result.rc == 0
+    - "'Changed config file' in __run_acmesh_config_result.stdout"
+  become_user: "{{ run_acmesh_user }}"
