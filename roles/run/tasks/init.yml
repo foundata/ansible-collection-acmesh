@@ -110,7 +110,6 @@
     - (run_acmesh_certs | length) > 0
 
 
-
 - name: "Init | Determine installed version (if any)"
   # The shell module is used here. This approach is justified:
   #

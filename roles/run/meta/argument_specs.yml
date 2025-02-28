@@ -20,15 +20,6 @@ argument_specs:
           - "present"
           - "absent"
 
-      run_acmesh_service_state:
-        type: "str"
-        required: false
-        choices:
-          - "enabled"
-          - "disabled"
-          - "running"
-          - "unmanaged"
-
       run_acmesh_autoupgrade:
         type: "bool"
         required: false

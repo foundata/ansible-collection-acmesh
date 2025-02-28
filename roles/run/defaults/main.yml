@@ -23,23 +23,6 @@ run_acmesh_state: "present"
 run_acmesh_autoupgrade: false
 
 
-# String. Defines the status of the service(s). Defaults to "enabled".
-# Possible values:
-#
-# - "enabled": Service is running and will start automatically at boot.
-# - "disabled": Service is stopped and will not start automatically at boot.
-# - "running": Service is running but will not start automatically at boot.
-#   This can be used to start a service on the first Ansible run without
-#   enabling it for boot.
-# - "unmanaged": Service will not start at boot, and Ansible will not
-#   manage its running state. This is primarily useful when services are
-#   monitored and managed by systems other than Ansible.
-#
-# The singular form ("service") is used for simplicity. However, the defined
-# status applies to all services if multiple are being managed by this role.
-run_acmesh_service_state: "enabled"
-
-
 # Dictionary. Defines environment variables required for ACME DNS challenges.
 #
 # This is typically needed for DNS challenge plugins, such as those requiring
@@ -137,6 +120,7 @@ run_acmesh_cfg_config_home: "/etc/acme.sh"
 # upon renewal. See the following for more information:
 # https://github.com/acmesh-official/acme.sh/issues/2350#issuecomment-1449235599
 run_acmesh_cfg_cert_home: "/var/opt/acme.sh"
+
 
 # String. Path to the log file where acme.sh logs its operations (relates to
 # acme.sh option --log). Defaults to "/var/log/acme.sh.log".
