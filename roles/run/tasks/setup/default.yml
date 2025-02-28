@@ -95,7 +95,7 @@
     comment: "ACME client for issuing X.509 certs"
     create_home: true
     force: true
-    # FIXME create group if run_acmesh_group != run_acmesh_user  group: "{{ run_acmesh_group }}" # the (primary) group gets created automatically with the same GID as the UID when the parameter is omitted
+    # group: the (primary) group gets created automatically with the same GID as the UID when the parameter is omitted
     home: "{{ run_acmesh_config['home'] }}"
     # We first used "acme.sh" as username. However, a dot is not allowed in the
     # "User=" directive of systemd versions shipped with RHEL8 in October 2019, cf:
@@ -110,6 +110,24 @@
     system: false
     update_password: "always"
     umask: "0027"
+
+
+- name: "Setup | Default | Create an additional, non-primary group for service user"
+  ansible.builtin.group:
+    name: "{{ run_acmesh_group }}"
+    state: "present"
+    system: false
+    force: false
+  when:
+    - run_acmesh_group != run_acmesh_user # only if different from the service user's primary group
+
+
+- name: "Setup | Default | Add service user to a non-primary, additional group"
+  ansible.builtin.user:
+    name: "{{ run_acmesh_user }}"
+    groups:
+      - "{{ run_acmesh_group }}"
+    append: false # remove from all groups (except the primary one)
 
 
 - name: "Setup | Default | Create a temporary working directory"
