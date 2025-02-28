@@ -153,14 +153,14 @@
     state: "directory"
     suffix: "-acmesh"
   changed_when: false
-  register: acmesh_tempdir
+  register: __run_acmesh_tempdir
   become_user: "{{ run_acmesh_user }}"
   when: not __run_acmesh_version_installed
 
 
 - name: "Setup | Default | Display the temporary working directory's path"
   ansible.builtin.debug:
-    var: acmesh_tempdir
+    var: __run_acmesh_tempdir
     verbosity: 2
   when: not __run_acmesh_version_installed
 
@@ -170,7 +170,7 @@
     repo: "{{ __run_acme_sh_git_url }}"
     # on "master" branch as latest: https://github.com/acmesh-official/acme.sh/issues/1162
     version: "{{ (__run_acmesh_version_upstream) | ternary(__run_acmesh_version_upstream, __run_acme_sh_git_fallback_version_branch) }}"
-    dest: "{{ acmesh_tempdir['path'] }}"
+    dest: "{{ __run_acmesh_tempdir['path'] }}"
     update: true
   become_user: "{{ run_acmesh_user }}"
   when: not __run_acmesh_version_installed
@@ -202,6 +202,15 @@
 
 
 - name: "Setup | Default | Install acme.sh"
+  # The command module is used here. This approach is justified:
+  #
+  # - No built-in Ansible module provides a direct way to interact with acme.sh.
+  # - Inline templating allows for safe and efficient parameter handling,
+  #   avoiding the need for multiple additional tasks with little to no benefit.
+  #
+  # Notes on the command itself:
+  #
+  # See the official documentation for a explanation of the parameters:
   # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
   ansible.builtin.command:
     cmd:
@@ -224,7 +233,7 @@
           else
           '' }}
   args:
-    chdir: "{{ acmesh_tempdir['path'] }}"
+    chdir: "{{ __run_acmesh_tempdir['path'] }}"
     creates:
       - "{{ run_acmesh_cfg_home }}/acme.sh"
       - "{{ run_acmesh_cfg_home }}/acme.sh.env"
@@ -241,9 +250,11 @@
   #
   # Notes on the command itself:
   #
-  # --upgrade as single parameter would be sufficient in general. However, acme.sh
-  # can update / change / correct defined config values if needed in one step during
-  # every command, so it does no harm to set configuration parameters again.
+  # The --upgrade parameter alone would generally be sufficient. However, acme.sh
+  # can update, modify, or correct configuration values during execution of every
+  # subcommand. Setting the configuration parameters again ensures consistency and
+  # does no harm. See the official documentation for a explanation of the parameters:
+  # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
   ansible.builtin.command:
     cmd:
       ./acme.sh
@@ -272,8 +283,8 @@
     - run_acmesh_autoupgrade is defined
     - run_acmesh_autoupgrade
     - __run_acmesh_version_installed is version(__run_acmesh_version_upstream, 'lt', version_type='semver')
-  register: upgrade_result
-  changed_when: upgrade_result.rc == 0 and "Upgrade success" in upgrade_result.stdout
+  register: __run_acmesh_upgrade_result
+  changed_when: __run_acmesh_upgrade_result.rc == 0 and "Upgrade success" in __run_acmesh_upgrade_result.stdout
   become_user: "{{ run_acmesh_user }}"
 
 
@@ -381,7 +392,7 @@
     get_checksum: false
     get_mime: false
     get_attributes: false
-  register: acmesh_local_preseed_rsa_result
+  register: __run_acmesh_local_preseed_rsa_result
   loop: "{{ run_acmesh_certs | selectattr('domains', 'defined') | map(attribute='domains') | flatten | selectattr('name', 'defined') | map(attribute='name') | unique }}"
   become: false
   delegate_to: "localhost"
@@ -390,11 +401,11 @@
 
 - name: "Setup | Default | show data about pre-seeded cert dirs (RSA) at local source"
   ansible.builtin.debug:
-    var: acmesh_local_preseed_rsa_result
+    var: __run_acmesh_local_preseed_rsa_result
     verbosity: 3
   when:
     - run_acmesh_certs is defined
-    - acmesh_local_preseed_rsa_result is defined
+    - __run_acmesh_local_preseed_rsa_result is defined
 
 
 - name: "Setup | Default | pre-seed already issued certs (RSA) from local source (if any)"
@@ -414,7 +425,7 @@
     - item['stat'] is defined
     - item['stat']['exists']
     - item['stat']['path'] is defined
-  loop: "{{ acmesh_local_preseed_rsa_result['results'] }}"
+  loop: "{{ __run_acmesh_local_preseed_rsa_result['results'] }}"
 
 
 - name: "Setup | Default | check for pre-seeded cert dirs (ECC) at local source"
@@ -423,7 +434,7 @@
     get_checksum: false
     get_mime: false
     get_attributes: false
-  register: acmesh_local_preseed_ecc_result
+  register: __run_acmesh_local_preseed_ecc_result
   loop: "{{ run_acmesh_certs | selectattr('domains', 'defined') | map(attribute='domains') | flatten | selectattr('name', 'defined') | map(attribute='name') | unique }}"
   become: false
   delegate_to: "localhost"
@@ -432,11 +443,11 @@
 
 - name: "Setup | Default | show data about pre-seeded cert dirs (ECC) at local source"
   ansible.builtin.debug:
-    var: acmesh_local_preseed_ecc_result
+    var: __run_acmesh_local_preseed_ecc_result
     verbosity: 3
   when:
     - run_acmesh_certs is defined
-    - acmesh_local_preseed_ecc_result is defined
+    - __run_acmesh_local_preseed_ecc_result is defined
 
 
 - name: "Setup | Default | pre-seed already issued certs (ECC) from local source (if any)"
@@ -456,7 +467,7 @@
     - item['stat'] is defined
     - item['stat']['exists']
     - item['stat']['path'] is defined
-  loop: "{{ acmesh_local_preseed_ecc_result['results'] }}"
+  loop: "{{ __run_acmesh_local_preseed_ecc_result['results'] }}"
 
 
 - name: "Setup | Default | issue certificate(s)"
@@ -534,10 +545,10 @@
     chdir: "{{ run_acmesh_cfg_home }}"
   loop: "{{ run_acmesh_certs }}"
   environment: "{{ run_acmesh_environment | default(omit) }}"
-  register: issue_result
-  changed_when: issue_result.rc == 0 and 'Cert success' in issue_result.stdout
+  register: __run_acmesh_issue_result
+  changed_when: __run_acmesh_issue_result.rc == 0 and 'Cert success' in __run_acmesh_issue_result.stdout
   failed_when: (run_acmesh_certs is not defined) or
-               (issue_result.rc != 0 and 'Domains not changed' not in issue_result.stdout)
+               (__run_acmesh_issue_result.rc != 0 and 'Domains not changed' not in __run_acmesh_issue_result.stdout)
   become_user: "{{ run_acmesh_user }}"
   when:
     - __run_acmesh_version_installed
@@ -638,8 +649,8 @@
     chdir: "{{ run_acmesh_cfg_home }}"
   loop: "{{ run_acmesh_certs }}"
   environment: "{{ run_acmesh_environment | default(omit) }}"
-  register: install_result
-  changed_when: install_result.rc == 0 and "Cert success" in install_result.stdout
+  register: __run_acmesh_install_result
+  changed_when: __run_acmesh_install_result.rc == 0 and "Cert success" in __run_acmesh_install_result.stdout
   # We ignore error triggered by --reloadcmd to prevent chicken-egg problems
   # as these are usually because of yet missing services (which needs working)
   # certificates upfront and so on. Services using certs and are managed by
@@ -647,8 +658,8 @@
   failed_when: |
     (acmesh is not defined) or
     (run_acmesh_certs is not defined) or
-    (install_result.rc != 0 and 'Installing' not in install_result.stdout) or
-    (install_result.rc != 0 and ((install_result.stderr_lines | length) > 0) and 'Reload error' not in install_result.stderr)
+    (__run_acmesh_install_result.rc != 0 and 'Installing' not in __run_acmesh_install_result.stdout) or
+    (__run_acmesh_install_result.rc != 0 and ((__run_acmesh_install_result.stderr_lines | length) > 0) and 'Reload error' not in __run_acmesh_install_result.stderr)
   become_user: "root" # run as root and specify --config-home {{ run_acmesh_cfg_config_home }} to be able to install the files whereever needed
   when:
     - __run_acmesh_version_installed
@@ -661,7 +672,7 @@
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   changed_when: false
-  register: acmesh_list_domains
+  register: __run_acmesh_list_domains_result
   become_user: "{{ run_acmesh_user }}"
   when:
     - __run_acmesh_version_installed
@@ -670,9 +681,9 @@
 
 - name: "Setup | Default | show certificate information"
   ansible.builtin.debug:
-    msg: "{{ acmesh_list_domains['stdout_lines'] }}"
+    msg: "{{ __run_acmesh_list_domains_result['stdout_lines'] }}"
     verbosity: 3
   when:
     - __run_acmesh_version_installed
-    - acmesh_list_domains
+    - __run_acmesh_list_domains_result
     - ansible_verbosity > 3
