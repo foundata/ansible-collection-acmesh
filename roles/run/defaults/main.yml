@@ -191,8 +191,10 @@ run_acmesh_group: "acmesh"
 run_acmesh_cfg_accountemail: ""
 
 # String. Specifies the installation directory for the acme.sh software
-# (relates to acme.sh option --home). Defaults to "/opt/acme.sh".
+# (relates to acme.sh option --home). Defaults to "/opt/acme.sh". Will also
+# be used as home directory of the service user defined (see run_acmesh_user).
 run_acmesh_cfg_home: "/opt/acme.sh"
+
 
 # String. Defines where configuration files are stored (relates to acme.sh
 # option --config-home). Defaults to "/etc/acme.sh".

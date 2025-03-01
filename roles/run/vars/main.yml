@@ -84,20 +84,24 @@ __run_acmesh_packages_removal:
 
 # String. Specifies the Git repository URL for acme.sh.
 # This is used to fetch the acme.sh source code during installation or updates.
-__run_acme_sh_git_url: "https://github.com/acmesh-official/acme.sh.git"
+__run_acmesh_git_url: "https://github.com/acmesh-official/acme.sh.git"
 
 
 # String. Defines the Git branch to use as "latest" if no specific version
 # branch or tag is available.
 # See the following for more information on "master" branch as latest:
 # https://github.com/acmesh-official/acme.sh/issues/1162
-__run_acme_sh_git_fallback_version_branch: "master"
+__run_acmesh_git_fallback_version_branch: "master"
 
 
 # String. URL of the GitHub API endpoint to fetch the latest acme.sh release
 # information. This is used to determine the most recent version available
 # for installation or updates.
-__run_acme_sh_githubapi_release_latest_url: "https://api.github.com/repos/acmesh-official/acme.sh/releases/latest"
+__run_acmesh_githubapi_release_latest_url: "https://api.github.com/repos/acmesh-official/acme.sh/releases/latest"
+
+
+# FIXME description
+__run_acmesh_profiled_envfile: "/etc/profile.d/acme.sh.env.sh"
 
 
 # Override defaults of dependencies used by this role (if any).

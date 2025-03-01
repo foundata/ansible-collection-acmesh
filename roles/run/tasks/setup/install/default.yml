@@ -21,6 +21,7 @@
 
 
 - name: "Setup | Install | Default | Determine upstream version (latest)"
+  # FIXME / TODO
   # The shell module is used here, but this approach is NOT justified and
   # should be replaced in a future version of this role. Reasons:
   #
@@ -34,7 +35,7 @@
   ansible.builtin.shell:
     cmd: |
       __run_acmesh_version_upstream=''
-      __run_acmesh_version_upstream="$(curl -s -L {{ __run_acme_sh_githubapi_release_latest_url }} | jq -r '.tag_name' | sed -e 's/^v//g')"
+      __run_acmesh_version_upstream="$(curl -s -L {{ __run_acmesh_githubapi_release_latest_url }} | jq -r '.tag_name' | sed -e 's/^v//g')"
       if ! printf '%s' "${__run_acmesh_version_upstream}" | grep -E -q -e '^[[:digit:]\.]*$'
       then
         __run_acmesh_version_upstream=''
@@ -104,8 +105,6 @@
     suffix: "-acmesh"
   changed_when: false
   register: __run_acmesh_tempdir
-  become: true
-  become_user: "{{ run_acmesh_user }}"
   when:
     - not __run_acmesh_version_installed
 
@@ -118,20 +117,18 @@
     - not __run_acmesh_version_installed
 
 
-- name: "Setup | Install | Default | git clone {{ __run_acme_sh_git_url }}"
+- name: "Setup | Install | Default | git clone {{ __run_acmesh_git_url }}"
   ansible.builtin.git:
-    repo: "{{ __run_acme_sh_git_url }}"
+    repo: "{{ __run_acmesh_git_url }}"
     # on "master" branch as latest: https://github.com/acmesh-official/acme.sh/issues/1162
-    version: "{{ (__run_acmesh_version_upstream) | ternary(__run_acmesh_version_upstream, __run_acme_sh_git_fallback_version_branch) }}"
+    version: "{{ (__run_acmesh_version_upstream) | ternary(__run_acmesh_version_upstream, __run_acmesh_git_fallback_version_branch) }}"
     dest: "{{ __run_acmesh_tempdir['path'] }}"
     update: true
-  become: true
-  become_user: "{{ run_acmesh_user }}"
   when:
     - not __run_acmesh_version_installed
 
 
-- name: "Setup | Install | Default | Ensure that needed directories are existing"
+- name: "Setup | Install | Default | Ensure existence and permissions of main directories"
   ansible.builtin.file:
     path: "{{ item }}"
     state: "directory"
@@ -144,14 +141,14 @@
     - "{{ run_acmesh_cfg_cert_home }}"
 
 
-- name: "Setup | Install | Default | Ensure that needed files are existing"
+- name: "Setup | Install | Default | Ensure log file existence"
   ansible.builtin.copy:
     dest: "{{ item }}"
     content: ""
-    force: false # do only create an empty file if not already existing
+    force: false # create file only if it is not already existing
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
-    mode: "u=rw,g=r,o=" # 0640
+    mode: "u=rw,g=,o=" # 0600
   loop:
     - "{{ run_acmesh_cfg_logfile }}"
 
@@ -168,7 +165,7 @@
   # See the official documentation for a explanation of the parameters:
   # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
   ansible.builtin.command:
-    cmd:
+    cmd: >
       ./acme.sh
         --install
         --home "{{ run_acmesh_cfg_home }}"
@@ -177,7 +174,6 @@
         --log "{{ run_acmesh_cfg_logfile }}"
         --log-level {{ run_acmesh_cfg_log_level }}
         --syslog {{ run_acmesh_cfg_syslog }}
-        --no-profile
         {{ '--auto-upgrade 1'
           if ((run_acmesh_autoupgrade is defined) and
               (run_acmesh_autoupgrade))
@@ -191,8 +187,6 @@
   args:
     chdir: "{{ __run_acmesh_tempdir['path'] }}"
     creates: "{{ run_acmesh_cfg_home }}/acme.sh"
-  become: true
-  become_user: "{{ run_acmesh_user }}"
   when:
     - not __run_acmesh_version_installed
 
@@ -212,7 +206,7 @@
   # does no harm. See the official documentation for a explanation of the parameters:
   # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
   ansible.builtin.command:
-    cmd:
+    cmd: >
       ./acme.sh
         --upgrade
         --home "{{ run_acmesh_cfg_home }}"
@@ -221,7 +215,6 @@
         --log "{{ run_acmesh_cfg_logfile }}"
         --log-level {{ run_acmesh_cfg_log_level }}
         --syslog {{ run_acmesh_cfg_syslog }}
-        --no-profile
         {{ '--auto-upgrade 1'
           if ((run_acmesh_autoupgrade is defined) and
               (run_acmesh_autoupgrade))
@@ -235,8 +228,6 @@
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   register: __run_acmesh_upgrade_result
-  become: true
-  become_user: "{{ run_acmesh_user }}"
   changed_when:
     - __run_acmesh_upgrade_result.rc == 0
     - "'Upgrade success' in __run_acmesh_upgrade_result.stdout"
@@ -289,6 +280,15 @@
     verbosity: 1
 
 
+- name: "Setup | Install | Default | Check if acme.sh.env file exists"
+  ansible.builtin.stat:
+    path: "{{ run_acmesh_cfg_home }}/acme.sh.env" # might be missing if acme.sh was installed with --no-profile
+    get_checksum: false
+    get_mime: false
+    get_attributes: false
+  register: __run_acmesh_envfile_stat_result
+
+
 # By default, the .bashrc of the user who called the installer gets
 # adapted for a proper acme.sh command alias with the needed options.
 # We will make this alias globally valid by linking it plus removing
@@ -296,43 +296,26 @@
 - name: "Setup | Install | Default | Symlink env file for profile.d"
   ansible.builtin.file:
     src: "{{ run_acmesh_cfg_home }}/acme.sh.env"
-    dest: "/etc/profile.d/acme.sh.env.sh"
+    dest: "{{ __run_acmesh_profiled_envfile }}"
     state: "link"
+  when:
+    - __run_acmesh_envfile_stat_result is defined
+    - __run_acmesh_envfile_stat_result['stat']['exists']
 
 
-# - name: "Setup | Install | Default | Remove redundant env file sourcing from the user's .bashrc"
-#   ansible.builtin.lineinfile:
-#     path: "~/.bashrc"
-#     state: "absent"
-#     regexp: "^\\. \"{{ run_acmesh_cfg_home }}/acme.sh.env\"$"
-#   become: true
-#   become_user: "{{ run_acmesh_user }}"
+- name: "Setup | Install | Default | Remove redundant env file sourcing from the user's .bashrc"
+  ansible.builtin.lineinfile:
+    path: "{{ run_acmesh_cfg_home }}/.bashrc"
+    state: "absent"
+    regexp: "^\\. \"{{ run_acmesh_cfg_home }}/acme.sh.env\"$"
+  when:
+    - __run_acmesh_envfile_stat_result is defined
+    - __run_acmesh_envfile_stat_result['stat']['exists']
 
 
-- name: "Setup | Install | Default | Set permissions of env file"
-  ansible.builtin.file:
-    path: "{{ item }}"
-    owner: "{{ run_acmesh_user }}"
-    group: "{{ run_acmesh_group }}"
-    mode: "u=rw,g=r,o=r" # 0644
-  loop:
-    - "{{ run_acmesh_cfg_home }}/acme.sh.env"
-
-
-# This is an additional safeguard (block group member's too) as the config
-# file usually contains DNS provider credentials.
-- name: "Setup | Install | Default | Restrict permissions of account file"
-  ansible.builtin.file:
-    path: "{{ item }}"
-    owner: "{{ run_acmesh_user }}"
-    group: "{{ run_acmesh_group }}"
-    mode: "u=rw,g=,o=" # 0600
-  loop:
-    - "{{ run_acmesh_cfg_config_home }}/account.conf"
-
-
-# TODO: To be removed in future versions of this role once all acme.sh versions ≤ 3.0.6
-# are guaranteed to be absent in all environments, or by mid-2025—whichever comes first.
+# TODO
+# remove in future versions of this role once all acme.sh versions ≤ 3.0.6 are
+# guaranteed to be absent in all environments.
 # https://github.com/acmesh-official/acme.sh/issues/4763#issuecomment-1695832047
 - name: "Setup | Install | Default | Temporary workaround for issue 4763 (dns_inwx broken in versions <= 3.0.6)"
   ansible.builtin.lineinfile:
@@ -343,6 +326,84 @@
   when:
     - __run_acmesh_version_installed
     - __run_acmesh_version_installed is version('3.0.6', 'le', version_type='semver')
+
+
+- name: "Setup | Install | Default | Find directories belonging to acme.sh"
+  ansible.builtin.find:
+    paths:
+      - "{{ run_acmesh_cfg_home }}"
+      - "{{ run_acmesh_cfg_config_home }}"
+      - "{{ run_acmesh_cfg_cert_home }}"
+    file_type: "directory"
+    recurse: true
+    hidden: true
+    get_checksum: false
+  register: __run_acmesh_dirs # does not contain the dirs listed at "paths:" themselfs
+
+
+- name: "Setup | Install | Default | Find files belonging to acme.sh"
+  ansible.builtin.find:
+    paths:
+      - "{{ run_acmesh_cfg_home }}"
+      - "{{ run_acmesh_cfg_config_home }}"
+      - "{{ run_acmesh_cfg_cert_home }}"
+    file_type: "file"
+    recurse: true
+    hidden: true
+    get_checksum: false
+  register: __run_acmesh_files
+
+
+- name: "Setup | Install | Default | Set permissions of directories (restrict to owner and group)"
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: "directory"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
+    mode: "u=rwx,g=rx,o=" # 0750
+  loop: "{{ __run_acmesh_dirs.files }}"
+
+
+- name: "Setup | Install | Default | Set permissions of files (restrict to owner and group)"
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: "file"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
+    mode: "u=rw,g=r,o=" # 0640
+  loop: "{{ __run_acmesh_files.files }}"
+  when:
+    # exclude resources with special permissions (will be handled later)
+    - item.path != (run_acmesh_cfg_home ~ '/acme.sh')
+    - item.path is not regex('^' ~ run_acmesh_cfg_home ~ '/deploy/.+\.sh$')
+    - item.path is not regex('^' ~ run_acmesh_cfg_home ~ '/dnsapi/.+\.sh$')
+    - item.path is not regex('^' ~ run_acmesh_cfg_home ~ '/notify/.+\.sh$')
+    - item.path != (run_acmesh_cfg_config_home ~ '/account.conf')
+    - item.path != run_acmesh_cfg_logfile
+
+
+- name: "Setup | Install | Default | Set permission of executables (restrict to owner and group)"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
+    mode: "u=rwx,g=rx,o=" # 0755
+  with_fileglob:
+    - "{{ run_acmesh_cfg_home }}/acme.sh"
+    - "{{ run_acmesh_cfg_home }}/deploy/*.sh"
+    - "{{ run_acmesh_cfg_home }}/dnsapi/*.sh"
+    - "{{ run_acmesh_cfg_home }}/notify/*.sh"
+
+
+- name: "Setup | Install | Default | Set permissions of sensitive resources (restrict to owner)"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
+    mode: "u=rw,g=,o=" # 0600
+  loop:
+    - "{{ run_acmesh_cfg_config_home }}/account.conf" # may contain credentials (e.g. DNS API or notify credentials)
+    - "{{ run_acmesh_cfg_logfile }}"
 
 
 # These tasks for copying existing certificates can be useful in non-production
@@ -356,7 +417,8 @@
     get_attributes: false
   register: __run_acmesh_local_preseed_rsa_result
   loop: >
-    run_acmesh_certs | selectattr('domains', 'defined') | map(attribute='domains') | flatten | selectattr('name', 'defined') | map(attribute='name') | unique
+    {{ run_acmesh_certs | selectattr('domains', 'defined') | map(attribute='domains') |
+       flatten | selectattr('name', 'defined') | map(attribute='name') | unique }}
   become: false
   delegate_to: "localhost"
   when:
@@ -400,7 +462,8 @@
     get_attributes: false
   register: __run_acmesh_local_preseed_ecc_result
   loop: >
-    run_acmesh_certs | selectattr('domains', 'defined') | map(attribute='domains' | flatten | selectattr('name', 'defined') | map(attribute='name') | unique
+    {{ run_acmesh_certs | selectattr('domains', 'defined') | map(attribute='domains') |
+       flatten | selectattr('name', 'defined') | map(attribute='name') | unique }}
   become: false
   delegate_to: "localhost"
   when:
@@ -443,7 +506,7 @@
   # - Inline templating allows for safe and efficient parameter handling,
   #   avoiding the need for multiple additional tasks with little to no benefit.
   ansible.builtin.command:
-    cmd:
+    cmd: >
       ./acme.sh
         --issue
         --config-home "{{ run_acmesh_cfg_config_home }}"
@@ -542,8 +605,6 @@
   loop: "{{ run_acmesh_certs }}"
   environment: "{{ run_acmesh_environment | default(omit) }}"
   register: __run_acmesh_issue_result
-  become: true
-  become_user: "{{ run_acmesh_user }}"
   changed_when:
     - __run_acmesh_issue_result.rc == 0
     - "'Cert success' in __run_acmesh_issue_result.stdout"
@@ -559,8 +620,8 @@
   ansible.builtin.file:
     path: "{{ item['ca_file'] | dirname }}"
     state: "directory"
-    group: "acmesh"
-    owner: "acmesh"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0750
   loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('ca_file', 'defined') | list }}"
   when:
@@ -572,8 +633,8 @@
   ansible.builtin.file:
     path: "{{ item['cert_file'] | dirname }}"
     state: "directory"
-    group: "acmesh"
-    owner: "acmesh"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0750
   loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('cert_file', 'defined') | list }}"
   when:
@@ -585,8 +646,8 @@
   ansible.builtin.file:
     path: "{{ item['fullcain_file'] | dirname }}"
     state: "directory"
-    group: "acmesh"
-    owner: "acmesh"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0750
   loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('fullcain_file', 'defined') | list }}"
   when:
@@ -598,8 +659,8 @@
   ansible.builtin.file:
     path: "{{ item['key_file'] | dirname }}"
     state: "directory"
-    group: "acmesh"
-    owner: "acmesh"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0750
   loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('key_file', 'defined') | list }}"
   when:
@@ -614,7 +675,7 @@
   # - Inline templating allows for safe and efficient parameter handling,
   #   avoiding the need for multiple additional tasks with little to no benefit.
   ansible.builtin.command:
-    cmd:
+    cmd: >
       ./acme.sh
         --install-cert
         --config-home "{{ run_acmesh_cfg_config_home }}"
@@ -650,8 +711,6 @@
   loop: "{{ run_acmesh_certs }}"
   environment: "{{ run_acmesh_environment | default(omit) }}"
   register: __run_acmesh_install_result
-  become: true
-  become_user: "root" # run as root and specify --config-home {{ run_acmesh_cfg_config_home }} to be able to install the files whereever needed
   changed_when:
     - __run_acmesh_install_result.rc == 0
     - "'Cert success' in __run_acmesh_install_result.stdout"
@@ -675,13 +734,12 @@
 
 - name: "Setup | Install | Default | gather certificate information"
   ansible.builtin.command:
-    cmd: "./acme.sh --list --certhome {{ run_acmesh_cfg_cert_home }}"
+    cmd: >
+      ./acme.sh --list --certhome "{{ run_acmesh_cfg_cert_home }}"
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   changed_when: false
   register: __run_acmesh_list_domains_result
-  become: true
-  become_user: "{{ run_acmesh_user }}"
   when:
     - __run_acmesh_version_installed
     - ansible_verbosity > 3

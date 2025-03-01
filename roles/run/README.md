@@ -194,6 +194,6 @@ See `min_ansible_version` in [`meta/main.yml`](./meta/main.yml) and `__run_acmes
 
 ## External requirements<a id="requirements"></a>
 
-The role needs to be able to connect to GitHub API endpoint to fetch the latest acme.sh release information (see `__run_acme_sh_githubapi_release_latest_url` in [`vars/main.yml`](./vars/main.yml) for details).
+The role needs to be able to connect to GitHub API endpoint to fetch the latest acme.sh release information (see `__run_acmesh_githubapi_release_latest_url` in [`vars/main.yml`](./vars/main.yml) for details).
 
 Beside that, there are no special requirements not covered by Ansible itself.

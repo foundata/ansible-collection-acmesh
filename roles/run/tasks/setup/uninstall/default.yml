@@ -14,11 +14,12 @@
   # See the official documentation for a explanation of the parameters:
   # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
   ansible.builtin.command:
-    cmd: "{{ run_acmesh_cfg_home }}/acme.sh --uninstall"
+    cmd: >
+      {{ run_acmesh_cfg_home }}/acme.sh
+        --uninstall
+        --config-home "{{ run_acmesh_cfg_config_home }}"
   args:
     removes: "{{ run_acmesh_cfg_home }}/acme.sh"
-  become: true
-  become_user: "{{ run_acmesh_user }}"
   when:
     - __run_acmesh_version_installed
 
@@ -55,6 +56,7 @@
     - "{{ run_acmesh_cfg_home }}"
     - "{{ run_acmesh_cfg_config_home }}"
     - "{{ run_acmesh_cfg_logfile }}"
+    - "/etc/profile.d/acme.sh.env.sh"
 
 
 # FIXME / TODO delete additional, non-primary group for service user if it is empty
