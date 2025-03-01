@@ -1,0 +1,351 @@
+# Certificates: Manage and issue certificates
+
+---
+
+# These tasks for copying existing certificates can be useful in non-production
+# environments during development to avoid hitting CA rate limits or encountering
+# similar restrictions.
+- name: "Cert | Default | Check for pre-seeded cert dirs (RSA) at local source"
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/files/acme.sh/certhome/{{ item }}"
+    get_checksum: false
+    get_mime: false
+    get_attributes: false
+  register: __run_acmesh_local_preseed_rsa_result
+  loop: >
+    {{ run_acmesh_certs | selectattr('domains', 'defined') | map(attribute='domains') |
+       flatten | selectattr('name', 'defined') | map(attribute='name') | unique }}
+  become: false
+  delegate_to: "localhost"
+  when:
+    - run_acmesh_certs is defined
+
+
+- name: "Cert | Default | show data about pre-seeded cert dirs (RSA) at local source"
+  ansible.builtin.debug:
+    var: __run_acmesh_local_preseed_rsa_result
+    verbosity: 3
+  when:
+    - run_acmesh_certs is defined
+    - __run_acmesh_local_preseed_rsa_result is defined
+
+
+- name: "Cert | Default | pre-seed already issued certs (RSA) from local source (if any)"
+  ansible.builtin.copy:
+    src: "{{ item['stat']['path'] }}"
+    dest: "{{ run_acmesh_cfg_cert_home }}"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
+    directory_mode: "u=rwx,g=rx,o=" # 0750
+    mode: "u=rw,g=rw,o=" # 0640
+    remote_src: false
+    decrypt: true
+    force: false # do not overwrite anything if already existing on target
+  when:
+    - __run_acmesh_version_installed
+    - run_acmesh_certs is defined
+    - item['stat'] is defined
+    - item['stat']['exists']
+    - item['stat']['path'] is defined
+  loop: "{{ __run_acmesh_local_preseed_rsa_result['results'] }}"
+
+
+- name: "Cert | Default | check for pre-seeded cert dirs (ECC) at local source"
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/files/acme.sh/certhome/{{ item }}_ecc"
+    get_checksum: false
+    get_mime: false
+    get_attributes: false
+  register: __run_acmesh_local_preseed_ecc_result
+  loop: >
+    {{ run_acmesh_certs | selectattr('domains', 'defined') | map(attribute='domains') |
+       flatten | selectattr('name', 'defined') | map(attribute='name') | unique }}
+  become: false
+  delegate_to: "localhost"
+  when:
+    - run_acmesh_certs is defined
+
+
+- name: "Cert | Default | show data about pre-seeded cert dirs (ECC) at local source"
+  ansible.builtin.debug:
+    var: __run_acmesh_local_preseed_ecc_result
+    verbosity: 3
+  when:
+    - run_acmesh_certs is defined
+    - __run_acmesh_local_preseed_ecc_result is defined
+
+
+- name: "Cert | Default | pre-seed already issued certs (ECC) from local source (if any)"
+  ansible.builtin.copy:
+    src: "{{ item['stat']['path'] }}"
+    dest: "{{ run_acmesh_cfg_cert_home }}"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
+    directory_mode: "u=rwx,g=rx,o=" # 0750
+    mode: "u=rw,g=r,o=" # 0640
+    remote_src: false
+    decrypt: true
+    force: false # do not overwrite anything if already existing on target
+  when:
+    - __run_acmesh_version_installed
+    - run_acmesh_certs is defined
+    - item['stat'] is defined
+    - item['stat']['exists']
+    - item['stat']['path'] is defined
+  loop: "{{ __run_acmesh_local_preseed_ecc_result['results'] }}"
+
+
+- name: "Cert | Default | issue certificate(s)"
+  # The command module is used here. This approach is justified:
+  #
+  # - No built-in Ansible module provides a direct way to interact with acme.sh.
+  # - Inline templating allows for safe and efficient parameter handling,
+  #   avoiding the need for multiple additional tasks with little to no benefit.
+  ansible.builtin.command:
+    cmd: >
+      ./acme.sh
+        --issue
+        --config-home "{{ run_acmesh_cfg_config_home }}"
+        --certhome "{{ run_acmesh_cfg_cert_home }}"
+        {% for item_domain in item['domains'] %}
+          --domain "{{ item_domain['name'] }}"
+          {{ '--dns "' ~ item_domain['challenge']['dns_provider'] ~ '"'
+              if ((item_domain['challenge'] is defined) and
+                  (item_domain['challenge']['type'] is defined) and
+                  (item_domain['challenge']['type'] == 'dns') and
+                  (item_domain['challenge']['dns_provider'] is defined) and
+                  (item_domain['challenge']['dns_provider']))
+              else
+              '' }}
+          {{ '--domain-alias "' ~ item_domain['challenge']['domain_alias'] ~ '"'
+              if ((item_domain['challenge']['domain_alias'] is defined) and
+                  (item_domain['challenge']['domain_alias']))
+              else
+              '' }}
+          {{ '--challenge-alias "' ~ item_domain['challenge']['challenge_alias'] ~ '"'
+              if ((item_domain['challenge']['challenge_alias'] is defined) and
+                  (item_domain['challenge']['challenge_alias']))
+              else
+              '' }}
+          {{ '--webroot "' ~ item_domain['challenge']['webroot'] ~ '"'
+              if ((item_domain['challenge'] is defined) and
+                  (item_domain['challenge']['type'] is defined) and
+                  (item_domain['challenge']['type'] == 'webroot') and
+                  (item_domain['challenge']['webroot'] is defined) and
+                  (item_domain['challenge']['webroot']))
+              else
+              '' }}
+          {{ '--standalone'
+              if ((item_domain['challenge'] is defined) and
+                  (item_domain['challenge']['type'] is defined) and
+                  (item_domain['challenge']['type'] == 'standalone'))
+              else
+              '' }}
+          {{ '--httpport ' ~ item_domain['challenge']['httpport']
+              if ((item_domain['challenge']['httpport'] is defined) and
+                  (item_domain['challenge']['httpport']))
+              else
+              '' }}
+          {{ '--alpn'
+              if ((item_domain['challenge'] is defined) and
+                  (item_domain['challenge']['type'] is defined) and
+                  (item_domain['challenge']['type'] == 'alpn'))
+              else
+              '' }}
+          {{ '--tlsport ' ~ item_domain['challenge']['tlsport']
+              if ((item_domain['challenge']['tlsport'] is defined) and
+                  (item_domain['challenge']['tlsport']))
+              else
+              '' }}
+        {% endfor %}
+        {{ '--force'
+            if ((item['force'] is defined) and
+                (item['force']))
+            else
+            '' }}
+        {{ '--debug'
+            if ((item['debug'] is defined) and
+                (item['debug']))
+            else
+            '' }}
+        {{ '--dnssleep ' ~ (item['dnssleep'] | int)
+            if (item['dnssleep'] is defined)
+            else
+            '' }}
+        {{ '--pre-hook "' ~ item['pre_hook'] ~ '"'
+            if ((item['pre_hook'] is defined) and
+                (item['pre_hook']))
+            else
+            '' }}
+        {{ '--post-hook "' ~ item['post_hook'] ~ '"'
+            if ((item['post_hook'] is defined) and
+                (item['post_hook']))
+            else
+            '' }}
+        {{ '--renew-hook "' ~ item['renew_hook'] ~ '"'
+            if ((item['renew_hook'] is defined) and
+                (item['renew_hook']))
+            else
+            '' }}
+        {{ '--server "' ~ item['server'] ~ '"'
+            if ((item['server'] is defined) and
+                (item['server']))
+            else
+            '--server letsencrypt' }}
+        {{  item['extra_flags']
+            if (item['extra_flags'] is defined)
+            else
+            '' }}
+  args:
+    chdir: "{{ run_acmesh_cfg_home }}"
+  loop: "{{ run_acmesh_certs }}"
+  environment: "{{ run_acmesh_environment | default(omit) }}"
+  register: __run_acmesh_issue_result
+  changed_when:
+    - __run_acmesh_issue_result.rc == 0
+    - "'Cert success' in __run_acmesh_issue_result.stdout"
+  failed_when: >
+    (run_acmesh_certs is not defined) or
+    (__run_acmesh_issue_result.rc != 0 and 'Domains not changed' not in __run_acmesh_issue_result.stdout)
+  when:
+    - __run_acmesh_version_installed
+    - run_acmesh_certs is defined
+
+
+- name: "Cert | Default | create target directories for certificate installation(s) (based on data for --ca-file, if any)"
+  ansible.builtin.file:
+    path: "{{ item['ca_file'] | dirname }}"
+    state: "directory"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
+    mode: "u=rwx,g=rx,o=" # 0750
+  loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('ca_file', 'defined') | list }}"
+  when:
+    - __run_acmesh_version_installed
+    - run_acmesh_certs is defined
+
+
+- name: "Cert | Default | create target directories for certificate installation(s) (based on data for --cert-file, if any)"
+  ansible.builtin.file:
+    path: "{{ item['cert_file'] | dirname }}"
+    state: "directory"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
+    mode: "u=rwx,g=rx,o=" # 0750
+  loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('cert_file', 'defined') | list }}"
+  when:
+    - __run_acmesh_version_installed
+    - run_acmesh_certs is defined
+
+
+- name: "Cert | Default | create target directories for certificate installation(s) (based on data for --fullcain-file, if any)"
+  ansible.builtin.file:
+    path: "{{ item['fullcain_file'] | dirname }}"
+    state: "directory"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
+    mode: "u=rwx,g=rx,o=" # 0750
+  loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('fullcain_file', 'defined') | list }}"
+  when:
+    - __run_acmesh_version_installed
+    - run_acmesh_certs is defined
+
+
+- name: "Cert | Default | create target directories for certificate installation(s) (based on data for --key-file, if any)"
+  ansible.builtin.file:
+    path: "{{ item['key_file'] | dirname }}"
+    state: "directory"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
+    mode: "u=rwx,g=rx,o=" # 0750
+  loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('key_file', 'defined') | list }}"
+  when:
+    - __run_acmesh_version_installed
+    - run_acmesh_certs is defined
+
+
+- name: "Cert | Default | install certificate(s)"
+  # The command module is used here. This approach is justified:
+  #
+  # - No built-in Ansible module provides a direct way to interact with acme.sh.
+  # - Inline templating allows for safe and efficient parameter handling,
+  #   avoiding the need for multiple additional tasks with little to no benefit.
+  ansible.builtin.command:
+    cmd: >
+      ./acme.sh
+        --install-cert
+        --config-home "{{ run_acmesh_cfg_config_home }}"
+        --certhome "{{ run_acmesh_cfg_cert_home }}"
+        --domain "{{ item['domains'][0]['name'] }}"
+        {{ '--ca-file "' ~ item['install']['ca_file'] ~ '"'
+            if ((item['install']['ca_file'] is defined) and
+                (item['install']['ca_file']))
+            else
+            '' }}
+        {{ '--cert-file "' ~ item['install']['cert_file'] ~ '"'
+            if ((item['install']['cert_file'] is defined) and
+                (item['install']['cert_file']))
+            else
+            '' }}
+        {{ '--fullchain-file "' ~ item['install']['fullcain_file'] ~ '"'
+            if ((item['install']['fullcain_file'] is defined) and
+                (item['install']['fullcain_file']))
+            else
+            '' }}
+        {{ '--key-file "' ~ item['install']['key_file'] ~ '"'
+            if ((item['install']['key_file'] is defined) and
+                (item['install']['key_file']))
+            else
+            '' }}
+        {{ '--reloadcmd "' ~ item['install']['reloadcmd'] ~ '"'
+            if ((item['install']['reloadcmd'] is defined) and
+                (item['install']['reloadcmd']))
+            else
+            '' }}
+  args:
+    chdir: "{{ run_acmesh_cfg_home }}"
+  loop: "{{ run_acmesh_certs }}"
+  environment: "{{ run_acmesh_environment | default(omit) }}"
+  register: __run_acmesh_install_result
+  changed_when:
+    - __run_acmesh_install_result.rc == 0
+    - "'Cert success' in __run_acmesh_install_result.stdout"
+  # Errors from --reloadcmd are ignored to avoid chicken-and-egg issues. These
+  # errors typically occur when services required for reloading are not yet
+  # running because they depend on valid certificates. Services managed by
+  # Ansible that rely on these certificates should trigger relevant errors later
+  # if issues persist.
+  failed_when: >
+    (run_acmesh_certs is not defined) or
+    (__run_acmesh_install_result.rc != 0 and 'Installing' not in __run_acmesh_install_result.stdout) or
+    (
+      __run_acmesh_install_result.rc != 0 and
+      ((__run_acmesh_install_result.stderr_lines | length) > 0) and
+      'Reload error' not in __run_acmesh_install_result.stderr
+    )
+  when:
+    - __run_acmesh_version_installed
+    - run_acmesh_certs is defined
+
+
+- name: "Cert | Default | gather certificate information"
+  ansible.builtin.command:
+    cmd: >
+      ./acme.sh --list --certhome "{{ run_acmesh_cfg_cert_home }}"
+  args:
+    chdir: "{{ run_acmesh_cfg_home }}"
+  changed_when: false
+  register: __run_acmesh_list_domains_result
+  when:
+    - __run_acmesh_version_installed
+    - ansible_verbosity > 3
+
+
+- name: "Cert | Default | show certificate information"
+  ansible.builtin.debug:
+    msg: "{{ __run_acmesh_list_domains_result['stdout_lines'] }}"
+    verbosity: 3
+  when:
+    - __run_acmesh_version_installed
+    - __run_acmesh_list_domains_result
+    - ansible_verbosity > 3

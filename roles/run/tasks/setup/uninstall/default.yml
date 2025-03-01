@@ -56,7 +56,7 @@
     - "{{ run_acmesh_cfg_home }}"
     - "{{ run_acmesh_cfg_config_home }}"
     - "{{ run_acmesh_cfg_logfile }}"
-    - "/etc/profile.d/acme.sh.env.sh"
+    - "{{ __run_acmesh_profiled_envfile }}"
 
 
 # FIXME / TODO delete additional, non-primary group for service user if it is empty

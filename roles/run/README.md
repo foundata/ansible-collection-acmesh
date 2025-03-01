@@ -173,6 +173,7 @@ It might be useful and faster to only call parts of the role by using tags:
 
 - `run_acmesh_setup`: Manage basic resources, such as packages or service users.
 - `run_acmesh_config`: Manage settings, such as adapting or creating configuration files.
+- `run_acmesh_cert`: Manage and issue certificates.
 
 There are also tags usually not meant to be called directly but listed for the sake of completeness** and edge cases:
 

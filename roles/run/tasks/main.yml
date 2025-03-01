@@ -54,6 +54,26 @@
     - "run_acmesh_config"
 
 
+- name: "Main | Include certificate tasks: default first, then best platform match (if any)"
+  ansible.builtin.include_tasks:
+    file: "{{ __run_acmesh_task_file }}"
+    apply:
+      tags:
+        - "run_acmesh_cert"
+  loop: "{{ ['default.yml'] + __run_acmesh_platform_filenames_most_specific_first }}"
+  loop_control:
+    index_var: "__run_acmesh_loop_index"
+    loop_var: "__run_acmesh_loop_item"
+  vars:
+    __run_acmesh_task_file: "{{ role_path }}/tasks/cert/{{ __run_acmesh_loop_item }}"
+  when:
+    - run_acmesh_state == 'present'
+    - __run_acmesh_task_file is file
+    - __run_acmesh_loop_index <= 1
+  tags:
+    - "run_acmesh_cert"
+
+
 - name: "Main | Include setup tasks (uninstall): default first, then best platform match (if any)"
   ansible.builtin.include_tasks:
     file: "{{ __run_acmesh_task_file }}"
