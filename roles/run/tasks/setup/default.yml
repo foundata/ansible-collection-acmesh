@@ -467,6 +467,36 @@
                   (item_domain['challenge']['challenge_alias']))
               else
               '' }}
+          {{ '--webroot "' ~ item_domain['challenge']['webroot'] ~ '"'
+              if ((item_domain['challenge'] is defined) and
+                  (item_domain['challenge']['type'] is defined) and
+                  (item_domain['challenge']['type'] == 'webroot') and
+                  (item_domain['challenge']['webroot'] is defined) and
+                  (item_domain['challenge']['webroot']))
+              else
+              '' }}
+          {{ '--standalone
+              if ((item_domain['challenge'] is defined) and
+                  (item_domain['challenge']['type'] is defined) and
+                  (item_domain['challenge']['type'] == 'standalone'))
+              else
+              '' }}
+          {{ '--httpport ' ~ item_domain['challenge']['httpport']
+              if ((item_domain['challenge']['httpport'] is defined) and
+                  (item_domain['challenge']['httpport']))
+              else
+              '' }}
+          {{ '--alpn
+              if ((item_domain['challenge'] is defined) and
+                  (item_domain['challenge']['type'] is defined) and
+                  (item_domain['challenge']['type'] == 'alpn'))
+              else
+              '' }}
+          {{ '--tlsport ' ~ item_domain['challenge']['tlsport']
+              if ((item_domain['challenge']['tlsport'] is defined) and
+                  (item_domain['challenge']['tlsport']))
+              else
+              '' }}
         {% endfor %}
         {{ '--test'
             if ((item['staging'] is defined) and

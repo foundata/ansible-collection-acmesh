@@ -38,49 +38,133 @@ run_acmesh_environment:
   {} # Remove the "{}" when adding values to this dict.
 
 
-# FIXME description
-#     run_acmesh_certs:
-#       - domains:
-#           - name: "foo.example.com"
-#             challenge:  # optional parameters depend on type
-#               type: "dns"
-#               dns_provider: "dns_hetzner"
-#               challenge_alias: "foo.example.com.example.net"
-#           - name: "bar.example.com"
-#             challenge:  # optional parameters depend on type
-#               type: "dns"
-#               dns_provider: "dns_hetzner"
-#               challenge_alias: "bar.example.com.example.net"
-#         install:
-#           ca_file: "/etc/pki/tls/certs/foo.example.com/ca.cer"
-#           cert_file: "/etc/pki/tls/certs/foo.example.com/cert.cer"
-#           fullcain_file: "/etc/pki/tls/certs/foo.example.com/fullchain.cer"
-#           key_file: "/etc/pki/tls/certs/foo.example.com/cert.key"
-#           reloadcmd: "systemctl reload nginx.service; systemctl restart postfix.service"
-#         #server: "google_test" # optional, CA alias or URL, defaults to "letsencrypt". "{letsencrypt,buypass,google}_test" for staging, see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
-#         force: false  # optional
-#         debug: false # optional
-#         #post_hook: ""  # optional
-#         #renews_hook: "" # optional
-#         #extra_flags: "workaround for edge cases, put --whatever in here, used during issuing a cert"
-#       - domains:
-#           - name: "baz.example.com"
-#             challenge:  # optional parameters depend on type
-#               type: "dns"
-#               dns_provider: "dns_hetzner"
-#               challenge_alias: "example.net"
-#         install:
-#           ca_file: "/etc/pki/tls/certs/baz.example.com/ca.cer"
-#           cert_file: "/etc/pki/tls/certs/baz.example.com/cert.cer"
-#           fullcain_file: "/etc/pki/tls/certs/baz.example.com/fullchain.cer"
-#           key_file: "/etc/pki/tls/certs/baz.example.com/cert.key"
-#           reloadcmd: "systemctl reload nginx.service; systemctl restart postfix.service"
-#         #server: "google_test" # optional, CA alias or URL, defaults to "letsencrypt". "{letsencrypt,buypass,google}_test" for staging, see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
-#         force: false  # optional
-#         debug: false # optional
-#         #post_hook: ""  # optional
-#         #renews_hook: "" # optional
-#         #extra_flags: "workaround for edge cases, put --whatever in here, used during issuing a cert"
+# List. Defines certificates to be requested, their associated domains,
+# challenge methods, and installation details. Each item in the list is a
+# dictionary with the following keys:
+#
+# - domains: List of dictionaries specifying the domains to be included in the
+#   certificate request, along with their challenge configurations. If multiple
+#   domains are defined, they will be included in the same certificate as
+#   Subject Alternative Names (SANs).
+#
+#   Each dictionary in the list contains:
+#   - name: String. The domain name to request a certificate for.
+#   - challenge: Dictionary defining the ACME challenge parameters. The required
+#     parameters depend on the challenge type:
+#     - type: String. Challenge method. See
+#       https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
+#       for details. Supported values:
+#       - "dns": Uses a DNS challenge.
+#       - "webroot": Uses a webroot-based challenge.
+#       - "standalone": Uses acme.sh's builtin standalone webserver which can
+#          listen at 80 port to issue the cert.
+#       - "alpn": Uses acme.sh's builtin standalone webserver which can
+#          listen at 443 port to issue the cert.
+#     - dns_provider: String, optional. Required for "dns" challenges. Specifies
+#       the DNS provider for API-based verification. See
+#       https://github.com/acmesh-official/acme.sh/wiki/dnsapi for supported
+#       providers and their name. You usually have to provide credentials for
+#       their APIs via the "run_acmesh_environment" variable.
+#     - challenge_alias: String, optional. Used with "dns" challenges when using
+#       CNAME delegation. Requires a CNAME record such as:
+#       _acme-challenge.example.com -> _acme-challenge.example.com.example.net
+#       See https://github.com/acmesh-official/acme.sh/wiki/DNS-alias-mode for
+#       details.
+#     - webroot: String, optional. Required for "webroot" challenges. Specifies
+#       the directory where the ACME challenge response should be placed.
+#       See https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
+#       for details
+#     - httpport: String, optional. Used with "httpport" challenges. Specifies
+#       a non-standard port for acme.sh's internal HTTP webserver to listen,
+#       might be needed behind a reverse proxy or load balancer.
+#     - tlsport: String, optional. Used with "alpn" challenges. Specifies
+#       a non-standard port for acme.sh's internal HTTPS webserver to listen,
+#       might be needed behind a reverse proxy or load balancer.
+#
+# - install: Dictionary defining where to install the issued certificates.
+#   The following keys specify file paths and a reload command:
+#   - ca_file: String. Path to the certificate authority (CA) file.
+#   - cert_file: String. Path to the certificate file.
+#   - fullchain_file: String. Path to the full certificate chain file.
+#   - key_file: String. Path to the private key file.
+#   - reloadcmd: String. Command to reload or restart services after certificate
+#     renewal (e.g., web server or mail server).
+#
+# - server: String, optional. Specifies the ACME CA server to use. Defaults
+#   to "letsencrypt". Other options include:
+#   - "letsencrypt_test", "buypass_test", "google_test" for staging environments.
+#   - Custom CA URLs can also be used. See
+#     https://github.com/acmesh-official/acme.sh/wiki/Server for a full list
+#     and details.
+#
+# - force: Boolean, optional. If true, forces certificate issuance even if
+#   the current certificate is still valid. Defaults to false.
+#
+# - debug: Boolean, optional. If true, enables debug mode for troubleshooting.
+#   Defaults to false.
+#
+# - staging: Boolean, optional. If true, a staging CA will be used for testing.
+#   This parameter is deprecated—use a server with a "_test" CA instead for
+#   clearer intent and better control over the CA selection.
+#
+# - post_hook: String, optional. Command to execute after a successful
+#   certificate issuance or renewal.
+#
+# - renews_hook: String, optional. Command to execute before renewing the
+#   certificate.
+#
+# - extra_flags: String, optional. Additional CLI flags for edge cases. Useful
+#   for passing custom parameters during certificate issuance wich are not
+#   natively supported by this role, just pass them as "--foo --bar 'baz'".
+#
+# Example:
+#
+# run_acmesh_certs:
+#   # first certificate: "example.org"
+#   - domains:
+#       - name: "example.org"
+#         challenge:  # parameters depend on type
+#           type: "webroot"
+#           webroot: "/var/www/example.org"
+#     install:
+#       ca_file: "/etc/pki/tls/certs/example.org/ca.cer"
+#       cert_file: "/etc/pki/tls/certs/example.org/cert.cer"
+#       fullcain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
+#       key_file: "/etc/pki/tls/certs/example.org/cert.key"
+#       reloadcmd: "systemctl reload apache2.service;"
+#     server: "zerossl" # optional, CA alias or URL, defaults to "letsencrypt". "{letsencrypt,buypass,google}_test" for staging, see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
+#   # second certificate: "foo.example.com" with an additional "bar.example.com" SAN
+#   - domains:
+#       - name: "foo.example.com"
+#         challenge:  # parameters depend on type
+#           type: "dns"
+#           dns_provider: "dns_hetzner"
+#           challenge_alias: "foo.example.com.example.net"
+#       - name: "bar.example.com"
+#         challenge:
+#           type: "dns"
+#           dns_provider: "dns_inwx"
+#           challenge_alias: "bar.example.com.example.net"
+#     install:
+#       ca_file: "/etc/pki/tls/certs/foo.example.com/ca.cer"
+#       cert_file: "/etc/pki/tls/certs/foo.example.com/cert.cer"
+#       fullcain_file: "/etc/pki/tls/certs/foo.example.com/fullchain.cer"
+#       key_file: "/etc/pki/tls/certs/foo.example.com/cert.key"
+#       reloadcmd: "systemctl reload nginx.service; systemctl restart postfix.service"
+#     server: "letsencrypt" # optional, CA alias or URL, defaults to "letsencrypt". "{letsencrypt,buypass,google}_test" for staging, see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
+#     force: false  # optional
+#     debug: false # optional
+#     post_hook: ""  # optional
+#     renews_hook: "" # optional
+#     extra_flags: "" # optional (workaround for edge cases, put --whatever in here, used during issuing a cert")
+#
+# # Environment variables needed for the DNS API authentication for
+# # type: "dns" and dns_provider: "dns_hetzner" /  dns_provider: "dns_inwx"
+# run_acmesh_environment:
+#   HETZNER_Token: "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
+#   INWX_User: "exampleuser"
+#   INWX_Password: "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
+#
 run_acmesh_certs:
   [] # Remove the "[]" when adding values to this list.
 
@@ -94,8 +178,6 @@ run_acmesh_user: "acmesh"
 # acme.sh and its file permissions.
 run_acmesh_group: "acmesh"
 
-
-### configuration options for acme.sh.
 
 # String. Specifies the email address to be associated with the ACME account.
 # This email is used for expiration notices and recovery purposes.

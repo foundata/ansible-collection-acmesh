@@ -39,6 +39,11 @@ argument_specs:
             options:
               name:
                 type: "str"
+                choices:
+                  - "dns"
+                  - "webroot"
+                  - "standalone"
+                  - "alpn"
               challenge:
                 type: "list"
                 options:
@@ -48,6 +53,10 @@ argument_specs:
                     type: "str"
                   domain_alias:
                     type: "str"
+                  httpport:
+                    type: "int"
+                  tlsport:
+                    type: "int"
           install:
             type: "dict"
             options:
@@ -69,6 +78,8 @@ argument_specs:
             type: "bool"
           staging:
             type: "bool"
+          dnssleep:
+            type: "int"
           post_hook:
             type: "str"
           renews_hook:
