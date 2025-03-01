@@ -1,0 +1,35 @@
+# Setup: Manage basic resource removal, such as packages or service users.
+
+---
+
+- name: "Setup | Uninstall | Default | Uninstall acme.sh"
+  # The command module is used here. This approach is justified:
+  #
+  # - No built-in Ansible module provides a direct way to interact with acme.sh.
+  # - Inline templating allows for safe and efficient parameter handling,
+  #   avoiding the need for multiple additional tasks with little to no benefit.
+  #
+  # Notes on the command itself:
+  #
+  # See the official documentation for a explanation of the parameters:
+  # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
+  ansible.builtin.command:
+    cmd:
+      ./acme.sh --uninstall
+  args:
+    chdir: "{{ __run_acmesh_tempdir['path'] }}"
+    removes:
+      - "{{ run_acmesh_cfg_home }}/acme.sh"
+      - "{{ run_acmesh_cfg_home }}/acme.sh.env"
+  become_user: "{{ run_acmesh_user }}"
+  when:
+    - __run_acmesh_version_installed
+
+
+- name: "Setup | Uninstall | Remove packages"
+  ansible.builtin.package:
+    name: "{{ run_acmesh_packages_uninstall }}"
+    state: "absent"
+  when:
+    - __run_acmesh_packages_uninstall is defined
+    - (__run_acmesh_packages_uninstall | length) > 1

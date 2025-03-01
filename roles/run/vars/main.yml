@@ -53,7 +53,7 @@ __run_acmesh_supported_platforms:
       - "all"
 
 
-# List of package names to be installed when __run_acmesh_state is
+# List of package names to be installed when run_acmesh_state is
 # set to "present".
 __run_acmesh_packages_install:
   # dependencies of this role or Ansible itself
@@ -65,7 +65,7 @@ __run_acmesh_packages_install:
   - "openssl"
 
 
-# List of package names to be uninstalled when __run_acmesh_state is
+# List of package names to be uninstalled when run_acmesh_state is
 # set to "absent". This variable is useful when __run_acmesh_packages_install
 # contains packages that are required for the managed software to function but
 # should not be removed during uninstallation, as doing so could break other

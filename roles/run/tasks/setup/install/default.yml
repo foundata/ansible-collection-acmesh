@@ -1,38 +1,26 @@
-# Setup: Manage basic resource installation/removal, such as packages or service users.
+# Setup: Manage basic resource installation, such as packages or service users.
 
 ---
 
-- name: "Setup | Default | Remove unwanted packages (e.g., to prevent conflicts or resolve incompatibilities)"
+- name: "Setup | Install | Default | Remove unwanted packages (e.g., to prevent conflicts or resolve incompatibilities)"
   ansible.builtin.package:
     name: "{{ __run_acmesh_packages_removal }}"
     state: "absent"
   when:
-    - run_acmesh_state == 'present'
     - __run_acmesh__packages_removal is defined
     - (__run_acmesh__packages_removal | length) > 1
 
 
-- name: "Setup | Default | Install needed packages"
+- name: "Setup | Install | Default | Install or upgrade packages"
   ansible.builtin.package:
     name: "{{ __run_acmesh_packages_install }}"
     state: "{% if run_acmesh_autoupgrade %}latest{% else %}present{% endif %}"
   when:
-    - run_acmesh_state == 'present'
     - __run_acmesh_packages_install is defined
     - (__run_acmesh_packages_install | length) > 1
 
 
-- name: "Setup | Default | Uninstall packages (in case of software removal)"
-  ansible.builtin.package:
-    name: "{{ run_acmesh_packages_uninstall }}"
-    state: "absent"
-  when:
-    - run_acmesh_state == 'absent'
-    - __run_acmesh_packages_uninstall is defined
-    - (__run_acmesh_packages_uninstall | length) > 1
-
-
-- name: "Setup | Default | Determine upstream version (latest)"
+- name: "Setup | Install | Default | Determine upstream version (latest)"
   # The shell module is used here, but this approach is NOT justified and
   # should be replaced in a future version of this role. Reasons:
   #
@@ -59,18 +47,18 @@
   changed_when: false
 
 
-- name: "Setup | Default | Set latest upstream version as fact"
+- name: "Setup | Install | Default | Set latest upstream version as fact"
   ansible.builtin.set_fact:
     __run_acmesh_version_upstream: "{{ (__run_acmesh_version_upstream_result) | ternary(__run_acmesh_version_upstream_result['stdout'], false) }}"
 
 
-- name: "Setup | Default | Display latest upstream version (if any, false means \"nothing detected\")"
+- name: "Setup | Install | Default | Display latest upstream version (if any, false means \"nothing detected\")"
   ansible.builtin.debug:
     var: __run_acmesh_version_upstream
     verbosity: 1
 
 
-- name: "Setup | Default | Create service user"
+- name: "Setup | Install | Default | Create service user"
   ansible.builtin.user:
     comment: "ACME client for issuing X.509 certs"
     create_home: true
@@ -92,7 +80,7 @@
     umask: "0027"
 
 
-- name: "Setup | Default | Create an additional, non-primary group for service user"
+- name: "Setup | Install | Default | Create an additional, non-primary group for service user"
   ansible.builtin.group:
     name: "{{ run_acmesh_group }}"
     state: "present"
@@ -102,7 +90,7 @@
     - run_acmesh_group != run_acmesh_user # only if different from the service user's primary group
 
 
-- name: "Setup | Default | Add service user to a non-primary, additional group"
+- name: "Setup | Install | Default | Add service user to a non-primary, additional group"
   ansible.builtin.user:
     name: "{{ run_acmesh_user }}"
     groups:
@@ -110,7 +98,7 @@
     append: false # remove from all groups (except the primary one)
 
 
-- name: "Setup | Default | Create a temporary working directory"
+- name: "Setup | Install | Default | Create a temporary working directory"
   ansible.builtin.tempfile:
     state: "directory"
     suffix: "-acmesh"
@@ -120,14 +108,14 @@
   when: not __run_acmesh_version_installed
 
 
-- name: "Setup | Default | Display the temporary working directory's path"
+- name: "Setup | Install | Default | Display the temporary working directory's path"
   ansible.builtin.debug:
     var: __run_acmesh_tempdir
     verbosity: 2
   when: not __run_acmesh_version_installed
 
 
-- name: "Setup | Default | git clone {{ __run_acme_sh_git_url }}"
+- name: "Setup | Install | Default | git clone {{ __run_acme_sh_git_url }}"
   ansible.builtin.git:
     repo: "{{ __run_acme_sh_git_url }}"
     # on "master" branch as latest: https://github.com/acmesh-official/acme.sh/issues/1162
@@ -138,7 +126,7 @@
   when: not __run_acmesh_version_installed
 
 
-- name: "Setup | Default | Ensure that needed directories are existing"
+- name: "Setup | Install | Default | Ensure that needed directories are existing"
   ansible.builtin.file:
     path: "{{ item }}"
     state: "directory"
@@ -151,7 +139,7 @@
     - "{{ run_acmesh_cfg_cert_home }}"
 
 
-- name: "Setup | Default | Ensure that needed files are existing"
+- name: "Setup | Install | Default | Ensure that needed files are existing"
   ansible.builtin.copy:
     dest: "{{ item }}"
     content: ""
@@ -163,7 +151,7 @@
     - "{{ run_acmesh_cfg_logfile }}"
 
 
-- name: "Setup | Default | Install acme.sh"
+- name: "Setup | Install | Default | Install acme.sh"
   # The command module is used here. This approach is justified:
   #
   # - No built-in Ansible module provides a direct way to interact with acme.sh.
@@ -203,7 +191,7 @@
   when: not __run_acmesh_version_installed
 
 
-- name: "Setup | Default | Upgrade acme.sh"
+- name: "Setup | Install | Default | Upgrade acme.sh"
   # The command module is used here. This approach is justified:
   #
   # - No built-in Ansible module provides a direct way to interact with acme.sh.
@@ -253,7 +241,7 @@
 
 
 # update facts related to state of the local installation
-- name: "Setup | Default | Determine installed version again"
+- name: "Setup | Install | Default | Determine installed version again"
   # The shell module is used here. This approach is justified:
   #
   # - No built-in Ansible module provides a direct way to retrieve the version.
@@ -282,12 +270,12 @@
   changed_when: false
 
 
-- name: "Setup | Default | Update / overwrite installed version fact"
+- name: "Setup | Install | Default | Update / overwrite installed version fact"
   ansible.builtin.set_fact:
     __run_acmesh_version_installed: "{{ (__run_acmesh_version_installed_result) | ternary(__run_acmesh_version_installed_result['stdout'], false) }}"
 
 
-- name: "Setup | Default | Display installed version (if any, false means \"not installed\")"
+- name: "Setup | Install | Default | Display installed version (if any, false means \"not installed\")"
   ansible.builtin.debug:
     var: __run_acmesh_version_installed
     verbosity: 1
@@ -297,14 +285,14 @@
 # adapted for a proper acme.sh command alias with the needed options.
 # We will make this alias globally valid by linking it plus removing
 # the source-call from the user's .bashrc
-- name: "Setup | Default | Symlink env file for profile.d"
+- name: "Setup | Install | Default | Symlink env file for profile.d"
   ansible.builtin.file:
     src: "{{ run_acmesh_cfg_home }}/acme.sh.env"
     dest: "/etc/profile.d/acme.sh.env.sh"
     state: "link"
 
 
-- name: "Setup | Default | Remove redundant env file sourcing from the user's .bashrc"
+- name: "Setup | Install | Default | Remove redundant env file sourcing from the user's .bashrc"
   ansible.builtin.lineinfile:
     path: "~/.bashrc"
     state: "absent"
@@ -312,7 +300,7 @@
   become_user: "{{ run_acmesh_user }}"
 
 
-- name: "Setup | Default | Set permissions of env file"
+- name: "Setup | Install | Default | Set permissions of env file"
   ansible.builtin.file:
     path: "{{ item }}"
     owner: "{{ run_acmesh_user }}"
@@ -324,7 +312,7 @@
 
 # This is an additional safeguard (block group member's too) as the config
 # file usually contains DNS provider credentials.
-- name: "Setup | Default | Restrict permissions of account file"
+- name: "Setup | Install | Default | Restrict permissions of account file"
   ansible.builtin.file:
     path: "{{ item }}"
     owner: "{{ run_acmesh_user }}"
@@ -337,7 +325,7 @@
 # TODO: To be removed in future versions of this role once all acme.sh versions ≤ 3.0.6
 # are guaranteed to be absent in all environments, or by mid-2025—whichever comes first.
 # https://github.com/acmesh-official/acme.sh/issues/4763#issuecomment-1695832047
-- name: "Setup | Default | Temporary workaround for issue 4763 (dns_inwx broken in versions <= 3.0.6)"
+- name: "Setup | Install | Default | Temporary workaround for issue 4763 (dns_inwx broken in versions <= 3.0.6)"
   ansible.builtin.lineinfile:
     path: "{{ run_acmesh_cfg_home }}/dnsapi/dns_inwx.sh"
     regexp: '^([\t ]+?INWX_Cookie.+)grep \"\^(.+)$'
@@ -351,7 +339,7 @@
 # These tasks for copying existing certificates can be useful in non-production
 # environments during development to avoid hitting CA rate limits or encountering
 # similar restrictions.
-- name: "Setup | Default | Check for pre-seeded cert dirs (RSA) at local source"
+- name: "Setup | Install | Default | Check for pre-seeded cert dirs (RSA) at local source"
   ansible.builtin.stat:
     path: "{{ playbook_dir }}/files/acme.sh/certhome/{{ item }}"
     get_checksum: false
@@ -364,7 +352,7 @@
   when: run_acmesh_certs is defined
 
 
-- name: "Setup | Default | show data about pre-seeded cert dirs (RSA) at local source"
+- name: "Setup | Install | Default | show data about pre-seeded cert dirs (RSA) at local source"
   ansible.builtin.debug:
     var: __run_acmesh_local_preseed_rsa_result
     verbosity: 3
@@ -373,7 +361,7 @@
     - __run_acmesh_local_preseed_rsa_result is defined
 
 
-- name: "Setup | Default | pre-seed already issued certs (RSA) from local source (if any)"
+- name: "Setup | Install | Default | pre-seed already issued certs (RSA) from local source (if any)"
   ansible.builtin.copy:
     src: "{{ item['stat']['path'] }}"
     dest: "{{ run_acmesh_cfg_cert_home }}"
@@ -393,7 +381,7 @@
   loop: "{{ __run_acmesh_local_preseed_rsa_result['results'] }}"
 
 
-- name: "Setup | Default | check for pre-seeded cert dirs (ECC) at local source"
+- name: "Setup | Install | Default | check for pre-seeded cert dirs (ECC) at local source"
   ansible.builtin.stat:
     path: "{{ playbook_dir }}/files/acme.sh/certhome/{{ item }}_ecc"
     get_checksum: false
@@ -406,7 +394,7 @@
   when: run_acmesh_certs is defined
 
 
-- name: "Setup | Default | show data about pre-seeded cert dirs (ECC) at local source"
+- name: "Setup | Install | Default | show data about pre-seeded cert dirs (ECC) at local source"
   ansible.builtin.debug:
     var: __run_acmesh_local_preseed_ecc_result
     verbosity: 3
@@ -415,7 +403,7 @@
     - __run_acmesh_local_preseed_ecc_result is defined
 
 
-- name: "Setup | Default | pre-seed already issued certs (ECC) from local source (if any)"
+- name: "Setup | Install | Default | pre-seed already issued certs (ECC) from local source (if any)"
   ansible.builtin.copy:
     src: "{{ item['stat']['path'] }}"
     dest: "{{ run_acmesh_cfg_cert_home }}"
@@ -435,7 +423,7 @@
   loop: "{{ __run_acmesh_local_preseed_ecc_result['results'] }}"
 
 
-- name: "Setup | Default | issue certificate(s)"
+- name: "Setup | Install | Default | issue certificate(s)"
   # The command module is used here. This approach is justified:
   #
   # - No built-in Ansible module provides a direct way to interact with acme.sh.
@@ -553,7 +541,7 @@
     - run_acmesh_certs is defined
 
 
-- name: "Setup | Default | create target directories for certificate installation(s) (based on data for --ca-file, if any)"
+- name: "Setup | Install | Default | create target directories for certificate installation(s) (based on data for --ca-file, if any)"
   ansible.builtin.file:
     path: "{{ item['ca_file'] | dirname }}"
     state: "directory"
@@ -566,7 +554,7 @@
     - run_acmesh_certs is defined
 
 
-- name: "Setup | Default | create target directories for certificate installation(s) (based on data for --cert-file, if any)"
+- name: "Setup | Install | Default | create target directories for certificate installation(s) (based on data for --cert-file, if any)"
   ansible.builtin.file:
     path: "{{ item['cert_file'] | dirname }}"
     state: "directory"
@@ -579,7 +567,7 @@
     - run_acmesh_certs is defined
 
 
-- name: "Setup | Default | create target directories for certificate installation(s) (based on data for --fullcain-file, if any)"
+- name: "Setup | Install | Default | create target directories for certificate installation(s) (based on data for --fullcain-file, if any)"
   ansible.builtin.file:
     path: "{{ item['fullcain_file'] | dirname }}"
     state: "directory"
@@ -592,7 +580,7 @@
     - run_acmesh_certs is defined
 
 
-- name: "Setup | Default | create target directories for certificate installation(s) (based on data for --key-file, if any)"
+- name: "Setup | Install | Default | create target directories for certificate installation(s) (based on data for --key-file, if any)"
   ansible.builtin.file:
     path: "{{ item['key_file'] | dirname }}"
     state: "directory"
@@ -605,7 +593,7 @@
     - run_acmesh_certs is defined
 
 
-- name: "Setup | Default | install certificate(s)"
+- name: "Setup | Install | Default | install certificate(s)"
   # The command module is used here. This approach is justified:
   #
   # - No built-in Ansible module provides a direct way to interact with acme.sh.
@@ -666,7 +654,7 @@
     - run_acmesh_certs is defined
 
 
-- name: "Setup | Default | gather certificate information"
+- name: "Setup | Install | Default | gather certificate information"
   ansible.builtin.command:
     cmd: "./acme.sh --list --certhome {{ run_acmesh_cfg_cert_home }}"
   args:
@@ -679,7 +667,7 @@
     - ansible_verbosity > 3
 
 
-- name: "Setup | Default | show certificate information"
+- name: "Setup | Install | Default | show certificate information"
   ansible.builtin.debug:
     msg: "{{ __run_acmesh_list_domains_result['stdout_lines'] }}"
     verbosity: 3

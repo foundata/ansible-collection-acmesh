@@ -40,10 +40,10 @@ argument_specs:
               name:
                 type: "str"
                 choices:
-                  - "dns"
-                  - "webroot"
-                  - "standalone"
                   - "alpn"
+                  - "dns"
+                  - "standalone"
+                  - "webroot"
               challenge:
                 type: "list"
                 options:

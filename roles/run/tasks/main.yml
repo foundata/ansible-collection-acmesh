@@ -14,7 +14,7 @@
     - "run_acmesh_always"
 
 
-- name: "Main | Include setup tasks: default first, then best platform match (if any)"
+- name: "Main | Include setup tasks (install): default first, then best platform match (if any)"
   ansible.builtin.include_tasks:
     file: "{{ __run_acmesh_task_file }}"
     apply:
@@ -24,8 +24,9 @@
   loop_control:
     index_var: "__run_acmesh_loop_index"
   vars:
-    __run_acmesh_task_file: "{{ role_path }}/tasks/setup/{{ item }}"
+    __run_acmesh_task_file: "{{ role_path }}/tasks/setup/install/{{ item }}"
   when:
+    - run_acmesh_state == 'present'
     - __run_acmesh_task_file is file
     - __run_acmesh_loop_index <= 1
   tags:
@@ -44,7 +45,27 @@
   vars:
     __run_acmesh_task_file: "{{ role_path }}/tasks/config/{{ item }}"
   when:
+    - run_acmesh_state == 'present'
     - __run_acmesh_task_file is file
     - __run_acmesh_loop_index <= 1
   tags:
     - "run_acmesh_config"
+
+
+- name: "Main | Include setup tasks (uninstall): default first, then best platform match (if any)"
+  ansible.builtin.include_tasks:
+    file: "{{ __run_acmesh_task_file }}"
+    apply:
+      tags:
+        - "run_acmesh_setup"
+  loop: "{{ ['default.yml'] + __run_acmesh_platform_filenames_most_specific_first }}"
+  loop_control:
+    index_var: "__run_acmesh_loop_index"
+  vars:
+    __run_acmesh_task_file: "{{ role_path }}/tasks/setup/uninstall/{{ item }}"
+  when:
+    - run_acmesh_state == 'absent'
+    - __run_acmesh_task_file is file
+    - __run_acmesh_loop_index <= 1
+  tags:
+    - "run_acmesh_setup"
