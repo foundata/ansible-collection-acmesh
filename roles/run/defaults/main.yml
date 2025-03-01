@@ -128,7 +128,7 @@ run_acmesh_environment:
 #   # first certificate: "example.org"
 #   - domains:
 #       - name: "example.org"
-#         challenge:  # parameters depend on type
+#         challenge: # parameters depend on type
 #           type: "webroot"
 #           webroot: "/var/www/example.org"
 #     install:
@@ -137,11 +137,10 @@ run_acmesh_environment:
 #       fullcain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
 #       key_file: "/etc/pki/tls/certs/example.org/cert.key"
 #       reloadcmd: "systemctl reload apache2.service;"
-#     server: "zerossl" # optional, CA alias or URL, defaults to "letsencrypt". "{letsencrypt,buypass,google}_test" for staging, see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
 #   # second certificate: "foo.example.com" with an additional "bar.example.com" SAN
 #   - domains:
 #       - name: "foo.example.com"
-#         challenge:  # parameters depend on type
+#         challenge: # parameters depend on type
 #           type: "dns"
 #           dns_provider: "dns_hetzner"
 #           challenge_alias: "foo.example.com.example.net"
@@ -156,7 +155,9 @@ run_acmesh_environment:
 #       fullcain_file: "/etc/pki/tls/certs/foo.example.com/fullchain.cer"
 #       key_file: "/etc/pki/tls/certs/foo.example.com/cert.key"
 #       reloadcmd: "systemctl reload nginx.service; systemctl restart postfix.service"
-#     server: "letsencrypt" # optional, CA alias or URL, defaults to "letsencrypt". "{letsencrypt,buypass,google}_test" for staging, see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
+#     # optional, CA alias or URL, defaults to "letsencrypt". "{letsencrypt,buypass,google}_test"
+#     # for staging, see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
+#     server: "zerossl"
 #     force: false  # optional
 #     debug: false # optional
 #     post_hook: ""  # optional
