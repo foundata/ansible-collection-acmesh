@@ -34,9 +34,8 @@ run_acmesh_autoupgrade: false
 # Example:
 #   run_acmesh_environment:
 #     "HETZNER_Token": "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
-#
 run_acmesh_environment:
-  [] # Remove the "[]" when adding values to this list.
+  {} # Remove the "{}" when adding values to this dict.
 
 
 # FIXME description
@@ -82,7 +81,8 @@ run_acmesh_environment:
 #         #post_hook: ""  # optional
 #         #renews_hook: "" # optional
 #         #extra_flags: "workaround for edge cases, put --whatever in here, used during issuing a cert"
-run_acmesh_certs: []
+run_acmesh_certs:
+  [] # Remove the "[]" when adding values to this list.
 
 
 # String. Specifies the service user account that runs acme.sh and owns
@@ -133,5 +133,5 @@ run_acmesh_cfg_log_level: 1
 
 # Integer. Specifies what to log (relates to acme.sh option --syslog).
 # Defaults to 3. Possible values are 0 (disable syslog), 3 (errors),
-# 6 (info) and y (debug)
+# 6 (info) and 7 (debug)
 run_acmesh_cfg_syslog: 3

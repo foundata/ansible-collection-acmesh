@@ -15,11 +15,107 @@ argument_specs:
 
       run_acmesh_state:
         type: "str"
-        required: false
+        required: true
         choices:
           - "present"
           - "absent"
 
       run_acmesh_autoupgrade:
         type: "bool"
-        required: false
+        required: true
+
+      run_acmesh_environment:
+        type: "dict"
+        required: true
+
+      run_acmesh_certs:
+        type: "list"
+        elements: "dict"
+        required: true
+        options:
+          domains:
+            type: "list"
+            elements: "dict"
+            options:
+              name:
+                type: "str"
+              challenge:
+                type: "list"
+                options:
+                  type:
+                    type: "str"
+                  dns_provider:
+                    type: "str"
+                  domain_alias:
+                    type: "str"
+          install:
+            type: "dict"
+            options:
+              ca_file:
+                type: "str"
+              cert_file:
+                type: "str"
+              fullcain_file:
+                type: "str"
+              key_file:
+                type: "str"
+              reloadcmd:
+                type: "str"
+          server:
+            type: "str"
+          force:
+            type: "bool"
+          debug:
+            type: "bool"
+          staging:
+            type: "bool"
+          post_hook:
+            type: "str"
+          renews_hook:
+            type: "str"
+          extra_flags:
+            type: "str"
+
+      run_acmesh_user:
+        type: "str"
+        required: true
+
+      run_acmesh_group:
+        type: "str"
+        required: true
+
+      run_acmesh_cfg_accountemail:
+        type: "str"
+        required: true
+
+      run_acmesh_cfg_home:
+        type: "str"
+        required: true
+
+      run_acmesh_cfg_config_home:
+        type: "str"
+        required: true
+
+      run_acmesh_cfg_cert_home:
+        type: "str"
+        required: true
+
+      run_acmesh_cfg_logfile:
+        type: "str"
+        required: true
+
+      run_acmesh_cfg_log_level:
+        type: "int"
+        required: true
+        choices:
+          - 1
+          - 2
+
+      run_acmesh_cfg_syslog:
+        type: "int"
+        required: true
+        choices:
+          - 0
+          - 3
+          - 6
+          - 7
