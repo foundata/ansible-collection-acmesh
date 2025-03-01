@@ -88,28 +88,6 @@
     verbosity: 3
 
 
-- name: "Init | Check certificate settings"
-  ansible.builtin.assert:
-    that:
-      # check if there are items in the list of certs to handle...
-      - run_acmesh_certs is defined
-      - (run_acmesh_certs | length) > 0
-      # ...and at least the first one has the expected structure
-      #   certs:
-      #     - domains:
-      #         - name: "example.com"
-      #     [...]
-      # exists
-      - run_acmesh_certs[0]['domains'] is defined
-      - (run_acmesh_certs[0]['domains'] | length) > 0
-      - run_acmesh_certs[0]['domains'][0]['name'] is defined
-    fail_msg: "'run_acmesh_certs' data is invalid"
-    success_msg: "'run_acmesh_certs' data seems to be valid"
-  when:
-    - run_acmesh_certs is defined
-    - (run_acmesh_certs | length) > 0
-
-
 - name: "Init | Determine installed version (if any)"
   # The shell module is used here. This approach is justified:
   #
