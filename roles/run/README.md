@@ -10,6 +10,7 @@ Main features:
   - `alpn`, `dns` (including alias mode), `standalone`, and `webroot`.
 - Global `acme.sh` shell alias for easy access.
 - Automatic certificate renewal via cronjob.
+- Supports uploading pre-seeded certificate files before issuing new ones, which helps prevent hitting CA rate limits when frequently reinstalling target systems during development.
 
 Currently not supported:
 
@@ -145,7 +146,7 @@ Multiple domains per certificate with DNS challenge and challenge alias:
             INWX_Password: "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
 ```
 
-Uninstall (certificate files, if any, will not be removed):
+Uninstall (certificate files, if present, will be preserved):
 
 ```yaml
 ---
@@ -161,6 +162,8 @@ Uninstall (certificate files, if any, will not be removed):
       vars:
         run_acmesh_state: "absent"
 ```
+
+This role can upload backed-up acme.sh certificate folders from the Ansible control node to target systems before issuing new certificates if the files do not already exist on the target (this prevents overwriting up-to-date certificates with old ones). This helps prevent CA rate limits, especially when frequently reinstalling target systems during development.<br>To use this feature, simply back up a directory such as `www.example.com_ecc` or `example.org_rsa` from acme.sh’s certificate home (defined by `run_acmesh_cfg_cert_home`, defaulting to `/var/opt/acme.sh`). Then, place the backup under `files/acme.sh/certhome` in your playbook directory on the control node.
 
 
 
