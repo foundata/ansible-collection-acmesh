@@ -17,6 +17,7 @@
     cmd: "{{ run_acmesh_cfg_home }}/acme.sh --uninstall"
   args:
     removes: "{{ run_acmesh_cfg_home }}/acme.sh"
+  become: true
   become_user: "{{ run_acmesh_user }}"
   when:
     - __run_acmesh_version_installed

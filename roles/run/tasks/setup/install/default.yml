@@ -104,15 +104,18 @@
     suffix: "-acmesh"
   changed_when: false
   register: __run_acmesh_tempdir
+  become: true
   become_user: "{{ run_acmesh_user }}"
-  when: not __run_acmesh_version_installed
+  when:
+    - not __run_acmesh_version_installed
 
 
 - name: "Setup | Install | Default | Display the temporary working directory's path"
   ansible.builtin.debug:
     var: __run_acmesh_tempdir
     verbosity: 2
-  when: not __run_acmesh_version_installed
+  when:
+    - not __run_acmesh_version_installed
 
 
 - name: "Setup | Install | Default | git clone {{ __run_acme_sh_git_url }}"
@@ -122,8 +125,10 @@
     version: "{{ (__run_acmesh_version_upstream) | ternary(__run_acmesh_version_upstream, __run_acme_sh_git_fallback_version_branch) }}"
     dest: "{{ __run_acmesh_tempdir['path'] }}"
     update: true
+  become: true
   become_user: "{{ run_acmesh_user }}"
-  when: not __run_acmesh_version_installed
+  when:
+    - not __run_acmesh_version_installed
 
 
 - name: "Setup | Install | Default | Ensure that needed directories are existing"
@@ -172,6 +177,7 @@
         --log "{{ run_acmesh_cfg_logfile }}"
         --log-level {{ run_acmesh_cfg_log_level }}
         --syslog {{ run_acmesh_cfg_syslog }}
+        --no-profile
         {{ '--auto-upgrade 1'
           if ((run_acmesh_autoupgrade is defined) and
               (run_acmesh_autoupgrade))
@@ -185,8 +191,10 @@
   args:
     chdir: "{{ __run_acmesh_tempdir['path'] }}"
     creates: "{{ run_acmesh_cfg_home }}/acme.sh"
+  become: true
   become_user: "{{ run_acmesh_user }}"
-  when: not __run_acmesh_version_installed
+  when:
+    - not __run_acmesh_version_installed
 
 
 - name: "Setup | Install | Default | Upgrade acme.sh"
@@ -213,6 +221,7 @@
         --log "{{ run_acmesh_cfg_logfile }}"
         --log-level {{ run_acmesh_cfg_log_level }}
         --syslog {{ run_acmesh_cfg_syslog }}
+        --no-profile
         {{ '--auto-upgrade 1'
           if ((run_acmesh_autoupgrade is defined) and
               (run_acmesh_autoupgrade))
@@ -225,17 +234,18 @@
           '' }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
+  register: __run_acmesh_upgrade_result
+  become: true
+  become_user: "{{ run_acmesh_user }}"
+  changed_when:
+    - __run_acmesh_upgrade_result.rc == 0
+    - "'Upgrade success' in __run_acmesh_upgrade_result.stdout"
   when:
     - __run_acmesh_version_installed
     - __run_acmesh_version_upstream
     - run_acmesh_autoupgrade is defined
     - run_acmesh_autoupgrade
     - __run_acmesh_version_installed is version(__run_acmesh_version_upstream, 'lt', version_type='semver')
-  register: __run_acmesh_upgrade_result
-  changed_when:
-    - __run_acmesh_upgrade_result.rc == 0
-    - "'Upgrade success' in __run_acmesh_upgrade_result.stdout"
-  become_user: "{{ run_acmesh_user }}"
 
 
 # update facts related to state of the local installation
@@ -290,12 +300,13 @@
     state: "link"
 
 
-- name: "Setup | Install | Default | Remove redundant env file sourcing from the user's .bashrc"
-  ansible.builtin.lineinfile:
-    path: "~/.bashrc"
-    state: "absent"
-    regexp: "^\\. \"{{ run_acmesh_cfg_home }}/acme.sh.env\"$"
-  become_user: "{{ run_acmesh_user }}"
+# - name: "Setup | Install | Default | Remove redundant env file sourcing from the user's .bashrc"
+#   ansible.builtin.lineinfile:
+#     path: "~/.bashrc"
+#     state: "absent"
+#     regexp: "^\\. \"{{ run_acmesh_cfg_home }}/acme.sh.env\"$"
+#   become: true
+#   become_user: "{{ run_acmesh_user }}"
 
 
 - name: "Setup | Install | Default | Set permissions of env file"
@@ -344,10 +355,12 @@
     get_mime: false
     get_attributes: false
   register: __run_acmesh_local_preseed_rsa_result
-  loop: "{{ run_acmesh_certs | selectattr('domains', 'defined') | map(attribute='domains') | flatten | selectattr('name', 'defined') | map(attribute='name') | unique }}"
+  loop: >
+    run_acmesh_certs | selectattr('domains', 'defined') | map(attribute='domains') | flatten | selectattr('name', 'defined') | map(attribute='name') | unique
   become: false
   delegate_to: "localhost"
-  when: run_acmesh_certs is defined
+  when:
+    - run_acmesh_certs is defined
 
 
 - name: "Setup | Install | Default | show data about pre-seeded cert dirs (RSA) at local source"
@@ -386,10 +399,12 @@
     get_mime: false
     get_attributes: false
   register: __run_acmesh_local_preseed_ecc_result
-  loop: "{{ run_acmesh_certs | selectattr('domains', 'defined') | map(attribute='domains') | flatten | selectattr('name', 'defined') | map(attribute='name') | unique }}"
+  loop: >
+    run_acmesh_certs | selectattr('domains', 'defined') | map(attribute='domains' | flatten | selectattr('name', 'defined') | map(attribute='name') | unique
   become: false
   delegate_to: "localhost"
-  when: run_acmesh_certs is defined
+  when:
+    - run_acmesh_certs is defined
 
 
 - name: "Setup | Install | Default | show data about pre-seeded cert dirs (ECC) at local source"
@@ -527,13 +542,14 @@
   loop: "{{ run_acmesh_certs }}"
   environment: "{{ run_acmesh_environment | default(omit) }}"
   register: __run_acmesh_issue_result
+  become: true
+  become_user: "{{ run_acmesh_user }}"
   changed_when:
     - __run_acmesh_issue_result.rc == 0
     - "'Cert success' in __run_acmesh_issue_result.stdout"
   failed_when: >
     (run_acmesh_certs is not defined) or
     (__run_acmesh_issue_result.rc != 0 and 'Domains not changed' not in __run_acmesh_issue_result.stdout)
-  become_user: "{{ run_acmesh_user }}"
   when:
     - __run_acmesh_version_installed
     - run_acmesh_certs is defined
@@ -634,6 +650,8 @@
   loop: "{{ run_acmesh_certs }}"
   environment: "{{ run_acmesh_environment | default(omit) }}"
   register: __run_acmesh_install_result
+  become: true
+  become_user: "root" # run as root and specify --config-home {{ run_acmesh_cfg_config_home }} to be able to install the files whereever needed
   changed_when:
     - __run_acmesh_install_result.rc == 0
     - "'Cert success' in __run_acmesh_install_result.stdout"
@@ -645,8 +663,11 @@
   failed_when: >
     (run_acmesh_certs is not defined) or
     (__run_acmesh_install_result.rc != 0 and 'Installing' not in __run_acmesh_install_result.stdout) or
-    (__run_acmesh_install_result.rc != 0 and ((__run_acmesh_install_result.stderr_lines | length) > 0) and 'Reload error' not in __run_acmesh_install_result.stderr)
-  become_user: "root" # run as root and specify --config-home {{ run_acmesh_cfg_config_home }} to be able to install the files whereever needed
+    (
+      __run_acmesh_install_result.rc != 0 and
+      ((__run_acmesh_install_result.stderr_lines | length) > 0) and
+      'Reload error' not in __run_acmesh_install_result.stderr
+    )
   when:
     - __run_acmesh_version_installed
     - run_acmesh_certs is defined
@@ -659,6 +680,7 @@
     chdir: "{{ run_acmesh_cfg_home }}"
   changed_when: false
   register: __run_acmesh_list_domains_result
+  become: true
   become_user: "{{ run_acmesh_user }}"
   when:
     - __run_acmesh_version_installed

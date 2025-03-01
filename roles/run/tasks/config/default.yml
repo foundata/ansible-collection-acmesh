@@ -52,10 +52,11 @@
     executable: "/usr/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
-  when:
-    - __run_acmesh_version_installed
   register: __run_acmesh_config_result
+  become: true
+  become_user: "{{ run_acmesh_user }}"
   changed_when:
     - __run_acmesh_config_result.rc == 0
     - "'Changed config file' in __run_acmesh_config_result.stdout"
-  become_user: "{{ run_acmesh_user }}"
+  when:
+    - __run_acmesh_version_installed
