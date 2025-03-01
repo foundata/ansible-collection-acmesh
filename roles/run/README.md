@@ -115,13 +115,13 @@ Multiple domains per certificate with DNS challenge and challenge alias:
                 challenge:  # parameters depend on type
                   type: "dns"
                   dns_provider: "dns_hetzner"
-                   # CNAME _acme-challenge.foo.example.com => _acme-challenge.foo.example.com.example.net
+                  # CNAME _acme-challenge.foo.example.com => _acme-challenge.foo.example.com.example.net
                   challenge_alias: "foo.example.com.example.net"
               - name: "bar.example.com"
                 challenge:
                   type: "dns"
                   dns_provider: "dns_inwx"
-                   # CNAME _acme-challenge.bar.example.com => _acme-challenge.example.net
+                  # CNAME _acme-challenge.bar.example.com => _acme-challenge.example.net
                   challenge_alias: example.net"
             install:
               ca_file: "/etc/pki/tls/certs/foo.example.com/ca.cer"
@@ -138,12 +138,12 @@ Multiple domains per certificate with DNS challenge and challenge alias:
             renew_hook: "" # optional
             extra_flags: "" # optional (workaround for edge cases, put --whatever here)
 
-          # Environment variables needed for the DNS API authentication for
-          # type: "dns" and dns_provider: "dns_hetzner" /  dns_provider: "dns_inwx"
-          run_acmesh_environment:
-            HETZNER_Token: "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
-            INWX_User: "exampleuser"
-            INWX_Password: "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
+        # Environment variables needed for the DNS API authentication for
+        # type: "dns" and dns_provider: "dns_hetzner" /  dns_provider: "dns_inwx"
+        run_acmesh_environment:
+          HETZNER_Token: "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
+          INWX_User: "exampleuser"
+          INWX_Password: "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
 ```
 
 Uninstall (certificate files, if present, will be preserved):
