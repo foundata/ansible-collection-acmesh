@@ -184,9 +184,7 @@
           '' }}
   args:
     chdir: "{{ __run_acmesh_tempdir['path'] }}"
-    creates:
-      - "{{ run_acmesh_cfg_home }}/acme.sh"
-      - "{{ run_acmesh_cfg_home }}/acme.sh.env"
+    creates: "{{ run_acmesh_cfg_home }}/acme.sh"
   become_user: "{{ run_acmesh_user }}"
   when: not __run_acmesh_version_installed
 

@@ -2,7 +2,7 @@
 
 ---
 
-- name: "Setup | Uninstall | Default | Uninstall acme.sh"
+- name: "Setup | Uninstall | Default | Call uninstall action of acme.sh"
   # The command module is used here. This approach is justified:
   #
   # - No built-in Ansible module provides a direct way to interact with acme.sh.
@@ -14,22 +14,46 @@
   # See the official documentation for a explanation of the parameters:
   # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
   ansible.builtin.command:
-    cmd:
-      ./acme.sh --uninstall
+    cmd: "{{ run_acmesh_cfg_home }}/acme.sh --uninstall"
   args:
-    chdir: "{{ __run_acmesh_tempdir['path'] }}"
-    removes:
-      - "{{ run_acmesh_cfg_home }}/acme.sh"
-      - "{{ run_acmesh_cfg_home }}/acme.sh.env"
+    removes: "{{ run_acmesh_cfg_home }}/acme.sh"
   become_user: "{{ run_acmesh_user }}"
   when:
     - __run_acmesh_version_installed
 
 
-- name: "Setup | Uninstall | Remove packages"
+- name: "Setup | Uninstall | Default | Remove packages"
   ansible.builtin.package:
     name: "{{ run_acmesh_packages_uninstall }}"
     state: "absent"
   when:
     - __run_acmesh_packages_uninstall is defined
     - (__run_acmesh_packages_uninstall | length) > 1
+
+
+- name: "Setup | Uninstall | Default | Delete service user"
+  ansible.builtin.user:
+    name: "{{ run_acmesh_user }}"
+    state: "absent"
+    force: true
+    remove: true # attempts to remove directories associated with the user (e.g. home)
+
+
+- name: "Setup | Uninstall | Default | Delete service user's primary group"
+  ansible.builtin.group:
+    name: "{{ run_acmesh_user }}" # username == primary group name
+    state: "absent"
+    force: true
+
+
+- name: "Setup | Uninstall | Default | Delete files and directories (except certificates)"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: "absent"
+  loop:
+    - "{{ run_acmesh_cfg_home }}"
+    - "{{ run_acmesh_cfg_config_home }}"
+    - "{{ run_acmesh_cfg_logfile }}"
+
+
+# FIXME / TODO delete additional, non-primary group for service user if it is empty
