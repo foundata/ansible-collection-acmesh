@@ -475,7 +475,7 @@
                   (item_domain['challenge']['webroot']))
               else
               '' }}
-          {{ '--standalone
+          {{ '--standalone'
               if ((item_domain['challenge'] is defined) and
                   (item_domain['challenge']['type'] is defined) and
                   (item_domain['challenge']['type'] == 'standalone'))
@@ -486,7 +486,7 @@
                   (item_domain['challenge']['httpport']))
               else
               '' }}
-          {{ '--alpn
+          {{ '--alpn'
               if ((item_domain['challenge'] is defined) and
                   (item_domain['challenge']['type'] is defined) and
                   (item_domain['challenge']['type'] == 'alpn'))
@@ -498,11 +498,6 @@
               else
               '' }}
         {% endfor %}
-        {{ '--test'
-            if ((item['staging'] is defined) and
-                (item['staging']))
-            else
-            '' }}
         {{ '--force'
             if ((item['force'] is defined) and
                 (item['force']))
@@ -651,10 +646,11 @@
   changed_when:
     - __run_acmesh_install_result.rc == 0
     - "'Cert success' in __run_acmesh_install_result.stdout"
-  # We ignore error triggered by --reloadcmd to prevent chicken-egg problems
-  # as these are usually because of yet missing services (which needs working)
-  # certificates upfront and so on. Services using certs and are managed by
-  # Ansible should hopefull trigger other error later.
+  # Errors from --reloadcmd are ignored to avoid chicken-and-egg issues. These
+  # errors typically occur when services required for reloading are not yet
+  # running because they depend on valid certificates. Services managed by
+  # Ansible that rely on these certificates should trigger relevant errors later
+  # if issues persist.
   failed_when: >
     (run_acmesh_certs is not defined) or
     (__run_acmesh_install_result.rc != 0 and 'Installing' not in __run_acmesh_install_result.stdout) or

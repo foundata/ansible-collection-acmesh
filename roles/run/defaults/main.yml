@@ -103,10 +103,6 @@ run_acmesh_environment:
 # - debug: Boolean, optional. If true, enables debug mode for troubleshooting.
 #   Defaults to false.
 #
-# - staging: Boolean, optional. If true, a staging CA will be used for testing.
-#   This parameter is deprecated—use a server with a "_test" CA instead for
-#   clearer intent and better control over the CA selection.
-#
 # - post_hook: String, optional. Command to execute after a successful
 #   certificate issuance or renewal.
 #

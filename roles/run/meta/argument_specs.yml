@@ -76,8 +76,6 @@ argument_specs:
             type: "bool"
           debug:
             type: "bool"
-          staging:
-            type: "bool"
           dnssleep:
             type: "int"
           post_hook:
