@@ -103,11 +103,20 @@ run_acmesh_environment:
 # - debug: Boolean, optional. If true, enables debug mode for troubleshooting.
 #   Defaults to false.
 #
-# - post_hook: String, optional. Command to execute after a successful
-#   certificate issuance or renewal.
+# - pre_hook: String, optional. Command to execute before attempting certificate
+#   issuance or renewal. See
+#   https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
+#   for details.
 #
-# - renews_hook: String, optional. Command to execute before renewing the
-#   certificate.
+# - post_hook: String, optional. Command to execute after a successful
+#   certificate issuance or renewal. See
+#   https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
+#   for details.
+#
+# - renew_hook: String, optional. Command to execute after renewing the
+#   certificate. See
+#   https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
+#   for details.
 #
 # - extra_flags: String, optional. Additional CLI flags for edge cases. Useful
 #   for passing custom parameters during certificate issuance wich are not
@@ -151,7 +160,7 @@ run_acmesh_environment:
 #     force: false  # optional
 #     debug: false # optional
 #     post_hook: ""  # optional
-#     renews_hook: "" # optional
+#     renew_hook: "" # optional
 #     extra_flags: "" # optional (workaround for edge cases, put --whatever in here, used during issuing a cert")
 #
 # # Environment variables needed for the DNS API authentication for

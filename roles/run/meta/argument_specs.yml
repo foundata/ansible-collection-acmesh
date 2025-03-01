@@ -78,9 +78,11 @@ argument_specs:
             type: "bool"
           dnssleep:
             type: "int"
+          pre_hook:
+            type: "str"
           post_hook:
             type: "str"
-          renews_hook:
+          renew_hook:
             type: "str"
           extra_flags:
             type: "str"

@@ -512,6 +512,11 @@
             if (item['dnssleep'] is defined)
             else
             '' }}
+        {{ '--pre-hook "' ~ item['pre_hook'] ~ '"'
+            if ((item['pre_hook'] is defined) and
+                (item['pre_hook']))
+            else
+            '' }}
         {{ '--post-hook "' ~ item['post_hook'] ~ '"'
             if ((item['post_hook'] is defined) and
                 (item['post_hook']))
