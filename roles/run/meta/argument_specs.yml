@@ -39,17 +39,19 @@ argument_specs:
             options:
               name:
                 type: "str"
-                choices:
-                  - "alpn"
-                  - "dns"
-                  - "standalone"
-                  - "webroot"
               challenge:
-                type: "list"
+                type: "dict"
                 options:
                   type:
                     type: "str"
+                    choices:
+                      - "alpn"
+                      - "dns"
+                      - "standalone"
+                      - "webroot"
                   dns_provider:
+                    type: "str"
+                  challenge_alias:
                     type: "str"
                   domain_alias:
                     type: "str"
