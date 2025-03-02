@@ -9,14 +9,13 @@ Main features:
 - Supports multiple [challenge types](https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert):
   - `alpn`, `dns` (including alias mode), `standalone`, and `webroot`.
 - Global `acme.sh` shell alias for easy access.
-- Automatic certificate renewal via cronjob.
+- Automatic certificate renewal via systemd timer.
 - Supports uploading pre-seeded certificate files before issuing new ones, which helps prevent hitting CA rate limits when frequently reinstalling target systems during development.
 
 Currently not supported:
 
 - Apache and NGINX modes (however, you can use `extra_flags` to pass `--nginx` or `--apache` if necessary).
 - The [notify feature](https://github.com/acmesh-official/acme.sh/wiki/notify).
-- systemd timer instead of a cronjob (planned for a future release).
 
 
 

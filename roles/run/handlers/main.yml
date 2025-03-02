@@ -2,4 +2,7 @@
 
 ---
 
-# none right now
+- name: "Handlers | systemd daemon-reload"
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  listen: "run_acmesh: systemd daemon-reload"

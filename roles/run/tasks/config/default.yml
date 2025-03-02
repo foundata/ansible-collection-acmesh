@@ -56,5 +56,57 @@
   changed_when:
     - __run_acmesh_config_result.rc == 0
     - "'Changed config file' in __run_acmesh_config_result.stdout"
-  when:
-    - __run_acmesh_version_installed
+
+
+- name: "Config | Default | Create systemd unit file (acmesh-renewal.service)"
+  ansible.builtin.copy:
+    dest: "{{ __run_acmesh_systemd_renewal_servicefile }}"
+    content: |
+      [Unit]
+      Description=acme.sh - renew certificates
+      After=network-online.target
+
+      [Service]
+      Type=oneshot
+      User={{ run_acmesh_user }}
+      Group={{ run_acmesh_group }}
+      Environment="HOME={{ run_acmesh_cfg_home }}"
+      WorkingDirectory={{ run_acmesh_cfg_home }}
+      ExecStart="{{ run_acmesh_cfg_home }}"/acme.sh --cron --home "{{ run_acmesh_cfg_home }}" --config-home "{{ run_acmesh_cfg_config_home }}"
+      SuccessExitStatus=0 2
+      StandardError=journal
+      SyslogIdentifier=acme.sh
+    force: true
+    owner: "root"
+    group: "root"
+    mode: "u=rw,g=r,o=r" # 0644
+  notify: "run_acmesh: systemd daemon-reload"
+
+
+- name: "Config | Default | Create systemd unit file (acmesh-renewal.timer)"
+  ansible.builtin.copy:
+    dest: "{{ __run_acmesh_systemd_renewal_timerfile }}"
+    content: |
+      [Unit]
+      Description=acme.sh - daily certificate renewal
+
+      [Timer]
+      OnCalendar=daily
+      RandomizedDelaySec=3h
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+    force: true
+    owner: "root"
+    group: "root"
+    mode: "u=rw,g=r,o=r" # 0644
+  notify: "run_acmesh: systemd daemon-reload"
+
+
+# debugging: systemctl list-timers --all; systemd-analyze verify acmesh-renewal.timer
+- name: "Config | Default | Manage (enable or disabled) acmesh-renewal.timer"
+  ansible.builtin.systemd_service:
+    name: "acmesh-renewal.timer"
+    enabled: "{{ run_acmesh_autorenewal }}"
+    daemon_reload: true

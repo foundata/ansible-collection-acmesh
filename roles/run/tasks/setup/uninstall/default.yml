@@ -48,6 +48,12 @@
     force: true
 
 
+- name: "Setup | Uninstall | Disable acmesh-renewal.timer"
+  ansible.builtin.systemd_service:
+    name: "acmesh-renewal.timer"
+    enabled: false
+
+
 - name: "Setup | Uninstall | Default | Delete files and directories (except certificates)"
   ansible.builtin.file:
     path: "{{ item }}"
@@ -57,6 +63,11 @@
     - "{{ run_acmesh_cfg_config_home }}"
     - "{{ run_acmesh_cfg_logfile }}"
     - "{{ __run_acmesh_profiled_envfile }}"
+    - "{{ __run_acmesh_systemd_renewal_servicefile }}"
+    - "{{ __run_acmesh_systemd_renewal_timerfile }}"
+
+
+
 
 
 # FIXME / TODO delete additional, non-primary group for service user if it is empty

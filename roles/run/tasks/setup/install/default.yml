@@ -412,3 +412,4 @@
     state: "absent"
   when:
     - __run_acmesh_tempdir is defined
+    - __run_acmesh_tempdir['path'] is defined

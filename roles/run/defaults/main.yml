@@ -23,6 +23,11 @@ run_acmesh_state: "present"
 run_acmesh_autoupgrade: false
 
 
+# Boolean. Enables daily automatic certificate renewal via systemd timer.
+# Defaults to true.
+run_acmesh_autorenewal: true
+
+
 # Dictionary. Defines environment variables required for ACME DNS challenges.
 #
 # This is typically needed for DNS challenge plugins, such as those requiring

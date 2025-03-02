@@ -24,6 +24,10 @@ argument_specs:
         type: "bool"
         required: true
 
+      run_acmesh_autorenewal:
+        type: "bool"
+        required: true
+
       run_acmesh_environment:
         type: "dict"
         required: true
