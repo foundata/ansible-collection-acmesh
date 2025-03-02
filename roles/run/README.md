@@ -2,34 +2,37 @@
 
 The `foundata.acmesh.run` Ansible role (part if the `foundata.acmesh` Ansible collection). It provides automated management of ACME certificates using acme.sh.
 
-Main features:
-
-- **Dedicated, configurable storage locations** for installation, configuration, and certificate files.
-- This role uses a **dedicated, non-root (rootless) service user and group** for improved security, controlled via the `run_acmesh_user` and `run_acmesh_group` variables:
-  - By default, other users cannot read certificates managed by `acme.sh`. See the [usage examples](#examples) for ways to grant access if needed.
-  - By default, the service user defined by `run_acmesh_user` does not have permission to restart/reload privileged services. This may be required for [hooks](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) to function properly. See the [usage examples](#examples) for ways to allow service management if needed.
-- **Support for multiple [ACME challenge types](https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert):** `alpn`, `dns` (including alias mode), `standalone`, and `webroot`
-- **Global `acme.sh` shell alias** for easy execution.
-- **Automatic certificate renewal via systemd timer.**
-- **Supports uploading pre-seeded certificate files before issuing new ones**
-  - Helps prevent CA rate limits, especially when frequently reinstalling target systems during development.
-
-
-Currently not supported:
-
-- The [notify feature](https://github.com/acmesh-official/acme.sh/wiki/notify).
-- Native handling of the Apache and NGINX modes (but you can use `extra_flags` to pass `--nginx` or `--apache` if really necessary).
-
 
 
 ## Table of contents<a id="toc"></a>
 
+- [Features](#features)
 - [Role variables](#variables)
 - [Example playbooks, using this role](#examples)
 - [Supported tags](#tags)
 - [Dependencies](#dependencies)
 - [Compatibility](#compatibility)
 - [External requirements](#requirements)
+
+
+## Features<a id="features"></a>
+
+Main features:
+
+- **Dedicated, configurable storage locations** for installation, configuration, and certificate files.
+- **Dedicated, configurable service user and group (non-root, rootless)** for improved security, controlled via the `run_acmesh_user` and `run_acmesh_group` variables:
+  - By default, other users cannot read certificates managed by `acme.sh`. See the [usage examples](#examples) for ways to grant access if needed.
+  - By default, the service user defined by `run_acmesh_user` does not have permission to restart/reload privileged services. This may be required for [hooks](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) to function properly. See the [usage examples](#examples) for ways to allow service management if needed.
+- **Automatic certificate renewal via systemd timer.**
+- Support for multiple [ACME challenge types](https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert): `alpn`, `dns` (including alias mode), `standalone`, and `webroot`
+- Global `acme.sh` shell alias for easy execution.
+- **Uploading of pre-seeded certificate files before issuing new ones**: Helps to prevent hitting CA rate limits, especially when frequently reinstalling target systems during development.
+
+
+Currently not supported:
+
+- The [acme.sh notify functionality](https://github.com/acmesh-official/acme.sh/wiki/notify).
+- Native handling of the Apache and NGINX modes (but you can use `extra_flags` to pass `--nginx` or `--apache` if really necessary).
 
 
 
@@ -77,7 +80,7 @@ Using only one domain per certificate an the webroot challenge:
 ```
 
 
-By default, other users and groups cannot read the certificate files managed by `acme.sh`. To allow access, add specific service users (e.g., `www-data` or `nginx`) to the group defined by `run_acmesh_group` (defaults to `acmesh`):
+By default, other users and groups cannot read the certificate files managed by `acme.sh`. To allow access, add specific service users (e.g., `www-data` or `nginx`) to the group defined by `run_acmesh_group` (defaults to `acmesh`). [`ansible.builtin.user`](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/user_module.html) can help you with that:
 
 ```yaml
 - name: "Grant the webserver's service user read access to certs by adding it to the acmesh group"
@@ -89,7 +92,7 @@ By default, other users and groups cannot read the certificate files managed by 
 ```
 
 
-Additionally you may need to allow the service user defined by `run_acmesh_user` (defaults to `acmesh`) to reload/restart services for [hooks](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) to function. [`community.general.sudoers`](https://docs.ansible.com/ansible/latest/collections/community/general/sudoers_module.html) and the [usage examples of this role](#examples) can help you with that:
+Additionally you may need to allow the service user defined by `run_acmesh_user` (defaults to `acmesh`) to reload/restart services for [hooks](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) to function. [`community.general.sudoers`](https://docs.ansible.com/ansible/latest/collections/community/general/sudoers_module.html) can help you with that:
 
 ```yaml
 - name: "Allow the acme.sh service user to reload / restart services with managed certificates"
