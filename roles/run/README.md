@@ -1,21 +1,24 @@
 # Ansible role: `foundata.acmesh.run`
 
-The `foundata.acmesh.run` Ansible role (part if the `foundata.acmesh` Ansible collection).
+The `foundata.acmesh.run` Ansible role (part if the `foundata.acmesh` Ansible collection). It provides automated management of ACME certificates using acme.sh.
 
 Main features:
 
-- Installation, configuration, and certificate files are stored in dedicated, configurable locations.
-- Usage of a dedicated service user and group to own relevant resources.
-- Supports multiple [challenge types](https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert):
-  - `alpn`, `dns` (including alias mode), `standalone`, and `webroot`.
-- Global `acme.sh` shell alias for easy access.
-- Automatic certificate renewal via systemd timer.
-- Supports uploading pre-seeded certificate files before issuing new ones, which helps prevent hitting CA rate limits when frequently reinstalling target systems during development.
+- **Dedicated, configurable storage locations** for installation, configuration, and certificate files.
+- This role uses a **dedicated, non-root (rootless) service user and group** for improved security, controlled via the `run_acmesh_user` and `run_acmesh_group` variables:
+  - By default, other users cannot read certificates managed by `acme.sh`. See the [usage examples](#examples) for ways to grant access if needed.
+  - By default, the service user defined by `run_acmesh_user` does not have permission to restart/reload privileged services. This may be required for [hooks](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) to function properly. See the [usage examples](#examples) for ways to allow service management if needed.
+- **Support for multiple [ACME challenge types](https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert):** `alpn`, `dns` (including alias mode), `standalone`, and `webroot`
+- **Global `acme.sh` shell alias** for easy execution.
+- **Automatic certificate renewal via systemd timer.**
+- **Supports uploading pre-seeded certificate files before issuing new ones**
+  - Helps prevent CA rate limits, especially when frequently reinstalling target systems during development.
+
 
 Currently not supported:
 
-- Apache and NGINX modes (however, you can use `extra_flags` to pass `--nginx` or `--apache` if necessary).
 - The [notify feature](https://github.com/acmesh-official/acme.sh/wiki/notify).
+- Native handling of the Apache and NGINX modes (but you can use `extra_flags` to pass `--nginx` or `--apache` if really necessary).
 
 
 
@@ -47,7 +50,7 @@ Using only one domain per certificate an the webroot challenge:
 ```yaml
 ---
 
-- name: "Initialize the foundata.acmesh.run role"
+- name: "Demo of the foundata.acmesh.run role"
   hosts: localhost
   gather_facts: false
   tasks:
@@ -69,18 +72,44 @@ Using only one domain per certificate an the webroot challenge:
               cert_file: "/etc/pki/tls/certs/example.org/cert.cer"
               fullcain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
               key_file: "/etc/pki/tls/certs/example.org/cert.key"
-              reloadcmd: "systemctl reload apache2.service;"
-            server: "zerossl" # optional, CA alias or URL, defaults to "letsencrypt" see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
-
+              reloadcmd: "/bin/systemctl reload apache2.service"
+            server: "letsencrypt_test" # optional, CA alias or URL, defaults to "letsencrypt" see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
 ```
 
-Multiple domains per certificate with DNS challenge and challenge alias:
 
+By default, other users and groups cannot read the certificate files managed by `acme.sh`. To allow access, add specific service users (e.g., `www-data` or `nginx`) to the group defined by `run_acmesh_group` (defaults to `acmesh`):
+
+```yaml
+- name: "Grant the webserver's service user read access to certs by adding it to the acmesh group"
+  ansible.builtin.user:
+    name: "www-data"
+    groups:
+      - "acmesh" # the groupname get set via run_acmesh_group role variable, defaults to "acmesh"
+    append: true # do not remove existing group memberships
+```
+
+
+Additionally you may need to allow the service user defined by `run_acmesh_user` (defaults to `acmesh`) to reload/restart services for [hooks](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) to function. [`community.general.sudoers`](https://docs.ansible.com/ansible/latest/collections/community/general/sudoers_module.html) and the [usage examples of this role](#examples) can help you with that:
+
+```yaml
+- name: "Allow the acme.sh service user to reload / restart services with managed certificates"
+  community.general.sudoers:
+    name: "acmesh-service"
+    user: "acmesh" # the username get set via run_acmesh_user role variable, defaults to "acmesh"
+    commands:
+      - "/bin/systemctl reload apache2.service"
+      - "/bin/systemctl reload nginx.service"
+      - "/bin/systemctl restart postfix.service"
+    nopassword: true
+```
+
+
+Multiple domains per certificate with DNS challenge and challenge alias:
 
 ```yaml
 ---
 
-- name: "Initialize the foundata.acmesh.run role"
+- name: "Demo of the foundata.acmesh.run role (multiple domains, DNS challenge)"
   hosts: localhost
   gather_facts: false
   tasks:
@@ -130,7 +159,7 @@ Multiple domains per certificate with DNS challenge and challenge alias:
               reloadcmd: "systemctl reload nginx.service; systemctl restart postfix.service"
             # "{letsencrypt,buypass,google}_test" for staging, see
             # https://github.com/acmesh-official/acme.sh/wiki/Server
-            server: "letsencrypt_test"
+            server: "letsencrypt"
             force: false  # optional
             debug: false # optional
             post_hook: ""  # optional
@@ -150,7 +179,7 @@ Uninstall (certificate files, if present, will be preserved):
 ```yaml
 ---
 
-- name: "Initialize the foundata.acmesh.run role"
+- name: "Demo of the foundata.acmesh.run role (removal, uninstall)"
   hosts: localhost
   gather_facts: false
   tasks:
@@ -162,7 +191,12 @@ Uninstall (certificate files, if present, will be preserved):
         run_acmesh_state: "absent"
 ```
 
-This role can upload backed-up acme.sh certificate folders from the Ansible control node to target systems before issuing new certificates if the files do not already exist on the target (this prevents overwriting up-to-date certificates with old ones). This helps prevent CA rate limits, especially when frequently reinstalling target systems during development.<br>To use this feature, simply back up a directory such as `www.example.com_ecc` or `example.org_rsa` from acme.sh’s certificate home (defined by `run_acmesh_cfg_cert_home`, defaulting to `/var/opt/acme.sh`). Then, place the backup under `files/acme.sh/certhome` in your playbook directory on the control node.
+This role supports **uploading backed-up acme.sh certificate folders from the Ansible control node to target systems** before issuing new certificates. Files are only transferred if they do not already exist on the target, preventing the accidental overwrite of up-to-date certificates. This feature helps avoid CA rate limits, especially when frequently reinstalling target systems during development.
+
+**Usage:**
+
+1. Back up a certificate directory such as `www.example.com_ecc` or `example.org_rsa` from acme.sh's certificate home (`run_acmesh_cfg_cert_home`, default: `/var/opt/acme.sh`).
+2. Place the backup under `files/acme.sh/certhome` in your playbook directory on the control node.
 
 
 
