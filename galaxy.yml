@@ -29,7 +29,7 @@ dependencies:
 
 # List of file glob-like patterns to filter files or directories that should
 # not be included in the build artifact. Some are always filtered by
-# _build_files_manifest_walk, e.g. galaxy.yml, *.pyc, *.retry, and .git
+# _build_files_manifest_walk(), e.g. galaxy.yml, *.pyc, *.retry, and .git
 build_ignore:
   - ".ansible"
   - ".gitignore"
