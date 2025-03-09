@@ -6,19 +6,19 @@
 # environments during development to avoid hitting CA rate limits or encountering
 # similar restrictions.
 - name: "Cert | Default | Check for pre-seeded cert dirs (RSA) at local source"
+  delegate_to: "localhost"
+  become: false
   ansible.builtin.stat:
     path: "{{ playbook_dir }}/files/acme.sh/certhome/{{ item }}"
     get_checksum: false
     get_mime: false
     get_attributes: false
-  register: __run_acmesh_local_preseed_rsa_result
+  when:
+    - run_acmesh_certs is defined
   loop: >
     {{ run_acmesh_certs | selectattr('domains', 'defined') | map(attribute='domains') |
        flatten | selectattr('name', 'defined') | map(attribute='name') | unique }}
-  become: false
-  delegate_to: "localhost"
-  when:
-    - run_acmesh_certs is defined
+  register: __run_acmesh_local_preseed_rsa_result
 
 
 - name: "Cert | Default | show data about pre-seeded cert dirs (RSA) at local source"
@@ -51,19 +51,20 @@
 
 
 - name: "Cert | Default | check for pre-seeded cert dirs (ECC) at local source"
+  delegate_to: "localhost"
+  become: false
   ansible.builtin.stat:
     path: "{{ playbook_dir }}/files/acme.sh/certhome/{{ item }}_ecc"
     get_checksum: false
     get_mime: false
     get_attributes: false
-  register: __run_acmesh_local_preseed_ecc_result
+  when:
+    - run_acmesh_certs is defined
   loop: >
     {{ run_acmesh_certs | selectattr('domains', 'defined') | map(attribute='domains') |
        flatten | selectattr('name', 'defined') | map(attribute='name') | unique }}
-  become: false
-  delegate_to: "localhost"
-  when:
-    - run_acmesh_certs is defined
+  register: __run_acmesh_local_preseed_ecc_result
+
 
 
 - name: "Cert | Default | show data about pre-seeded cert dirs (ECC) at local source"
@@ -198,18 +199,18 @@
             '' }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
-  loop: "{{ run_acmesh_certs }}"
   environment: "{{ run_acmesh_environment | default(omit) }}"
-  register: __run_acmesh_issue_result
+  when:
+    - __run_acmesh_version_installed
+    - run_acmesh_certs is defined
   changed_when:
     - __run_acmesh_issue_result.rc == 0
     - "'Cert success' in __run_acmesh_issue_result.stdout"
   failed_when: >
     (run_acmesh_certs is not defined) or
     (__run_acmesh_issue_result.rc != 0 and 'Domains not changed' not in __run_acmesh_issue_result.stdout)
-  when:
-    - __run_acmesh_version_installed
-    - run_acmesh_certs is defined
+  loop: "{{ run_acmesh_certs }}"
+  register: __run_acmesh_issue_result
 
 
 - name: "Cert | Default | create target directories for certificate installation(s) (based on data for --ca-file, if any)"
@@ -219,10 +220,10 @@
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0750
-  loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('ca_file', 'defined') | list }}"
   when:
     - __run_acmesh_version_installed
     - run_acmesh_certs is defined
+  loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('ca_file', 'defined') | list }}"
 
 
 - name: "Cert | Default | create target directories for certificate installation(s) (based on data for --cert-file, if any)"
@@ -232,10 +233,10 @@
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0750
-  loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('cert_file', 'defined') | list }}"
   when:
     - __run_acmesh_version_installed
     - run_acmesh_certs is defined
+  loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('cert_file', 'defined') | list }}"
 
 
 - name: "Cert | Default | create target directories for certificate installation(s) (based on data for --fullcain-file, if any)"
@@ -245,10 +246,10 @@
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0750
-  loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('fullcain_file', 'defined') | list }}"
   when:
     - __run_acmesh_version_installed
     - run_acmesh_certs is defined
+  loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('fullcain_file', 'defined') | list }}"
 
 
 - name: "Cert | Default | create target directories for certificate installation(s) (based on data for --key-file, if any)"
@@ -258,10 +259,10 @@
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0750
-  loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('key_file', 'defined') | list }}"
   when:
     - __run_acmesh_version_installed
     - run_acmesh_certs is defined
+  loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('key_file', 'defined') | list }}"
 
 
 - name: "Cert | Default | install certificate(s)"
@@ -304,9 +305,10 @@
             '' }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
-  loop: "{{ run_acmesh_certs }}"
   environment: "{{ run_acmesh_environment | default(omit) }}"
-  register: __run_acmesh_install_result
+  when:
+    - __run_acmesh_version_installed
+    - run_acmesh_certs is defined
   changed_when:
     - __run_acmesh_install_result.rc == 0
     - "'Cert success' in __run_acmesh_install_result.stdout"
@@ -323,9 +325,8 @@
       ((__run_acmesh_install_result.stderr_lines | length) > 0) and
       'Reload error' not in __run_acmesh_install_result.stderr
     )
-  when:
-    - __run_acmesh_version_installed
-    - run_acmesh_certs is defined
+  loop: "{{ run_acmesh_certs }}"
+  register: __run_acmesh_install_result
 
 
 - name: "Cert | Default | gather certificate information"
@@ -334,11 +335,11 @@
       ./acme.sh --list --certhome "{{ run_acmesh_cfg_cert_home }}"
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
-  changed_when: false
-  register: __run_acmesh_list_domains_result
   when:
     - __run_acmesh_version_installed
     - ansible_verbosity > 3
+  changed_when: false
+  register: __run_acmesh_list_domains_result
 
 
 - name: "Cert | Default | show certificate information"

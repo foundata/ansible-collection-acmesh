@@ -66,8 +66,4 @@
     - "{{ __run_acmesh_systemd_renewal_servicefile }}"
     - "{{ __run_acmesh_systemd_renewal_timerfile }}"
 
-
-
-
-
 # FIXME / TODO delete additional, non-primary group for service user if it is empty

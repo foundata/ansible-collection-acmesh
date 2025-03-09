@@ -52,10 +52,10 @@
     executable: "/usr/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
-  register: __run_acmesh_config_result
   changed_when:
     - __run_acmesh_config_result.rc == 0
     - "'Changed config file' in __run_acmesh_config_result.stdout"
+  register: __run_acmesh_config_result
 
 
 - name: "Config | Default | Create systemd unit file (acmesh-renewal.service)"
