@@ -73,6 +73,8 @@
   ansible.builtin.include_vars:
     file: "{{ __run_acmesh_vars_file }}"
   loop: "{{ __run_acmesh_platform_filenames_most_specific_last }}"
+  loop_control:
+    label: "item"
   vars:
     __run_acmesh_vars_file: "{{ role_path }}/vars/{{ item }}"
   when:

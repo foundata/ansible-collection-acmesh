@@ -20,16 +20,16 @@
     apply:
       tags:
         - "run_acmesh_setup"
-  loop: "{{ ['default.yml'] + __run_acmesh_platform_filenames_most_specific_first }}"
-  loop_control:
-    index_var: "__run_acmesh_loop_index"
-    loop_var: "__run_acmesh_loop_item"
   vars:
     __run_acmesh_task_file: "{{ role_path }}/tasks/setup/install/{{ __run_acmesh_loop_item }}"
   when:
     - run_acmesh_state == 'present'
     - __run_acmesh_task_file is file
     - __run_acmesh_loop_index <= 1
+  loop: "{{ ['default.yml'] + __run_acmesh_platform_filenames_most_specific_first }}"
+  loop_control:
+    index_var: "__run_acmesh_loop_index"
+    loop_var: "__run_acmesh_loop_item"
   tags:
     - "run_acmesh_setup"
 
@@ -40,16 +40,16 @@
     apply:
       tags:
         - "run_acmesh_config"
-  loop: "{{ ['default.yml'] + __run_acmesh_platform_filenames_most_specific_first }}"
-  loop_control:
-    index_var: "__run_acmesh_loop_index"
-    loop_var: "__run_acmesh_loop_item"
   vars:
     __run_acmesh_task_file: "{{ role_path }}/tasks/config/{{ __run_acmesh_loop_item }}"
   when:
     - run_acmesh_state == 'present'
     - __run_acmesh_task_file is file
     - __run_acmesh_loop_index <= 1
+  loop: "{{ ['default.yml'] + __run_acmesh_platform_filenames_most_specific_first }}"
+  loop_control:
+    index_var: "__run_acmesh_loop_index"
+    loop_var: "__run_acmesh_loop_item"
   tags:
     - "run_acmesh_config"
 
@@ -60,16 +60,16 @@
     apply:
       tags:
         - "run_acmesh_cert"
-  loop: "{{ ['default.yml'] + __run_acmesh_platform_filenames_most_specific_first }}"
-  loop_control:
-    index_var: "__run_acmesh_loop_index"
-    loop_var: "__run_acmesh_loop_item"
   vars:
     __run_acmesh_task_file: "{{ role_path }}/tasks/cert/{{ __run_acmesh_loop_item }}"
   when:
     - run_acmesh_state == 'present'
     - __run_acmesh_task_file is file
     - __run_acmesh_loop_index <= 1
+  loop: "{{ ['default.yml'] + __run_acmesh_platform_filenames_most_specific_first }}"
+  loop_control:
+    index_var: "__run_acmesh_loop_index"
+    loop_var: "__run_acmesh_loop_item"
   tags:
     - "run_acmesh_cert"
 
@@ -80,15 +80,15 @@
     apply:
       tags:
         - "run_acmesh_setup"
-  loop: "{{ ['default.yml'] + __run_acmesh_platform_filenames_most_specific_first }}"
-  loop_control:
-    index_var: "__run_acmesh_loop_index"
-    loop_var: "__run_acmesh_loop_item"
   vars:
     __run_acmesh_task_file: "{{ role_path }}/tasks/setup/uninstall/{{ __run_acmesh_loop_item }}"
   when:
     - run_acmesh_state == 'absent'
     - __run_acmesh_task_file is file
     - __run_acmesh_loop_index <= 1
+  loop: "{{ ['default.yml'] + __run_acmesh_platform_filenames_most_specific_first }}"
+  loop_control:
+    index_var: "__run_acmesh_loop_index"
+    loop_var: "__run_acmesh_loop_item"
   tags:
     - "run_acmesh_setup"
