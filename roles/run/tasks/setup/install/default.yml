@@ -42,7 +42,7 @@
       fi
       printf '%s' "${__run_acmesh_version_upstream}"
       exit 0
-    executable: "/usr/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
+    executable: "/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
   changed_when: false
   ignore_errors: true
   register: __run_acmesh_version_upstream_result
@@ -263,7 +263,7 @@
       fi
       printf '%s' "${__run_acmesh_version_installed}"
       exit 0
-    executable: "/usr/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
+    executable: "/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
   changed_when: false
   ignore_errors: true
   register: __run_acmesh_version_installed_result

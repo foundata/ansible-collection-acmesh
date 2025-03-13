@@ -112,7 +112,7 @@
         fi
       fi
       printf '%s' "${__run_acmesh_version_installed}"
-    executable: "/usr/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
+    executable: "/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
   register: __run_acmesh_version_installed_result
   ignore_errors: true
   changed_when: false

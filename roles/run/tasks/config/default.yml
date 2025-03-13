@@ -49,7 +49,7 @@
       fi
 
       exit 0
-    executable: "/usr/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
+    executable: "/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   changed_when:
