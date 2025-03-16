@@ -1,0 +1,4 @@
+
+- name: "Molecule | Converge | Include the foundata.acmesh.run role"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"

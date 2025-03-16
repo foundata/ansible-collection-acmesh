@@ -1,0 +1,58 @@
+# Include where useful: Basic verification tasks of the testing infrastructure
+# itself.
+
+- name: "Molecule | Check infra basic (localhost) | Assert inventory groups existence"
+  delegate_to: "localhost"
+  ansible.builtin.assert:
+    that:
+      - "'molecule' in groups"
+      - "'molecule_linux' in groups"
+      - "'molecule_windows' in groups"
+    fail_msg: |
+      At least one molecule group was not found inside inventory groups: {{ groups }}
+  run_once: true # noqa: run-once[task]
+
+
+- name: "Molecule | Check infra basic (molecule_linux) | Get basic information from 'molecule_linux' targets"
+  delegate_to: "{{ item }}"
+  # ansible.builtin.raw instead of ansible.builtin.command as it works without
+  # any existing python interpreter on the target, we want to support running
+  # Molecule with nearly any image before "prepare".
+  ansible.builtin.raw: |-
+    /bin/grep "PRETTY" /etc/os-release; /bin/uname -r;
+  args:
+    executable: "/bin/bash"
+  changed_when: false
+  failed_when: false
+  loop: "{{ groups['molecule_linux'] }}"
+  loop_control:
+    label: "{{ item }}"
+  register: __testing_basicinfo_result
+
+
+- name: "Molecule | Check infra basic (localhost) | Display basic information of 'molecule_linux' targets"
+  delegate_to: "localhost"
+  ansible.builtin.debug:
+    # Using split for more readable output format
+    msg: "{{ __testing_basicinfo_result_msg.split('\n') }}"
+  vars:
+    __testing_basicinfo_result_msg: |-
+      {% for result in __testing_basicinfo_result['results'] %}
+      Host: {{ result.item }} - {{ result.stdout_lines | default(['No output']) | join(', ') }}
+      {% endfor %}
+  when:
+    - __testing_basicinfo_result is defined
+  run_once: true # noqa: run-once[task]
+
+
+# - name: "Molecule | Check infra basic (localhost) | Print all molecule_ variables"
+#   ansible.builtin.debug:
+#     msg: "{{ item.key }} = {{ item.value | to_nice_json }}"
+#     verbosity: 3
+#   when:
+#     - hostvars is defined
+#     - inventory_hostname in hostvars
+#   loop:
+#     "{{ lookup('ansible.builtin.vars') | dict2items | selectattr('key', 'match', '^molecule_') | map(attribute='key') | list }}"
+#   loop_control:
+#     label: "{{ item }}"
