@@ -14,7 +14,9 @@ authors:
   - "Andreas Haerter <ah@foundata.com>"
 
 readme: "README.md"
-description: "Manage acme.sh (shell script implementing the ACME client protocol)."
+description: >
+  Manage acme.sh (shell script implementing the ACME client protocol). Issue and
+  maintain X.509 certificates.
 repository: "https://github.com/foundata/ansible-collection-acmesh"
 tags:
   - "application"
