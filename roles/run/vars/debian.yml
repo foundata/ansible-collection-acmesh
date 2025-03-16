@@ -12,7 +12,7 @@
 # set to "present".
 __run_acmesh_packages_install:
   # dependencies of this role or Ansible itself
-  - "curl" #  to determine latest version (playbook dependency)
+  - "curl" # to determine latest version (playbook dependency)
   - "jq" # to determine latest version (playbook dependency)
   # dependencies of acme.sh
   - "cron" # provides cron daemon and 'crontab' command
