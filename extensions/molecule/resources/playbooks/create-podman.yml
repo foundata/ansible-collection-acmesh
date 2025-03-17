@@ -93,7 +93,7 @@
 
     - name: "Molecule | Create (Podman) | Fail if container is not running"
       ansible.builtin.include_tasks:
-        file: "../tasks/podman-fail.yml"
+        file: "../tasks/molecule/podman-fail.yml"
       when:
         - (item['container']['State']['ExitCode']) != 0 or (not item['container']['State']['Running'])
       run_once: true # noqa: run-once[task]
