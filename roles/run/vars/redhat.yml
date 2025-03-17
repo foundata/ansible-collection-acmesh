@@ -14,9 +14,7 @@ __run_acmesh_packages_install:
   # For executing this role and/or Ansible itself
   - "git" # Download release form upstream
   # For acme.sh
-  # - "curl" # Communicate with the CA
-  #            FIXME to be solved: not added currently as it conflicts with
-  #            "curl-minimal" without DNF "allowerasing" in many Red Hat envs.
+  - "curl" # Communicate with the CA
   - "openssl"
   # - "cronie": cron daemon and 'crontab' command
   #   Not used as a systemd timer is used instead.
