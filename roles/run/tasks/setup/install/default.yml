@@ -20,37 +20,27 @@
     - (__run_acmesh_packages_install | length) > 1
 
 
-- name: "Setup | Install | Default | Determine upstream version (latest)"
-  # FIXME / TODO
-  # The shell module is used here, but this approach is NOT justified and
-  # should be replaced in a future version of this role. Reasons:
-  #
-  # - ansible.builtin.uri provides comparable functionality to curl
-  #   (so introducing a dependency on the target machine it not justified).
-  # - community.general.json_query offers comparable capabilities as jq
-  #   (so introducing a dependency on the target machine it not justified).
-  #
-  # After replacing the shell-based implementation, review the package
-  # installation lists in /vars/*.yml to determine if any can be removed.
-  ansible.builtin.shell:
-    cmd: |
-      __run_acmesh_version_upstream=''
-      __run_acmesh_version_upstream="$(curl -s -L {{ __run_acmesh_githubapi_release_latest_url }} | jq -r '.tag_name' | sed -e 's/^v//g')"
-      if ! printf '%s' "${__run_acmesh_version_upstream}" | grep -E -q -e '^[[:digit:]\.]*$'
-      then
-        __run_acmesh_version_upstream=''
-      fi
-      printf '%s' "${__run_acmesh_version_upstream}"
-      exit 0
-    executable: "/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
-  changed_when: false
+- name: "Setup | Install | Default | Get upstream release version data (GitHub API)"
+  ansible.builtin.uri:
+    url: "{{ __run_acmesh_githubapi_release_latest_url }}"
+    method: "GET"
+    body_format: "json"
+    return_content: true
   ignore_errors: true
-  register: __run_acmesh_version_upstream_result
+  register: __run_acmesh_github_response
 
 
 - name: "Setup | Install | Default | Set latest upstream version as fact"
   ansible.builtin.set_fact:
-    __run_acmesh_version_upstream: "{{ (__run_acmesh_version_upstream_result) | ternary(__run_acmesh_version_upstream_result['stdout'], false) }}"
+    __run_acmesh_version_upstream: >-
+      {%- if false and __run_acmesh_github_response is success and
+             __run_acmesh_github_response.json is defined and
+             __run_acmesh_github_response.json.tag_name is defined -%}
+        {%- set version = __run_acmesh_github_response.json.tag_name | regex_replace('^v', '') -%}
+        {{- version if (version is match('^[0-9\.]*$')) else '' -}}
+      {%- else -%}
+        {{ false }}
+      {%- endif -%}
 
 
 - name: "Setup | Install | Default | Display latest upstream version (if any, false means \"nothing detected\")"
@@ -174,6 +164,7 @@
         --log "{{ run_acmesh_cfg_logfile }}"
         --log-level {{ run_acmesh_cfg_log_level }}
         --syslog {{ run_acmesh_cfg_syslog }}
+        --nocron
         {{ '--auto-upgrade 1'
           if ((run_acmesh_autoupgrade is defined) and
               (run_acmesh_autoupgrade))

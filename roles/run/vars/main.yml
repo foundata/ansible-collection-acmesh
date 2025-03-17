@@ -66,12 +66,10 @@ __run_acmesh_supported_platforms:
 # List of package names to be installed when run_acmesh_state is
 # set to "present".
 __run_acmesh_packages_install:
-  # dependencies of this role or Ansible itself
-  - "curl" #  to determine latest version (playbook dependency)
-  - "jq" # to determine latest version (playbook dependency)
-  # dependencies of acme.sh
-  - "git" # to get the upstream release
-  - "oathtool" # to create 2FA TOTP tokens (e.g. needed for dns_inwx if 2FA is enabled)
+  # For executing this role and/or Ansible itself
+  - "git" # Download release form upstream
+  # For acme.sh
+  - "curl" # Communicate with the CA
   - "openssl"
 
 

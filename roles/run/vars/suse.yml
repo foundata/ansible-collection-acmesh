@@ -1,4 +1,4 @@
-# Internal role variables specific to: RedHat (os_family or distribution)
+# Internal role variables specific to: Suse (os_family)
 #
 # Only values specific to the platform and its functionality should be included
 # here. Variables in this file override those defined in vars/main.yml.
@@ -14,13 +14,11 @@ __run_acmesh_packages_install:
   # For executing this role and/or Ansible itself
   - "git" # Download release form upstream
   # For acme.sh
-  # - "curl" # Communicate with the CA
-  #            FIXME to be solved: not added currently as it conflicts with
-  #            "curl-minimal" without DNF "allowerasing" in many Red Hat envs.
+  - "curl" # Communicate with the CA
   - "openssl"
-  # - "cronie": cron daemon and 'crontab' command
+  # - "cron": cron daemon and 'crontab' command
   #   Not used as a systemd timer is used instead.
-  # - "oathtool": 2FA TOTP token generation
+  # - "oath-toolkit": 2FA TOTP token generation
   #   Only needed for specific DNS challenge plugins. Since 2FA for DNS APIs is
   #   rarely used, we've opted not to install this package by default, despite
   #   its availability in standard repositories.
