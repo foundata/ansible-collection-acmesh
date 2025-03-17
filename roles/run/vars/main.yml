@@ -42,12 +42,25 @@ __run_acmesh_used_facts:
 #   versions:
 #     - "all"
 __run_acmesh_supported_platforms:
+  - name: "Debian"
+    versions:
+      - "11"
+      - "12"
   - name: "Fedora"
     versions:
-      - "all"
+      - "41"
+      - "40"
+  - name: "openSUSE Leap"
+    versions:
+      - "15.6"
+  - name: "RedHat" # includes AlmaLinux, Rocky and CentOS Stream
+    versions:
+      - "9"
+      - "10"
   - name: "Ubuntu"
     versions:
-      - "all"
+      - "24.04"
+      - "22.04"
 
 
 # List of package names to be installed when run_acmesh_state is
