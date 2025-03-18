@@ -14,6 +14,7 @@ This directory provides resources for testing the collection and its resources w
   - [Write tests](#usage-add-tests)
 - [FAQ, troubleshooting](#faq)
   - [Molecule role path detection issues](#faq-role-path-detection)
+  - [Air-gapped environments](#faq-air-gapped)
   - [Container: `inotify_init1(): Too many open files`](#faq-inotify)
 
 
@@ -21,12 +22,6 @@ This directory provides resources for testing the collection and its resources w
 ## Requirements<a id="requirements"></a>
 
 See the official documentation on how to [install Molecule](https://ansible.readthedocs.io/projects/molecule/installation/#pip).
-
-Molecule scenarios typically require access to container registries ([quay.io](https://quay.io/), [docker.io / Docker Hub](https://hub.docker.com/)) and standard operating system package repositories. If your environment is air-gapped but provides the needed resources in the local network, try the following:
-
-- Modify `platforms['image']` in `molecule/<scenario>/molecule.yml` to use local images.
-- Create custom preparation tasks in `molecule/resources/tasks/prepare/<all|inventory_hostname(=platforms['name'])>.yml` to configure custom repositories for the created instances.
-
 
 
 ### Scenario `default`<a id="requirements-scenario-default"></a>
@@ -116,6 +111,37 @@ Further reading:
 - Source: [`molecule/command/base.py`](https://github.com/ansible/molecule/blob/main/src/molecule/command/base.py)
 - Issues: [4015](https://github.com/ansible/molecule/issues/4015), [4017](https://github.com/ansible/molecule/issues/4017), [4040](https://github.com/ansible/molecule/issues/4040), [4061](https://github.com/ansible/molecule/issues/4061)
 - Pull requests: [4177](https://github.com/ansible/molecule/pull/4177)
+
+
+
+### Air-gapped environments<a id="faq-air-gapped"></a>
+
+Molecule scenarios typically require network access to Container registries ([quay.io](https://quay.io/), [docker.io / Docker Hub](https://hub.docker.com/)) and standard operating system package repositories. If your environment is air-gapped but your local network provides needed resources for a scenario, you can
+
+1. Adapt `molecule/<scenario>/molecule.yml`, modify `platforms['image']` to use local image registries.
+2. Create `molecule/resources/tasks/prepare/all.yml` to extend Molecule's instance preparation phase for additional configuration using Ansible. Example:
+   ```yaml
+   ---
+
+   - name: "Molecule | Prepare | Configure internal package repository mirrors for Debian/Ubuntu"
+     when:
+       - ansible_os_family == "Debian"
+     block:
+       - name: "Molecule | Prepare | Create sources.list"
+         ansible.builtin.copy:
+           dest: "/etc/apt/sources.list"
+           content: |
+             # Internal mirror for {{ ansible_distribution }} {{ ansible_distribution_release }}
+             deb http://internal-mirror.example.com/debian {{ ansible_distribution_release }} main contrib non-free
+             deb http://internal-mirror.example.com/debian {{ ansible_distribution_release }}-updates main contrib non-free
+             deb http://internal-mirror.example.com/debian-security {{ ansible_distribution_release }}-security main contrib non-free
+
+
+       - name: "Molecule | Prepare | Update apt cache"
+         ansible.builtin.apt:
+           update_cache: yes
+   ```
+   You can also use dedicated `<inventory_hostname / platforms['name']>.yml` files to target specific instances instead of `when:` conditions in `all.yml`.
 
 
 
