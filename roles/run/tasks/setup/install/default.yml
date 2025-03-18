@@ -366,7 +366,7 @@
     mode: "u=rw,g=r,o=" # 0640
   loop: "{{ __run_acmesh_files.files }}"
   when:
-    # exclude resources with special permissions (will be handled later)
+    # exclude resources with special permissions (they will be handled later)
     - item.path != (run_acmesh_cfg_home ~ '/acme.sh')
     - item.path is not regex('^' ~ run_acmesh_cfg_home ~ '/deploy/.+\.sh$')
     - item.path is not regex('^' ~ run_acmesh_cfg_home ~ '/dnsapi/.+\.sh$')
@@ -377,15 +377,19 @@
 
 - name: "Setup | Install | Default | Set permission of executables (restrict to owner and group)"
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ item.path }}"
+    state: "file"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0755
-  with_fileglob:
-    - "{{ run_acmesh_cfg_home }}/acme.sh"
-    - "{{ run_acmesh_cfg_home }}/deploy/*.sh"
-    - "{{ run_acmesh_cfg_home }}/dnsapi/*.sh"
-    - "{{ run_acmesh_cfg_home }}/notify/*.sh"
+  loop: "{{ __run_acmesh_files.files }}"
+  when:
+    - (item.path == (run_acmesh_cfg_home ~ '/acme.sh')) or
+      (item.path is regex('^' ~ run_acmesh_cfg_home ~ '/deploy/.+\.sh$')) or
+      (item.path is regex('^' ~ run_acmesh_cfg_home ~ '/dnsapi/.+\.sh$')) or
+      (item.path is regex('^' ~ run_acmesh_cfg_home ~ '/notify/.+\.sh$'))
+    - item.path != (run_acmesh_cfg_config_home ~ '/account.conf')
+    - item.path != run_acmesh_cfg_logfile
 
 
 - name: "Setup | Install | Default | Set permissions of sensitive resources (restrict to owner)"
