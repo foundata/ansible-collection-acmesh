@@ -265,7 +265,7 @@
 
 - name: "Setup | Install | Default | Update / overwrite installed version fact"
   ansible.builtin.set_fact:
-    __run_acmesh_version_installed: "{{ (__run_acmesh_version_installed_result) | ternary(__run_acmesh_version_installed_result['stdout'], false) }}"
+    __run_acmesh_version_installed: "{{ __run_acmesh_version_installed_result | ternary(__run_acmesh_version_installed_result['stdout'], false) }}"
 
 
 - name: "Setup | Install | Default | Display installed version (if any, false means \"not installed\")"
@@ -331,7 +331,12 @@
     recurse: true
     hidden: true
     get_checksum: false
-  register: __run_acmesh_dirs # does not contain the dirs listed at "paths:" themselfs
+  register: __run_acmesh_dirs_result # the base directories specified in 'paths:' are not included in the result
+
+
+- name: "Setup | Install | Default | Simplify list of directories belonging to acme.sh"
+  ansible.builtin.set_fact:
+    __run_acmesh_dirs: "{{ __run_acmesh_dirs_result.files | map(attribute='path') }}"
 
 
 - name: "Setup | Install | Default | Find files belonging to acme.sh"
@@ -344,52 +349,79 @@
     recurse: true
     hidden: true
     get_checksum: false
-  register: __run_acmesh_files
+  register: __run_acmesh_files_result
+
+
+- name: "Setup | Install | Default | Simplify list of file belonging to acme.sh"
+  ansible.builtin.set_fact:
+    __run_acmesh_files: "{{ __run_acmesh_files_result.files | map(attribute='path') }}"
 
 
 - name: "Setup | Install | Default | Set permissions of directories (restrict to owner and group)"
   ansible.builtin.file:
-    path: "{{ item.path }}"
+    path: "{{ item }}"
     state: "directory"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0750
-  loop: "{{ __run_acmesh_dirs.files }}"
+  loop: "{{ __run_acmesh_dirs }}"
 
 
-- name: "Setup | Install | Default | Set permissions of files (restrict to owner and group)"
+- name: "Setup | Install | Default | Set permissions of non-executable files (restrict to owner and group)"
   ansible.builtin.file:
-    path: "{{ item.path }}"
+    path: "{{ item }}"
     state: "file"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
     mode: "u=rw,g=r,o=" # 0640
-  loop: "{{ __run_acmesh_files.files }}"
+
+  loop: "{{ __run_acmesh_files }}"
   when:
     # exclude resources with special permissions (they will be handled later)
-    - item.path != (run_acmesh_cfg_home ~ '/acme.sh')
-    - item.path is not regex('^' ~ run_acmesh_cfg_home ~ '/deploy/.+\.sh$')
-    - item.path is not regex('^' ~ run_acmesh_cfg_home ~ '/dnsapi/.+\.sh$')
-    - item.path is not regex('^' ~ run_acmesh_cfg_home ~ '/notify/.+\.sh$')
-    - item.path != (run_acmesh_cfg_config_home ~ '/account.conf')
-    - item.path != run_acmesh_cfg_logfile
+    - item != (run_acmesh_cfg_home ~ '/acme.sh')
+    - item is not regex('^' ~ run_acmesh_cfg_home ~ '/deploy/.+\.sh$')
+    - item is not regex('^' ~ run_acmesh_cfg_home ~ '/dnsapi/.+\.sh$')
+    - item is not regex('^' ~ run_acmesh_cfg_home ~ '/notify/.+\.sh$')
+    - item != (run_acmesh_cfg_config_home ~ '/account.conf')
+    - item != run_acmesh_cfg_logfile
+  # For the record: using "when:" proved faster and simpler than filtering within
+  # loop: >-
+  #   {{ __run_acmesh_files
+  #       | reject('eq', run_acmesh_cfg_home ~ '/acme.sh')
+  #       | reject('match', '^' ~ run_acmesh_cfg_home ~ '/deploy/.+\\.sh$')
+  #       | reject('match', '^' ~ run_acmesh_cfg_home ~ '/dnsapi/.+\\.sh$')
+  #       | reject('match', '^' ~ run_acmesh_cfg_home ~ '/notify/.+\\.sh$')
+  #       | reject('eq', run_acmesh_cfg_config_home ~ '/account.conf')
+  #       | reject('eq', run_acmesh_cfg_logfile)
+  #       | list }}
 
 
-- name: "Setup | Install | Default | Set permission of executables (restrict to owner and group)"
+- name: "Setup | Install | Default | Set permission of executable files (restrict to owner and group)"
   ansible.builtin.file:
-    path: "{{ item.path }}"
+    path: "{{ item }}"
     state: "file"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0755
-  loop: "{{ __run_acmesh_files.files }}"
+  loop: "{{ __run_acmesh_files }}"
   when:
-    - (item.path == (run_acmesh_cfg_home ~ '/acme.sh')) or
-      (item.path is regex('^' ~ run_acmesh_cfg_home ~ '/deploy/.+\.sh$')) or
-      (item.path is regex('^' ~ run_acmesh_cfg_home ~ '/dnsapi/.+\.sh$')) or
-      (item.path is regex('^' ~ run_acmesh_cfg_home ~ '/notify/.+\.sh$'))
-    - item.path != (run_acmesh_cfg_config_home ~ '/account.conf')
-    - item.path != run_acmesh_cfg_logfile
+    - (item == (run_acmesh_cfg_home ~ '/acme.sh')) or
+      (item is regex('^' ~ run_acmesh_cfg_home ~ '/deploy/.+\.sh$')) or
+      (item is regex('^' ~ run_acmesh_cfg_home ~ '/dnsapi/.+\.sh$')) or
+      (item is regex('^' ~ run_acmesh_cfg_home ~ '/notify/.+\.sh$'))
+    - item != (run_acmesh_cfg_config_home ~ '/account.conf')
+    - item != run_acmesh_cfg_logfile
+  # For the record: using "when:" proved faster and simpler than filtering within
+  # loop: >-
+  #   {{ __run_acmesh_files.files
+  #       | select('match',
+  #                   '^' ~ run_acmesh_cfg_home ~ '/acme.sh$'
+  #                 ~ '|^' ~ run_acmesh_cfg_home ~ '/deploy/.+\\.sh$'
+  #                 ~ '|^' ~ run_acmesh_cfg_home ~ '/dnsapi/.+\\.sh$'
+  #                 ~ '|^' ~ run_acmesh_cfg_home ~ '/notify/.+\\.sh$')
+  #       | reject('eq', run_acmesh_cfg_config_home ~ '/account.conf')
+  #       | reject('eq', run_acmesh_cfg_logfile)
+  #       | list }}
 
 
 - name: "Setup | Install | Default | Set permissions of sensitive resources (restrict to owner)"
