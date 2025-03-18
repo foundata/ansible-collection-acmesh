@@ -16,8 +16,7 @@
     name: "{{ __run_acmesh_packages_install }}"
     state: "{{ 'latest' if run_acmesh_autoupgrade else 'present' }}"
     # work-around for conflicts with curl-minimal on Red Hat platforms
-    allowerasing: "{{ true if ((ansible_facts['os_family'] == 'RedHat') and
-                               ('curl' in __run_acmesh_packages_install)) else omit }}"
+    allowerasing: "{{ true if (((ansible_facts['os_family'] | lower) == 'redhat') and ('curl' in __run_acmesh_packages_install)) else omit }}"
   when:
     - __run_acmesh_packages_install is defined
     - (__run_acmesh_packages_install | length) > 1
@@ -36,7 +35,7 @@
 - name: "Setup | Install | Default | Set latest upstream version as fact"
   ansible.builtin.set_fact:
     __run_acmesh_version_upstream: >-
-      {%- if false and __run_acmesh_github_response is success and
+      {%- if __run_acmesh_github_response is success and
              __run_acmesh_github_response.json is defined and
              __run_acmesh_github_response.json.tag_name is defined -%}
         {%- set version = __run_acmesh_github_response.json.tag_name | regex_replace('^v', '') -%}
@@ -52,12 +51,11 @@
     verbosity: 1
 
 
-- name: "Setup | Install | Default | Create service user"
+- name: "Setup | Install | Default | Create the service user"
   ansible.builtin.user:
     comment: "ACME client for issuing X.509 certs"
     create_home: true
     force: true
-    # group: the (primary) group gets created automatically with the same GID as the UID when the parameter is omitted
     home: "{{ run_acmesh_cfg_home }}"
     # We first used "acme.sh" as username. However, a dot is not allowed in the
     # "User=" directive of systemd versions shipped with RHEL8 in October 2019, cf:
@@ -74,17 +72,19 @@
     umask: "0027"
 
 
-- name: "Setup | Install | Default | Create an additional, non-primary group for service user"
+  # Most systems automatically create the (primary) group for a new user when
+  # the "group" parameter of ansible.builtin.user is omitted, usually with a GID
+  # matching the UID. openSUSE is an exception to this rule and requires
+  # explicit group creation.
+- name: "Setup | Install | Default | Create the group for the service user"
   ansible.builtin.group:
     name: "{{ run_acmesh_group }}"
     state: "present"
     system: false
     force: false
-  when:
-    - run_acmesh_group != run_acmesh_user # only if different from the service user's primary group
 
 
-- name: "Setup | Install | Default | Add service user to a non-primary, additional group"
+- name: "Setup | Install | Default | Add service user to the group"
   ansible.builtin.user:
     name: "{{ run_acmesh_user }}"
     groups:
@@ -283,10 +283,9 @@
   register: __run_acmesh_envfile_stat_result
 
 
-# By default, the .bashrc of the user who called the installer gets
-# adapted for a proper acme.sh command alias with the needed options.
-# We will make this alias globally valid by linking it plus removing
-# the source-call from the user's .bashrc
+# Modifying the calling user's .bashrc is the default installer behavior.
+# Let's remove the source-calls in individual user .bashrc file and create a
+# system-wide alias for acme.sh with all required options instead.
 - name: "Setup | Install | Default | Symlink env file for profile.d"
   ansible.builtin.file:
     src: "{{ run_acmesh_cfg_home }}/acme.sh.env"
