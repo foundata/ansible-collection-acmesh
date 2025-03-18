@@ -106,6 +106,8 @@ provisioner:
       # here. See molecule/README.md#faq for details.
       verbosity: "${ANSIBLE_VERBOSITY:-0}"
       display_args_to_stdout: ${ANSIBLE_DISPLAY_ARGS_TO_STDOUT:-false}
+      # set forks >= number of test platforms for better performance
+      forks: !!int "${ANSIBLE_FORKS:-12}"
   playbooks:
     create: "../resources/playbooks/create-podman.yml"
     prepare: "../resources/playbooks/prepare.yml"
