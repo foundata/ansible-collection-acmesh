@@ -45,7 +45,8 @@ Additional requirements:
 ### Run tests<a id="usage-testing"></a>
 
 ```bash
-cd /path-to-collection/extensions
+cd "/collection-root-dir"
+export MOLECULE_GLOB="./extensions/molecule/*/molecule.yml"
 
 # Test all defined platforms
 # See the platforms key in molecule/<scenario>/molecule.yml for a list.
@@ -66,7 +67,8 @@ molecule destroy
 ### Access instance terminal<a id="usage-instance-access"></a>
 
 ```bash
-cd /path-to-collection/extensions
+cd "/collection-root-dir"
+export MOLECULE_GLOB="./extensions/molecule/*/molecule.yml"
 
 molecule list
 molecule login --host <name>
@@ -91,22 +93,29 @@ This file structure allows you to update your collection's `extensions/molecule`
 
 ## FAQ<a id="faq"></a>
 
-### Molecule role path detection issues<a id="faq-role-path-detection"></a>
+### Molecule role path detection issues, `MOLECULE_GLOB`<a id="faq-role-path-detection"></a>
 
-If the roles of this collection are not found by Molecule, try the following"
+If Molecule fails to
 
-1. Change into the collection's `extensions` directory.
-2. Try to run molecule with an adjusted search pattern:
-   ```bash
-   MOLECULE_GLOB="./molecule/*/molecule.yml" molecule test
-   ```
+- detect collection roles and/or
+- install the updated collection version on each run
+
+try to adapt the `MOLECULE_GLOB` environment variable (which defaults to `molecule/*/molecule.yml`) and execute `molecule` from the collection's root directory instead of the `extensions` subdirectory:
+
+```bash
+cd "/collection-root-dir"
+export MOLECULE_GLOB="./extensions/molecule/*/molecule.yml"
+molecule list
+
+# or inline for the following command only
+MOLECULE_GLOB="./extensions/molecule/*/molecule.yml" molecule list
+```
 
 Further reading:
 
-- https://github.com/ansible/molecule/issues/4015
-- https://github.com/ansible/molecule/issues/4040
-- https://github.com/ansible/molecule/issues/4061
-- https://github.com/ansible/molecule/pull/4177
+- Source: [`molecule/command/base.py`](https://github.com/ansible/molecule/blob/main/src/molecule/command/base.py)
+- Issues: [4015](https://github.com/ansible/molecule/issues/4015), [4017](https://github.com/ansible/molecule/issues/4017), [4040](https://github.com/ansible/molecule/issues/4040), [4061](https://github.com/ansible/molecule/issues/4061)
+- Pull requests: [4177](https://github.com/ansible/molecule/pull/4177)
 
 
 
@@ -118,7 +127,7 @@ If you are not able to start all platform instances in parallel, you might need 
 # Inspect
 sysctl fs.inotify
 
-# Adapt / test with a higher value (example: 512, 524288), runtime only.
+# Adapt (runtime only) / test with a higher value (example: 512, 524288)
 echo 512 | sudo tee /proc/sys/fs/inotify/max_user_instances
 echo 524288 | sudo tee /proc/sys/fs/inotify/max_user_watches
 
@@ -128,7 +137,7 @@ echo "fs.inotify.max_user_watches=524288" | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p
 ```
 
-It may help during debugging to manually start a container while you hit limits and inspect its logs:
+It may help during debugging to manually start a container with the same image while you hit limits and inspect its logs:
 
 ```bash
 # trigger resource limit
