@@ -19,8 +19,9 @@
       containers.podman.podman_container:
         executable: "{{ podman_executable }}"
         name: "{{ inventory_hostname }}"
-        state: absent
+        state: "absent"
         rm: true
+        delete_volumes: true
 
 
     - name: "Molecule | Destroy (Podman) | Remove potentially stopped container localhost (additional try, best-effort)"
