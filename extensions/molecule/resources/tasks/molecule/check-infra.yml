@@ -45,14 +45,19 @@
   run_once: true # noqa: run-once[task]
 
 
-# - name: "Molecule | Check infra basic (localhost) | Print all molecule_ variables"
-#   ansible.builtin.debug:
-#     msg: "{{ item.key }} = {{ item.value | to_nice_json }}"
-#     verbosity: 3
-#   when:
-#     - hostvars is defined
-#     - inventory_hostname in hostvars
-#   loop:
-#     "{{ lookup('ansible.builtin.vars') | dict2items | selectattr('key', 'match', '^molecule_') | map(attribute='key') | list }}"
-#   loop_control:
-#     label: "{{ item }}"
+- name: "Molecule | Check infra basic (localhost) | Print all molecule_ variables"
+  delegate_to: "localhost"
+  ansible.builtin.debug:
+    # split() to improve readability for humans
+    msg: "{{ __testing_moleculevars_msg.split('\n') }}"
+    verbosity: 3
+  vars:
+    __testing_moleculevars_msg: |-
+      {% for key, value in hostvars[inventory_hostname].items() %}
+      {% if key is string and key.startswith('molecule_') %}
+      {{ key }} = {{ value | to_nice_json }}
+      {% endif %}
+      {% endfor %}
+  when:
+    - hostvars is defined
+    - inventory_hostname in hostvars
