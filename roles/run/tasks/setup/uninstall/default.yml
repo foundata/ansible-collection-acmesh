@@ -3,13 +3,13 @@
 ---
 
 - name: "Setup | Uninstall | Default | Call uninstall action of acme.sh"
-  # The command module is used here. This approach is justified:
+  # The command or shell module is used here. This approach is justified:
   #
   # - No built-in Ansible module provides a direct way to interact with acme.sh.
   # - Inline templating allows for safe and efficient parameter handling,
   #   avoiding the need for multiple additional tasks with little to no benefit.
   #
-  # Notes on the command itself:
+  # Notes on the command or script itself:
   #
   # See the official documentation for a explanation of the parameters:
   # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params

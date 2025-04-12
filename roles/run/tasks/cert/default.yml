@@ -96,7 +96,7 @@
 
 
 - name: "Cert | Default | issue certificate(s)"
-  # The command module is used here. This approach is justified:
+  # The command or shell module is used here. This approach is justified:
   #
   # - No built-in Ansible module provides a direct way to interact with acme.sh.
   # - Inline templating allows for safe and efficient parameter handling,
@@ -265,7 +265,7 @@
 
 
 - name: "Cert | Default | install certificate(s)"
-  # The command module is used here. This approach is justified:
+  # The command or shell module is used here. This approach is justified:
   #
   # - No built-in Ansible module provides a direct way to interact with acme.sh.
   # - Inline templating allows for safe and efficient parameter handling,

@@ -96,7 +96,7 @@
 
 
 - name: "Init | Determine installed version (if any)"
-  # The shell module is used here. This approach is justified:
+  # The command or shell module is used here. This approach is justified:
   #
   # - No built-in Ansible module provides a direct way to retrieve the version.
   # - The script includes inline logic to handle potential edge cases (e.g.,
