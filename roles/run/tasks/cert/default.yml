@@ -210,6 +210,7 @@
     (__run_acmesh_issue_result.rc != 0 and 'Domains not changed' not in __run_acmesh_issue_result.stdout)
   loop: "{{ run_acmesh_certs }}"
   register: __run_acmesh_issue_result
+  notify: "run_acmesh: set ownership and permissions"
 
 
 - name: "Cert | Default | create target directories for certificate installation(s) (based on data for --ca-file, if any)"
@@ -326,6 +327,7 @@
     )
   loop: "{{ run_acmesh_certs }}"
   register: __run_acmesh_install_result
+  notify: "run_acmesh: set ownership and permissions"
 
 
 - name: "Cert | Default | gather certificate information"
