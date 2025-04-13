@@ -147,13 +147,13 @@
 
 
 - name: "Setup | Install | Default | Install acme.sh"
-  # The command module is used here. This approach is justified:
+  # The command or shell module is used here. This approach is justified:
   #
   # - No built-in Ansible module provides a direct way to interact with acme.sh.
   # - Inline templating allows for safe and efficient parameter handling,
   #   avoiding the need for multiple additional tasks with little to no benefit.
   #
-  # Notes on the command itself:
+  # Notes on the command or script itself:
   #
   # See the official documentation for a explanation of the parameters:
   # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
@@ -186,13 +186,13 @@
 
 
 - name: "Setup | Install | Default | Upgrade acme.sh"
-  # The command module is used here. This approach is justified:
+  # The command or shell module is used here. This approach is justified:
   #
   # - No built-in Ansible module provides a direct way to interact with acme.sh.
   # - Inline templating allows for safe and efficient parameter handling,
   #   avoiding the need for multiple additional tasks with little to no benefit.
   #
-  # Notes on the command itself:
+  # Notes on the command or script itself:
   #
   # The --upgrade parameter alone would generally be sufficient. However, acme.sh
   # can update, modify, or correct configuration values during execution of most
@@ -235,7 +235,7 @@
 
 # update facts related to state of the local installation
 - name: "Setup | Install | Default | Determine installed version again"
-  # The shell module is used here. This approach is justified:
+  # The command or shell module is used here. This approach is justified:
   #
   # - No built-in Ansible module provides a direct way to retrieve the version.
   # - The script includes inline logic to handle potential edge cases (e.g.,
@@ -321,110 +321,70 @@
     - __run_acmesh_version_installed is version('3.0.6', 'le', version_type='semver')
 
 
-- name: "Setup | Install | Default | Find directories belonging to acme.sh"
-  ansible.builtin.find:
-    paths:
-      - "{{ run_acmesh_cfg_home }}"
-      - "{{ run_acmesh_cfg_config_home }}"
-      - "{{ run_acmesh_cfg_cert_home }}"
-    file_type: "directory"
-    recurse: true
-    hidden: true
-    get_checksum: false
-  register: __run_acmesh_dirs_result # the base directories specified in 'paths:' are not included in the result
+- name: "Setup | Install | Default | Set ownership and permissions of files and directories (restrict to user and group)"
+  # The command or shell module is used here. This approach is justified:
+  #
+  # - No matter what kind of optimization is done, creating a connection per
+  #   item by calling a module in a loop is simply too slow when handling many.
+  # - We tried creating lists with "ansible.builtin.find" and iterations with
+  #   "ansible.builtin.file". Checkout d826ee83588bfe1cbb538d6215b21ef090c79940
+  #   to look at that. It was to slow.
+  #
+  # Notes on the command or script itself:
+  #
+  # - the -c (long version but not as portabl: --changes) of chmod and chown
+  #   prints every processed file but reports only when a change is made.
+  ansible.builtin.shell:
+    cmd: |
+      set -e
+
+      # Set ownership of files and directories: service user and group
+      find \
+        '{{ run_acmesh_cfg_home }}' \
+        '{{ run_acmesh_cfg_config_home }}' \
+        '{{ run_acmesh_cfg_cert_home }}' \
+        -exec chown -c "{{ run_acmesh_user }}:{{ run_acmesh_group }}" {} \;
+
+      # Set permissions of directories: 0750 / u=rwx,g=rx,o=
+      find \
+        '{{ run_acmesh_cfg_home }}' \
+        '{{ run_acmesh_cfg_config_home }}' \
+        '{{ run_acmesh_cfg_cert_home }}' \
+        -type d \
+        -exec chmod -c 0750 {} \;
+
+      # Set permissions of non-executables: 0640 / u=rw,g=r,o=
+      # The account.conf will be handled later
+      find \
+        '{{ run_acmesh_cfg_home }}' \
+        '{{ run_acmesh_cfg_config_home }}' \
+        '{{ run_acmesh_cfg_cert_home }}' \
+        -type f \
+        -not -name '*\.sh' \
+        -not -wholename '{{ run_acmesh_cfg_config_home }}/account.conf' \
+        -exec chmod -c 0640 {} \;
+
+      # Set permissions of executables: 0750 / u=rwx,g=rx,o=
+      chmod -c 0750 '{{ run_acmesh_cfg_home }}/acme.sh'
+      find \
+        '{{ run_acmesh_cfg_home }}/deploy' \
+        '{{ run_acmesh_cfg_home }}/dnsapi' \
+        '{{ run_acmesh_cfg_home }}/notify' \
+        -type f \
+        -name '*\.sh' \
+        -exec chmod -c 0750 {} \;
+
+      exit 0
+    executable: "/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
+  args:
+    chdir: "{{ run_acmesh_cfg_home }}"
+  changed_when:
+    - __run_acmesh_permissions_result.rc == 0
+    - __run_acmesh_permissions_result.stdout | trim | length > 0
+  register: __run_acmesh_permissions_result
 
 
-- name: "Setup | Install | Default | Simplify list of directories belonging to acme.sh"
-  ansible.builtin.set_fact:
-    __run_acmesh_dirs: "{{ __run_acmesh_dirs_result.files | map(attribute='path') }}"
-
-
-- name: "Setup | Install | Default | Find files belonging to acme.sh"
-  ansible.builtin.find:
-    paths:
-      - "{{ run_acmesh_cfg_home }}"
-      - "{{ run_acmesh_cfg_config_home }}"
-      - "{{ run_acmesh_cfg_cert_home }}"
-    file_type: "file"
-    recurse: true
-    hidden: true
-    get_checksum: false
-  register: __run_acmesh_files_result
-
-
-- name: "Setup | Install | Default | Simplify list of file belonging to acme.sh"
-  ansible.builtin.set_fact:
-    __run_acmesh_files: "{{ __run_acmesh_files_result.files | map(attribute='path') }}"
-
-
-- name: "Setup | Install | Default | Set permissions of directories (restrict to owner and group)"
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: "directory"
-    owner: "{{ run_acmesh_user }}"
-    group: "{{ run_acmesh_group }}"
-    mode: "u=rwx,g=rx,o=" # 0750
-  loop: "{{ __run_acmesh_dirs }}"
-
-
-- name: "Setup | Install | Default | Set permissions of non-executable files (restrict to owner and group)"
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: "file"
-    owner: "{{ run_acmesh_user }}"
-    group: "{{ run_acmesh_group }}"
-    mode: "u=rw,g=r,o=" # 0640
-
-  loop: "{{ __run_acmesh_files }}"
-  when:
-    # exclude resources with special permissions (they will be handled later)
-    - item != (run_acmesh_cfg_home ~ '/acme.sh')
-    - item is not regex('^' ~ run_acmesh_cfg_home ~ '/deploy/.+\.sh$')
-    - item is not regex('^' ~ run_acmesh_cfg_home ~ '/dnsapi/.+\.sh$')
-    - item is not regex('^' ~ run_acmesh_cfg_home ~ '/notify/.+\.sh$')
-    - item != (run_acmesh_cfg_config_home ~ '/account.conf')
-    - item != run_acmesh_cfg_logfile
-  # For the record: using "when:" proved faster and simpler than filtering within
-  # loop: >-
-  #   {{ __run_acmesh_files
-  #       | reject('eq', run_acmesh_cfg_home ~ '/acme.sh')
-  #       | reject('match', '^' ~ run_acmesh_cfg_home ~ '/deploy/.+\\.sh$')
-  #       | reject('match', '^' ~ run_acmesh_cfg_home ~ '/dnsapi/.+\\.sh$')
-  #       | reject('match', '^' ~ run_acmesh_cfg_home ~ '/notify/.+\\.sh$')
-  #       | reject('eq', run_acmesh_cfg_config_home ~ '/account.conf')
-  #       | reject('eq', run_acmesh_cfg_logfile)
-  #       | list }}
-
-
-- name: "Setup | Install | Default | Set permission of executable files (restrict to owner and group)"
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: "file"
-    owner: "{{ run_acmesh_user }}"
-    group: "{{ run_acmesh_group }}"
-    mode: "u=rwx,g=rx,o=" # 0755
-  loop: "{{ __run_acmesh_files }}"
-  when:
-    - (item == (run_acmesh_cfg_home ~ '/acme.sh')) or
-      (item is regex('^' ~ run_acmesh_cfg_home ~ '/deploy/.+\.sh$')) or
-      (item is regex('^' ~ run_acmesh_cfg_home ~ '/dnsapi/.+\.sh$')) or
-      (item is regex('^' ~ run_acmesh_cfg_home ~ '/notify/.+\.sh$'))
-    - item != (run_acmesh_cfg_config_home ~ '/account.conf')
-    - item != run_acmesh_cfg_logfile
-  # For the record: using "when:" proved faster and simpler than filtering within
-  # loop: >-
-  #   {{ __run_acmesh_files.files
-  #       | select('match',
-  #                   '^' ~ run_acmesh_cfg_home ~ '/acme.sh$'
-  #                 ~ '|^' ~ run_acmesh_cfg_home ~ '/deploy/.+\\.sh$'
-  #                 ~ '|^' ~ run_acmesh_cfg_home ~ '/dnsapi/.+\\.sh$'
-  #                 ~ '|^' ~ run_acmesh_cfg_home ~ '/notify/.+\\.sh$')
-  #       | reject('eq', run_acmesh_cfg_config_home ~ '/account.conf')
-  #       | reject('eq', run_acmesh_cfg_logfile)
-  #       | list }}
-
-
-- name: "Setup | Install | Default | Set permissions of sensitive resources (restrict to owner)"
+- name: "Setup | Install | Default | Set ownership and permissions of sensitive files and/or directories (restrict to user)"
   ansible.builtin.file:
     path: "{{ item }}"
     owner: "{{ run_acmesh_user }}"
