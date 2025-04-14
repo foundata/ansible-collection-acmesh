@@ -1,9 +1,5 @@
-# Molecule converge playbook. Executes the collection role "run" against all
-# driver-created instances.
-#
-# This stage provides primary functionality verification through Ansible's
-# declarative approach, which fails on execution errors.
-
+# Tasks for the Molecule converge stage: Execute the collection role "run"
+# against all driver-created instances.
 
 - name: "Molecule | Converge | Issue certificates via DNS challenge: check for environment variables"
   ansible.builtin.set_fact:
@@ -12,13 +8,13 @@
     - lookup('env', item) == ''
   changed_when: false # noqa: no-changed-when
   loop:
-    - "MOLECULE_ACMESH_ROLE_RUN_ACCOUNTEMAIL"
-    - "MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN1"
-    - "MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN1_DOMAIN_ALIAS"
-    - "MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN2"
-    - "MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN2_CHALLENGE_ALIAS"
-    - "MOLECULE_ACMESH_ROLE_RUN_INWX_User"
-    - "MOLECULE_ACMESH_ROLE_RUN_INWX_Password"
+    - "TEST_ACMESH_ACCOUNTEMAIL"
+    - "TEST_ACMESH_TESTDOMAIN1"
+    - "TEST_ACMESH_TESTDOMAIN1_DOMAIN_ALIAS"
+    - "TEST_ACMESH_TESTDOMAIN2"
+    - "TEST_ACMESH_TESTDOMAIN2_CHALLENGE_ALIAS"
+    - "TEST_ACMESH_INWX_User"
+    - "TEST_ACMESH_INWX_Password"
 
 
 - name: "Molecule | Converge | Issue certificates via DNS challenge: show missing environment variables (if any)"
@@ -37,20 +33,20 @@
     name: "foundata.acmesh.run"
   vars:
     run_acmesh_state: "present"
-    run_acmesh_cfg_accountemail: "{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_ACCOUNTEMAIL') }}"
+    run_acmesh_cfg_accountemail: "{{ lookup('env', 'TEST_ACMESH_ACCOUNTEMAIL') }}"
     run_acmesh_certs:
       # first certificate: main domain only
       - domains:
-          - name: "{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN1') }}"
+          - name: "{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}"
             challenge:
               type: "dns"
               dns_provider: "dns_inwx"
-              domain_alias: "{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN1_DOMAIN_ALIAS') }}"
+              domain_alias: "{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1_DOMAIN_ALIAS') }}"
         install:
-          ca_file: "/etc/pki/tls/certs/{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN1') }}/ca.cer"
-          cert_file: "/etc/pki/tls/certs/{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN1') }}/cert.cer"
-          fullcain_file: "/etc/pki/tls/certs/{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN1') }}/fullchain.cer"
-          key_file: "/etc/pki/tls/certs/{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN1') }}/cert.key"
+          ca_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}/ca.cer"
+          cert_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}/cert.cer"
+          fullcain_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}/fullchain.cer"
+          key_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}/cert.key"
           reloadcmd: ""
         # "{letsencrypt,buypass,google}_test" for staging, see
         # https://github.com/acmesh-official/acme.sh/wiki/Server
@@ -59,22 +55,21 @@
         debug: false # optional
       # second certificate: main domain with an additional www. SAN
       - domains:
-          - name: "{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN2') }}"
+          - name: "{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}"
             challenge:
               type: "dns"
               dns_provider: "dns_inwx"
-              challenge_alias: "{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN2_CHALLENGE_ALIAS') }}"
-          - name: "www.{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN2') }}"
+              challenge_alias: "{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2_CHALLENGE_ALIAS') }}"
+          - name: "www.{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}"
             challenge:
               type: "dns"
               dns_provider: "dns_inwx"
-              challenge_alias: |-
-                www.{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN2') }}.{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN2_CHALLENGE_ALIAS') }}
+              challenge_alias: "www.{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}.{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2_CHALLENGE_ALIAS') }}"
         install:
-          ca_file: "/etc/pki/tls/certs/{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN2') }}/ca.cer"
-          cert_file: "/etc/pki/tls/certs/{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN2') }}/cert.cer"
-          fullcain_file: "/etc/pki/tls/certs/{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN2') }}/fullchain.cer"
-          key_file: "/etc/pki/tls/certs/{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_TESTDOMAIN2') }}/cert.key"
+          ca_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/ca.cer"
+          cert_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/cert.cer"
+          fullcain_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/fullchain.cer"
+          key_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/cert.key"
           reloadcmd: ""
         # "{letsencrypt,buypass,google}_test" for staging, see
         # https://github.com/acmesh-official/acme.sh/wiki/Server
@@ -87,8 +82,8 @@
     # Environment variables needed for the DNS API authentication for
     # type: "dns" and dns_provider: "dns_inwx"
     run_acmesh_environment:
-      INWX_User: "{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_INWX_User') }}"
-      INWX_Password: "{{ lookup('env', 'MOLECULE_ACMESH_ROLE_RUN_INWX_Password') }}"
+      INWX_User: "{{ lookup('env', 'TEST_ACMESH_INWX_User') }}"
+      INWX_Password: "{{ lookup('env', 'TEST_ACMESH_INWX_Password') }}"
   when:
     - __testing_missing_envvars_dnschallenge is not defined or
       (__testing_missing_envvars_dnschallenge | length <= 0)
