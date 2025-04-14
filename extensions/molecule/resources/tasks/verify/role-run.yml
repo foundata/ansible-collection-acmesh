@@ -1,0 +1,129 @@
+# Tasks for the Molecule verify stage: Check collection role "run" outcomes.
+
+- name: "Molecule | Verify | Initialize the foundata.acmesh.run role (without actually running it; get and expose variables)"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+    tasks_from: "init"
+    public: true
+
+
+- name: "Molecule | Verify | Gather stats for directory: {{ run_acmesh_cfg_home }}"
+  ansible.builtin.stat:
+    path: "{{ run_acmesh_cfg_home }}"
+    get_checksum: false
+    get_mime: false
+  register: __testing_run_acmesh_cfg_home_stat
+
+
+- name: "Molecule | Verify | Check existence, permissions and ownership: {{ run_acmesh_cfg_home }}"
+  ansible.builtin.assert:
+    that:
+      - __testing_run_acmesh_cfg_home_stat.stat.exists
+      - __testing_run_acmesh_cfg_home_stat.stat.isdir
+      - __testing_run_acmesh_cfg_home_stat.stat.mode == '0750'
+      - __testing_run_acmesh_cfg_home_stat.stat.pw_name == run_acmesh_user
+      - __testing_run_acmesh_cfg_home_stat.stat.gr_name == run_acmesh_group
+    fail_msg: "{{ run_acmesh_cfg_home }} does not exist or has incorrect permissions/ownership"
+
+
+- name: "Molecule | Verify | Gather stats for directory: {{ run_acmesh_cfg_config_home }}"
+  ansible.builtin.stat:
+    path: "{{ run_acmesh_cfg_config_home }}"
+    get_checksum: false
+    get_mime: false
+  register: __testing_run_acmesh_cfg_config_home_stat
+
+
+- name: "Molecule | Verify | Check existence, permissions and ownership: {{ run_acmesh_cfg_config_home }}"
+  ansible.builtin.assert:
+    that:
+      - __testing_run_acmesh_cfg_config_home_stat.stat.exists
+      - __testing_run_acmesh_cfg_config_home_stat.stat.isdir
+      - __testing_run_acmesh_cfg_config_home_stat.stat.mode == '0750'
+      - __testing_run_acmesh_cfg_config_home_stat.stat.pw_name == run_acmesh_user
+      - __testing_run_acmesh_cfg_config_home_stat.stat.gr_name == run_acmesh_group
+    fail_msg: "{{ run_acmesh_cfg_config_home }} does not exist or has incorrect permissions/ownership"
+
+
+- name: "Molecule | Verify | Gather stats for directory: {{ run_acmesh_cfg_cert_home }}"
+  ansible.builtin.stat:
+    path: "{{ run_acmesh_cfg_cert_home }}"
+    get_checksum: false
+    get_mime: false
+  register: __testing_run_acmesh_cfg_cert_home_stat
+
+
+- name: "Molecule | Verify | Check existence, permissions and ownership: {{ run_acmesh_cfg_cert_home }}"
+  ansible.builtin.assert:
+    that:
+      - __testing_run_acmesh_cfg_cert_home_stat.stat.exists
+      - __testing_run_acmesh_cfg_cert_home_stat.stat.isdir
+      - __testing_run_acmesh_cfg_cert_home_stat.stat.mode == '0750'
+      - __testing_run_acmesh_cfg_cert_home_stat.stat.pw_name == run_acmesh_user
+      - __testing_run_acmesh_cfg_cert_home_stat.stat.gr_name == run_acmesh_group
+    fail_msg: "{{ run_acmesh_cfg_cert_home }} does not exist or has incorrect permissions/ownership"
+
+
+- name: "Molecule | Verify | Gather stats for file: {{ run_acmesh_cfg_config_home }}/account.conf"
+  ansible.builtin.stat:
+    path: "{{ run_acmesh_cfg_config_home }}/account.conf"
+    get_checksum: false
+    get_mime: false
+  register: __testing_acmesh_account_conf_stat
+
+
+- name: "Molecule | Verify | Check existence, permissions and ownership: {{ run_acmesh_cfg_config_home }}/account.conf"
+  ansible.builtin.assert:
+    that:
+      - __testing_acmesh_account_conf_stat.stat.exists
+      - __testing_acmesh_account_conf_stat.stat.isreg
+      - __testing_acmesh_account_conf_stat.stat.mode == '0600'
+      - __testing_acmesh_account_conf_stat.stat.pw_name == run_acmesh_user
+      - __testing_acmesh_account_conf_stat.stat.gr_name == run_acmesh_group
+    fail_msg: "{{ run_acmesh_cfg_config_home }}/account.conf does not exist or has incorrect permissions/ownership"
+
+
+- name: "Molecule | Verify | Gather stats for directory: {{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc "
+  ansible.builtin.stat:
+    path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc/"
+    get_checksum: false
+    get_mime: false
+  register: __testing_acmesh_testdomain1_certdir_stat
+  when:
+    - lookup('env', 'TEST_ACMESH_TESTDOMAIN1') | length > 0
+
+
+- name: "Molecule | Verify | Check existence, permissions and ownership: {{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc"
+  ansible.builtin.assert:
+    that:
+      - __testing_acmesh_testdomain1_certdir_stat.stat.exists
+      - __testing_acmesh_testdomain1_certdir_stat.stat.isdir
+      - __testing_acmesh_testdomain1_certdir_stat.stat.mode == '0750'
+      - __testing_acmesh_testdomain1_certdir_stat.stat.pw_name == run_acmesh_user
+      - __testing_acmesh_testdomain1_certdir_stat.stat.gr_name == run_acmesh_group
+    fail_msg: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc/ does not exist or has incorrect permissions/ownership"
+  when:
+    - lookup('env', 'TEST_ACMESH_TESTDOMAIN1') | length > 0
+
+
+- name: "Molecule | Verify | Gather stats for directory: {{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc "
+  ansible.builtin.stat:
+    path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/"
+    get_checksum: false
+    get_mime: false
+  register: __testing_acmesh_testdomain2_certdir_stat
+  when:
+    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0
+
+
+- name: "Molecule | Verify | Check existence, permissions and ownership: {{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc"
+  ansible.builtin.assert:
+    that:
+      - __testing_acmesh_testdomain2_certdir_stat.stat.exists
+      - __testing_acmesh_testdomain2_certdir_stat.stat.isdir
+      - __testing_acmesh_testdomain2_certdir_stat.stat.mode == '0750'
+      - __testing_acmesh_testdomain2_certdir_stat.stat.pw_name == run_acmesh_user
+      - __testing_acmesh_testdomain2_certdir_stat.stat.gr_name == run_acmesh_group
+    fail_msg: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/ does not exist or has incorrect permissions/ownership"
+  when:
+    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0
