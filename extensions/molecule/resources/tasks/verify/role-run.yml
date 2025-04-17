@@ -64,7 +64,7 @@
     fail_msg: "{{ run_acmesh_cfg_cert_home }} does not exist or has incorrect permissions/ownership"
 
 
-- name: "Molecule | Verify | Gather stats for file: {{ run_acmesh_cfg_config_home }}/account.conf"
+- name: "Molecule | Verify | Gather stats for file: account.conf"
   ansible.builtin.stat:
     path: "{{ run_acmesh_cfg_config_home }}/account.conf"
     get_checksum: false
@@ -72,7 +72,7 @@
   register: __testing_acmesh_account_conf_stat
 
 
-- name: "Molecule | Verify | Check existence, permissions and ownership: {{ run_acmesh_cfg_config_home }}/account.conf"
+- name: "Molecule | Verify | Check existence, permissions and ownership: account.conf"
   ansible.builtin.assert:
     that:
       - __testing_acmesh_account_conf_stat.stat.exists
@@ -83,7 +83,7 @@
     fail_msg: "{{ run_acmesh_cfg_config_home }}/account.conf does not exist or has incorrect permissions/ownership"
 
 
-- name: "Molecule | Verify | Gather stats for directory: {{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc "
+- name: "Molecule | Verify | Gather stats for directory: certificate data dir of first test domain"
   ansible.builtin.stat:
     path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc/"
     get_checksum: false
@@ -93,7 +93,7 @@
     - lookup('env', 'TEST_ACMESH_TESTDOMAIN1') | length > 0
 
 
-- name: "Molecule | Verify | Check existence, permissions and ownership: {{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc"
+- name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir of first test domain"
   ansible.builtin.assert:
     that:
       - __testing_acmesh_testdomain1_certdir_stat.stat.exists
@@ -106,7 +106,7 @@
     - lookup('env', 'TEST_ACMESH_TESTDOMAIN1') | length > 0
 
 
-- name: "Molecule | Verify | Gather stats for directory: {{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc "
+- name: "Molecule | Verify | Gather stats for directory: certificate data dir of second test domain"
   ansible.builtin.stat:
     path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/"
     get_checksum: false
@@ -116,7 +116,7 @@
     - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0
 
 
-- name: "Molecule | Verify | Check existence, permissions and ownership: {{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc"
+- name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir of second test domain"
   ansible.builtin.assert:
     that:
       - __testing_acmesh_testdomain2_certdir_stat.stat.exists
