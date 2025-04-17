@@ -1,5 +1,14 @@
 ---
 ancestor: null
 releases:
-  0.1.0:
-    release_date: '2025-03-07'
+  1.0.0:
+    changes:
+      release_summary: 'Release Date: 2025-04-17
+
+
+        First public release, providing all functionality and files
+
+        '
+    fragments:
+      - 1.0.0-release.yaml
+    release_date: '2025-04-17'

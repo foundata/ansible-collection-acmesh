@@ -4,7 +4,7 @@
 
 namespace: "foundata"
 name: "acmesh"
-version: "0.0.0-dev"
+version: "1.0.0"
 license:
   # See https://spdx.org/licenses/ for valid IDs and syntax. The project's
   # REUSE.toml file provides detailed licensing and copyright information
@@ -35,6 +35,7 @@ dependencies:
 build_ignore:
   - ".ansible"
   - ".gitignore"
+  - ".vscode"
   - "changelogs/.plugin-cache.yaml"
   - "changelogs/fragments/archive"
   - "changelogs/fragments/00-fragment-template.txt"
