@@ -66,6 +66,11 @@ __run_acmesh_supported_platforms:
 # List of package names to be installed when run_acmesh_state is
 # set to "present".
 __run_acmesh_packages_install:
+  # We maintain this package list separately from the platform-specific
+  # variables in this directory because these packages likely have the same
+  # names across both supported platforms and unsupported, best-effort
+  # platforms.
+  #
   # For executing this role and/or Ansible itself
   - "git" # Download release form upstream
   # For acme.sh

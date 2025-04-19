@@ -26,11 +26,11 @@
 
 - name: "Setup | Uninstall | Default | Remove packages"
   ansible.builtin.package:
-    name: "{{ run_acmesh_packages_uninstall }}"
+    name: "{{ __run_acmesh_packages_uninstall }}"
     state: "absent"
   when:
     - __run_acmesh_packages_uninstall is defined
-    - (__run_acmesh_packages_uninstall | length) > 1
+    - (__run_acmesh_packages_uninstall | length) > 0
 
 
 - name: "Setup | Uninstall | Default | Delete service user"

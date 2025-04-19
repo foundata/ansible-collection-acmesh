@@ -7,8 +7,8 @@
     name: "{{ __run_acmesh_packages_removal }}"
     state: "absent"
   when:
-    - __run_acmesh__packages_removal is defined
-    - (__run_acmesh__packages_removal | length) > 1
+    - __run_acmesh_packages_removal is defined
+    - (__run_acmesh_packages_removal | length) > 0
 
 
 - name: "Setup | Install | Default | Install or upgrade packages"
@@ -19,7 +19,7 @@
     allowerasing: "{{ true if (((ansible_facts['os_family'] | lower) == 'redhat') and ('curl' in __run_acmesh_packages_install)) else omit }}"
   when:
     - __run_acmesh_packages_install is defined
-    - (__run_acmesh_packages_install | length) > 1
+    - (__run_acmesh_packages_install | length) > 0
 
 
 - name: "Setup | Install | Default | Get upstream release version data (GitHub API)"
