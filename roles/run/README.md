@@ -231,6 +231,22 @@ See `min_ansible_version` in [`meta/main.yml`](./meta/main.yml) and `__run_acmes
 
 ## External requirements<a id="requirements"></a>
 
-The role needs to be able to connect to GitHub API endpoint to fetch the latest acme.sh release information (see `__run_acmesh_githubapi_release_latest_url` in [`vars/main.yml`](./vars/main.yml) for details).
+* **GitHub API access:** The role needs to be able to connect to GitHub API endpoint to fetch the latest acme.sh release information for upgrades (see `__run_acmesh_githubapi_release_latest_url` in [`vars/main.yml`](./vars/main.yml) for details).
+* **SELinux**: This role does not handle SELinux configurations. Please add additional tasks before or after this role to accommodate these changes (e.g. `cert_t` might be needed as context). The following Ansible modules may help with SELinux configuration:
+  - [`ansible.posix.selinux`](https://docs.ansible.com/ansible/latest/collections/ansible/posix/selinux_module.html)
+  - [`community.general.sefcontext_module`](https://docs.ansible.com/ansible/latest/collections/community/general/sefcontext_module.html)
+  - [`community.general.seport_module`](https://docs.ansible.com/ansible/latest/collections/community/general/seport_module.html)
+* **Permissions to restart services for the service user:** Additionally you may need to allow the service user defined by `run_acmesh_user` (defaults to `acmesh`) to reload/restart services for [hooks](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) to function. Using `sudo` in the hook and [`community.general.sudoers`](https://docs.ansible.com/ansible/latest/collections/community/general/sudoers_module.html) can help you with that:
+  ```yaml
+  - name: "Allow the acme.sh service user to reload / restart services with managed certificates"
+    community.general.sudoers:
+      name: "acmesh-service"
+      user: "acmesh" # the username get set via run_acmesh_user role variable, defaults to "acmesh"
+      commands:
+        - "/bin/systemctl reload apache2.service"
+        - "/bin/systemctl reload nginx.service"
+        - "/bin/systemctl restart postfix.service"
+      nopassword: true
+  ```
 
-Beside that, there are no special requirements not covered by Ansible itself.
+Beside that, there are no special requirements not covered by the role or Ansible itself.
