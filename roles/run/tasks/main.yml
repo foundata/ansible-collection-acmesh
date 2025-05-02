@@ -14,7 +14,7 @@
     - "run_acmesh_always"
 
 
-- name: "Main | Include setup tasks (install): default first, then best platform match (if any)"
+- name: "Main | Include setup tasks (install): best platform matches (if any), then default"
   ansible.builtin.include_tasks:
     file: "{{ __run_acmesh_task_file }}"
     apply:
@@ -25,16 +25,14 @@
   when:
     - run_acmesh_state == 'present'
     - __run_acmesh_task_file is file
-    - __run_acmesh_loop_index <= 1
-  loop: "{{ ['default.yml'] + __run_acmesh_platform_filenames_most_specific_first }}"
+  loop: "{{ __run_acmesh_platform_filenames_most_specific_first + ['default.yml'] }}"
   loop_control:
-    index_var: "__run_acmesh_loop_index"
     loop_var: "__run_acmesh_loop_item"
   tags:
     - "run_acmesh_setup"
 
 
-- name: "Main | Include configuration tasks: default first, then best platform match (if any)"
+- name: "Main | Include configuration tasks: best platform matches (if any), then default"
   ansible.builtin.include_tasks:
     file: "{{ __run_acmesh_task_file }}"
     apply:
@@ -45,36 +43,32 @@
   when:
     - run_acmesh_state == 'present'
     - __run_acmesh_task_file is file
-    - __run_acmesh_loop_index <= 1
-  loop: "{{ ['default.yml'] + __run_acmesh_platform_filenames_most_specific_first }}"
+  loop: "{{ __run_acmesh_platform_filenames_most_specific_first + ['default.yml'] }}"
   loop_control:
-    index_var: "__run_acmesh_loop_index"
     loop_var: "__run_acmesh_loop_item"
   tags:
     - "run_acmesh_config"
 
 
-- name: "Main | Include certificate tasks: default first, then best platform match (if any)"
+- name: "Main | Include service or daemon management tasks: best platform matches (if any), then default"
   ansible.builtin.include_tasks:
     file: "{{ __run_acmesh_task_file }}"
     apply:
       tags:
-        - "run_acmesh_cert"
+        - "run_acmesh_service"
   vars:
-    __run_acmesh_task_file: "{{ role_path }}/tasks/cert/{{ __run_acmesh_loop_item }}"
+    __run_acmesh_task_file: "{{ role_path }}/tasks/service/{{ __run_acmesh_loop_item }}"
   when:
     - run_acmesh_state == 'present'
     - __run_acmesh_task_file is file
-    - __run_acmesh_loop_index <= 1
-  loop: "{{ ['default.yml'] + __run_acmesh_platform_filenames_most_specific_first }}"
+  loop: "{{ __run_acmesh_platform_filenames_most_specific_first + ['default.yml'] }}"
   loop_control:
-    index_var: "__run_acmesh_loop_index"
     loop_var: "__run_acmesh_loop_item"
   tags:
-    - "run_acmesh_cert"
+    - "run_acmesh_service"
 
 
-- name: "Main | Include setup tasks (uninstall): default first, then best platform match (if any)"
+- name: "Main | Include setup tasks (uninstall): best platform matches (if any), then default"
   ansible.builtin.include_tasks:
     file: "{{ __run_acmesh_task_file }}"
     apply:
@@ -85,10 +79,8 @@
   when:
     - run_acmesh_state == 'absent'
     - __run_acmesh_task_file is file
-    - __run_acmesh_loop_index <= 1
-  loop: "{{ ['default.yml'] + __run_acmesh_platform_filenames_most_specific_first }}"
+  loop: "{{ __run_acmesh_platform_filenames_most_specific_first + ['default.yml'] }}"
   loop_control:
-    index_var: "__run_acmesh_loop_index"
     loop_var: "__run_acmesh_loop_item"
   tags:
     - "run_acmesh_setup"
