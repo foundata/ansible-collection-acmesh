@@ -21,7 +21,7 @@
   register: __run_acmesh_local_preseed_rsa_result
 
 
-- name: "Cert | Default | show data about pre-seeded cert dirs (RSA) at local source"
+- name: "Cert | Default | Show data about pre-seeded cert dirs (RSA) at local source"
   ansible.builtin.debug:
     var: __run_acmesh_local_preseed_rsa_result
     verbosity: 3
@@ -30,7 +30,7 @@
     - __run_acmesh_local_preseed_rsa_result is defined
 
 
-- name: "Cert | Default | pre-seed already issued certs (RSA) from local source (if any)"
+- name: "Cert | Default | Pre-seed already issued certs (RSA) from local source (if any)"
   ansible.builtin.copy:
     src: "{{ item['stat']['path'] }}"
     dest: "{{ run_acmesh_cfg_cert_home }}"
@@ -50,7 +50,7 @@
   loop: "{{ __run_acmesh_local_preseed_rsa_result['results'] }}"
 
 
-- name: "Cert | Default | check for pre-seeded cert dirs (ECC) at local source"
+- name: "Cert | Default | Check for pre-seeded cert dirs (ECC) at local source"
   delegate_to: "localhost"
   become: false
   ansible.builtin.stat:
@@ -75,7 +75,7 @@
     - __run_acmesh_local_preseed_ecc_result is defined
 
 
-- name: "Cert | Default | pre-seed already issued certs (ECC) from local source (if any)"
+- name: "Cert | Default | Pre-seed already issued certs (ECC) from local source (if any)"
   ansible.builtin.copy:
     src: "{{ item['stat']['path'] }}"
     dest: "{{ run_acmesh_cfg_cert_home }}"
@@ -95,7 +95,7 @@
   loop: "{{ __run_acmesh_local_preseed_ecc_result['results'] }}"
 
 
-- name: "Cert | Default | issue certificate(s)"
+- name: "Cert | Default | Issue certificate(s)"
   # The command or shell module is used here. This approach is justified:
   #
   # - No built-in Ansible module provides a direct way to interact with acme.sh.
@@ -213,7 +213,7 @@
   notify: "run_acmesh: set ownership and permissions"
 
 
-- name: "Cert | Default | create target directories for certificate installation(s) (based on data for --ca-file, if any)"
+- name: "Cert | Default | Create target directories for certificate installation(s) (based on data for --ca-file, if any)"
   ansible.builtin.file:
     path: "{{ item['ca_file'] | dirname }}"
     state: "directory"
@@ -226,7 +226,7 @@
   loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('ca_file', 'defined') | list }}"
 
 
-- name: "Cert | Default | create target directories for certificate installation(s) (based on data for --cert-file, if any)"
+- name: "Cert | Default | Create target directories for certificate installation(s) (based on data for --cert-file, if any)"
   ansible.builtin.file:
     path: "{{ item['cert_file'] | dirname }}"
     state: "directory"
@@ -239,7 +239,7 @@
   loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('cert_file', 'defined') | list }}"
 
 
-- name: "Cert | Default | create target directories for certificate installation(s) (based on data for --fullcain-file, if any)"
+- name: "Cert | Default | Create target directories for certificate installation(s) (based on data for --fullcain-file, if any)"
   ansible.builtin.file:
     path: "{{ item['fullcain_file'] | dirname }}"
     state: "directory"
@@ -252,7 +252,7 @@
   loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('fullcain_file', 'defined') | list }}"
 
 
-- name: "Cert | Default | create target directories for certificate installation(s) (based on data for --key-file, if any)"
+- name: "Cert | Default | Create target directories for certificate installation(s) (based on data for --key-file, if any)"
   ansible.builtin.file:
     path: "{{ item['key_file'] | dirname }}"
     state: "directory"
@@ -265,7 +265,7 @@
   loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('key_file', 'defined') | list }}"
 
 
-- name: "Cert | Default | install certificate(s)"
+- name: "Cert | Default | Install certificate(s)"
   # The command or shell module is used here. This approach is justified:
   #
   # - No built-in Ansible module provides a direct way to interact with acme.sh.
@@ -330,7 +330,7 @@
   notify: "run_acmesh: set ownership and permissions"
 
 
-- name: "Cert | Default | gather certificate information"
+- name: "Cert | Default | Gather certificate information"
   ansible.builtin.command:
     cmd: >
       ./acme.sh --list --certhome "{{ run_acmesh_cfg_cert_home }}"
@@ -343,7 +343,7 @@
   register: __run_acmesh_list_domains_result
 
 
-- name: "Cert | Default | show certificate information"
+- name: "Cert | Default | Show certificate information"
   ansible.builtin.debug:
     msg: "{{ __run_acmesh_list_domains_result['stdout_lines'] }}"
     verbosity: 3
