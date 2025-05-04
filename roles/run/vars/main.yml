@@ -95,6 +95,14 @@ __run_acmesh_packages_removal:
   [] # Remove the "[]" when adding values to this list.
 
 
+# List of paths of files and directories to be removed unconditionally after
+# installation. This is useful for removing default configuration resources
+# that would otherwise create confusion or conflict with custom configurations
+# managed by this role.
+__run_acmesh_paths_removal:
+  [] # Remove the "[]" when adding values to this list.
+
+
 # String. Specifies the Git repository URL for acme.sh.
 # This is used to fetch the acme.sh source code during installation or updates.
 __run_acmesh_git_url: "https://github.com/acmesh-official/acme.sh.git"
@@ -128,6 +136,6 @@ __run_acmesh_systemd_renewal_servicefile: "/etc/systemd/system/acmesh-renewal.se
 __run_acmesh_systemd_renewal_timerfile: "/etc/systemd/system/acmesh-renewal.timer"
 
 
-# Override defaults of dependencies used by this role (if any).
+### Override defaults of dependencies used by this role (if any).
 
 # nothing right now

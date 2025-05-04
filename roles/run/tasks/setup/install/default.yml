@@ -22,6 +22,16 @@
     - (__run_acmesh_packages_install | length) > 0
 
 
+- name: "Setup | Install | Default | Remove unwanted files and directories (e.g., to prevent conflicts or resolve incompatibilities)"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: "absent"
+  when:
+    - __run_acmesh_paths_removal is defined
+    - (__run_acmesh_paths_removal | length) > 0
+  loop: "{{ __run_acmesh_paths_removal }}"
+
+
 - name: "Setup | Install | Default | Get upstream release version data (GitHub API)"
   ansible.builtin.uri:
     url: "{{ __run_acmesh_githubapi_release_latest_url }}"
