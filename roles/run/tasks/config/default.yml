@@ -19,7 +19,7 @@
   # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
   ansible.builtin.shell:
     cmd: |
-      __run_acmesh_checksum_before="$(sha1sum '{{ run_acmesh_cfg_config_home }}/account.conf')"
+      __run_acmesh_checksum_before="$({{ __run_acmesh_sha1sum_executable }} '{{ run_acmesh_cfg_config_home }}/account.conf')"
 
       if ! ./acme.sh \
             --info \
@@ -43,7 +43,7 @@
         exit 1
       fi
 
-      if [ "${__run_acmesh_checksum_before}" != "$(sha1sum '{{ run_acmesh_cfg_config_home }}/account.conf')" ]
+      if [ "${__run_acmesh_checksum_before}" != "$({{ __run_acmesh_sha1sum_executable }} '{{ run_acmesh_cfg_config_home }}/account.conf')" ]
       then
         printf 'Changed config file: {{ run_acmesh_cfg_config_home }}/account.conf'
       fi
