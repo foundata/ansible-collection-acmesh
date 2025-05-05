@@ -105,11 +105,11 @@
     cmd: >
       ./acme.sh
         --issue
-        --config-home "{{ run_acmesh_cfg_config_home }}"
-        --certhome "{{ run_acmesh_cfg_cert_home }}"
+        --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
+        --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
         {% for item_domain in item['domains'] %}
-          --domain "{{ item_domain['name'] }}"
-          {{ '--dns "' ~ item_domain['challenge']['dns_provider'] ~ '"'
+          --domain {{ item_domain['name'] | ansible.builtin.quote }}
+          {{ '--dns ' ~ (item_domain['challenge']['dns_provider'] | ansible.builtin.quote)
               if ((item_domain['challenge'] is defined) and
                   (item_domain['challenge']['type'] is defined) and
                   (item_domain['challenge']['type'] == 'dns') and
@@ -117,17 +117,17 @@
                   (item_domain['challenge']['dns_provider']))
               else
               '' }}
-          {{ '--domain-alias "' ~ item_domain['challenge']['domain_alias'] ~ '"'
+          {{ '--domain-alias ' ~ (item_domain['challenge']['domain_alias'] | ansible.builtin.quote)
               if ((item_domain['challenge']['domain_alias'] is defined) and
                   (item_domain['challenge']['domain_alias']))
               else
               '' }}
-          {{ '--challenge-alias "' ~ item_domain['challenge']['challenge_alias'] ~ '"'
+          {{ '--challenge-alias ' ~ (item_domain['challenge']['challenge_alias'] | ansible.builtin.quote)
               if ((item_domain['challenge']['challenge_alias'] is defined) and
                   (item_domain['challenge']['challenge_alias']))
               else
               '' }}
-          {{ '--webroot "' ~ item_domain['challenge']['webroot'] ~ '"'
+          {{ '--webroot ' ~ (item_domain['challenge']['webroot'] | ansible.builtin.quote)
               if ((item_domain['challenge'] is defined) and
                   (item_domain['challenge']['type'] is defined) and
                   (item_domain['challenge']['type'] == 'webroot') and
@@ -141,7 +141,7 @@
                   (item_domain['challenge']['type'] == 'standalone'))
               else
               '' }}
-          {{ '--httpport ' ~ item_domain['challenge']['httpport']
+          {{ '--httpport ' ~ (item_domain['challenge']['httpport'] | ansible.builtin.quote)
               if ((item_domain['challenge']['httpport'] is defined) and
                   (item_domain['challenge']['httpport']))
               else
@@ -152,7 +152,7 @@
                   (item_domain['challenge']['type'] == 'alpn'))
               else
               '' }}
-          {{ '--tlsport ' ~ item_domain['challenge']['tlsport']
+          {{ '--tlsport ' ~ (item_domain['challenge']['tlsport'] | ansible.builtin.quote)
               if ((item_domain['challenge']['tlsport'] is defined) and
                   (item_domain['challenge']['tlsport']))
               else
@@ -168,26 +168,26 @@
                 (item['debug']))
             else
             '' }}
-        {{ '--dnssleep ' ~ (item['dnssleep'] | int)
+        {{ '--dnssleep ' ~ (item['dnssleep'] | ansible.builtin.quote)
             if (item['dnssleep'] is defined)
             else
             '' }}
-        {{ '--pre-hook "' ~ item['pre_hook'] ~ '"'
+        {{ '--pre-hook ' ~ (item['pre_hook'] | ansible.builtin.quote)
             if ((item['pre_hook'] is defined) and
                 (item['pre_hook']))
             else
             '' }}
-        {{ '--post-hook "' ~ item['post_hook'] ~ '"'
+        {{ '--post-hook ' ~ (item['post_hook'] | ansible.builtin.quote)
             if ((item['post_hook'] is defined) and
                 (item['post_hook']))
             else
             '' }}
-        {{ '--renew-hook "' ~ item['renew_hook'] ~ '"'
+        {{ '--renew-hook ' ~ (item['renew_hook'] | ansible.builtin.quote)
             if ((item['renew_hook'] is defined) and
                 (item['renew_hook']))
             else
             '' }}
-        {{ '--server "' ~ item['server'] ~ '"'
+        {{ '--server ' ~ (item['server'] | ansible.builtin.quote)
             if ((item['server'] is defined) and
                 (item['server']))
             else
@@ -275,30 +275,30 @@
     cmd: >
       ./acme.sh
         --install-cert
-        --config-home "{{ run_acmesh_cfg_config_home }}"
-        --certhome "{{ run_acmesh_cfg_cert_home }}"
-        --domain "{{ item['domains'][0]['name'] }}"
-        {{ '--ca-file "' ~ item['install']['ca_file'] ~ '"'
+        --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
+        --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
+        --domain {{ item['domains'][0]['name'] | ansible.builtin.quote }}
+        {{ '--ca-file ' ~ (item['install']['ca_file'] | ansible.builtin.quote)
             if ((item['install']['ca_file'] is defined) and
                 (item['install']['ca_file']))
             else
             '' }}
-        {{ '--cert-file "' ~ item['install']['cert_file'] ~ '"'
+        {{ '--cert-file ' ~ (item['install']['cert_file'] | ansible.builtin.quote)
             if ((item['install']['cert_file'] is defined) and
                 (item['install']['cert_file']))
             else
             '' }}
-        {{ '--fullchain-file "' ~ item['install']['fullcain_file'] ~ '"'
+        {{ '--fullchain-file ' ~ (item['install']['fullcain_file'] | ansible.builtin.quote)
             if ((item['install']['fullcain_file'] is defined) and
                 (item['install']['fullcain_file']))
             else
             '' }}
-        {{ '--key-file "' ~ item['install']['key_file'] ~ '"'
+        {{ '--key-file ' ~ (item['install']['key_file'] | ansible.builtin.quote)
             if ((item['install']['key_file'] is defined) and
                 (item['install']['key_file']))
             else
             '' }}
-        {{ '--reloadcmd "' ~ item['install']['reloadcmd'] ~ '"'
+        {{ '--reloadcmd ' ~ (item['install']['reloadcmd'] | ansible.builtin.quote)
             if ((item['install']['reloadcmd'] is defined) and
                 (item['install']['reloadcmd']))
             else
@@ -333,7 +333,7 @@
 - name: "Cert | Default | Gather certificate information"
   ansible.builtin.command:
     cmd: >
-      ./acme.sh --list --certhome "{{ run_acmesh_cfg_cert_home }}"
+      ./acme.sh --list --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   when:

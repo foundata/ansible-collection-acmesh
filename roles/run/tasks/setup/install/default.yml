@@ -171,19 +171,19 @@
     cmd: >
       ./acme.sh
         --install
-        --home "{{ run_acmesh_cfg_home }}"
-        --config-home "{{ run_acmesh_cfg_config_home }}"
-        --certhome "{{ run_acmesh_cfg_cert_home }}"
-        --log "{{ run_acmesh_cfg_logfile }}"
-        --log-level {{ run_acmesh_cfg_log_level }}
-        --syslog {{ run_acmesh_cfg_syslog }}
+        --home {{ run_acmesh_cfg_home | ansible.builtin.quote }}
+        --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
+        --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
+        --log {{ run_acmesh_cfg_logfile | ansible.builtin.quote }}
+        --log-level {{ run_acmesh_cfg_log_level | ansible.builtin.quote }}
+        --syslog {{ run_acmesh_cfg_syslog | ansible.builtin.quote }}
         --nocron
         {{ '--auto-upgrade 1'
           if ((run_acmesh_autoupgrade is defined) and
               (run_acmesh_autoupgrade))
           else
           '--auto-upgrade 0' }}
-        {{ '--accountemail "' ~ run_acmesh_cfg_accountemail ~ '"'
+        {{ '--accountemail ' ~ (run_acmesh_cfg_accountemail | ansible.builtin.quote)
           if ((run_acmesh_cfg_accountemail is defined) and
               (run_acmesh_cfg_accountemail))
           else
@@ -214,18 +214,18 @@
     cmd: >
       ./acme.sh
         --upgrade
-        --home "{{ run_acmesh_cfg_home }}"
-        --config-home "{{ run_acmesh_cfg_config_home }}"
-        --certhome "{{ run_acmesh_cfg_cert_home }}"
-        --log "{{ run_acmesh_cfg_logfile }}"
-        --log-level {{ run_acmesh_cfg_log_level }}
-        --syslog {{ run_acmesh_cfg_syslog }}
+        --home {{ run_acmesh_cfg_home | ansible.builtin.quote }}
+        --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
+        --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
+        --log {{ run_acmesh_cfg_logfile | ansible.builtin.quote }}
+        --log-level {{ run_acmesh_cfg_log_level | ansible.builtin.quote }}
+        --syslog {{ run_acmesh_cfg_syslog | ansible.builtin.quote }}
         {{ '--auto-upgrade 1'
           if ((run_acmesh_autoupgrade is defined) and
               (run_acmesh_autoupgrade))
           else
           '--auto-upgrade 0' }}
-        {{ '--accountemail "' ~ run_acmesh_cfg_accountemail ~ '"'
+        {{ '--accountemail ' ~ (run_acmesh_cfg_accountemail | ansible.builtin.quote)
           if ((run_acmesh_cfg_accountemail is defined) and
               (run_acmesh_cfg_accountemail))
           else
@@ -260,15 +260,17 @@
     cmd: |
       set -u # fail on unset vars
       set -o pipefail # fail if any pipe cmd fails
-      __run_acmesh_version_installed=''
-      if command -v '{{ run_acmesh_cfg_home }}/acme.sh' > /dev/null 2>&1
+
+      __run_acmesh_version_installed=""
+      if command -v {{ (run_acmesh_cfg_home ~ '/acme.sh') | ansible.builtin.quote }} > /dev/null 2>&1
       then
-        __run_acmesh_version_installed="$({{ run_acmesh_cfg_home }}/acme.sh --version | tail -1 | sed -e 's/^v//g')"
+        __run_acmesh_version_installed=$({{ (run_acmesh_cfg_home ~ '/acme.sh' ) | ansible.builtin.quote }} --version | tail -1 | sed -e 's/^v//g')
         if ! printf '%s' "${__run_acmesh_version_installed}" | grep -E -q -e '^[[:digit:]\.]*$'
         then
           __run_acmesh_version_installed=''
         fi
       fi
+
       printf '%s' "${__run_acmesh_version_installed}"
       exit 0
     executable: "/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell

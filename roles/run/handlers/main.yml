@@ -29,55 +29,46 @@
 
       # Set ownership of files and directories: service user and group
       find \
-        '{{ run_acmesh_cfg_home }}' \
-        '{{ run_acmesh_cfg_config_home }}' \
-        '{{ run_acmesh_cfg_cert_home }}' \
-        -exec chown -c "{{ run_acmesh_user }}:{{ run_acmesh_group }}" {} \;
-      chown -c "{{ run_acmesh_user }}:{{ run_acmesh_group }}" '{{ run_acmesh_cfg_config_home }}/account.conf'
-      chown -c "{{ run_acmesh_user }}:{{ run_acmesh_group }}" '{{ run_acmesh_cfg_logfile }}'
+        {{ run_acmesh_cfg_home | ansible.builtin.quote }} \
+        {{ run_acmesh_cfg_config_home | ansible.builtin.quote }} \
+        {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }} \
+        -exec chown -c {{ (run_acmesh_user ~ ':' ~ run_acmesh_group) | ansible.builtin.quote }} {} \;
+      chown -c {{ (run_acmesh_user ~ ':' ~ run_acmesh_group) | ansible.builtin.quote }} {{ (run_acmesh_cfg_config_home ~ '/account.conf') |
+                                                                                           ansible.builtin.quote }}
+      chown -c {{ (run_acmesh_user ~ ':' ~ run_acmesh_group) | ansible.builtin.quote }} {{ run_acmesh_cfg_logfile | ansible.builtin.quote }}
 
       # Set permissions of directories: 0750 / u=rwx,g=rx,o=
       find \
-        '{{ run_acmesh_cfg_home }}' \
-        '{{ run_acmesh_cfg_config_home }}' \
-        '{{ run_acmesh_cfg_cert_home }}' \
+        {{ run_acmesh_cfg_home | ansible.builtin.quote }} \
+        {{ run_acmesh_cfg_config_home | ansible.builtin.quote }} \
+        {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }} \
         -type d \
         -exec chmod -c 0750 {} \;
 
       # Set permissions of non-executables: 0640 / u=rw,g=r,o=
       # The account.conf will be handled later
       find \
-        '{{ run_acmesh_cfg_home }}' \
-        '{{ run_acmesh_cfg_config_home }}' \
-        '{{ run_acmesh_cfg_cert_home }}' \
+        {{ run_acmesh_cfg_home | ansible.builtin.quote }} \
+        {{ run_acmesh_cfg_config_home | ansible.builtin.quote }} \
+        {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }} \
         -type f \
         -not -name '*\.sh' \
-        -not -wholename '{{ run_acmesh_cfg_config_home }}/account.conf' \
+        -not -wholename {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }} \
         -exec chmod -c 0640 {} \;
 
       # Set permissions of executables: 0750 / u=rwx,g=rx,o=
-      chmod -c 0750 '{{ run_acmesh_cfg_home }}/acme.sh'
+      chmod -c 0750 {{ (run_acmesh_cfg_home ~ '/acme.sh') | ansible.builtin.quote }}
       find \
-        '{{ run_acmesh_cfg_home }}/deploy' \
-        '{{ run_acmesh_cfg_home }}/dnsapi' \
-        '{{ run_acmesh_cfg_home }}/notify' \
-        -type f \
-        -name '*\.sh' \
-        -exec chmod -c 0750 {} \;
-
-      # Set permissions of executables: 0750 / u=rwx,g=rx,o=
-      chmod -c 0750 '{{ run_acmesh_cfg_home }}/acme.sh'
-      find \
-        '{{ run_acmesh_cfg_home }}/deploy' \
-        '{{ run_acmesh_cfg_home }}/dnsapi' \
-        '{{ run_acmesh_cfg_home }}/notify' \
+        {{ (run_acmesh_cfg_home ~ '/deploy') | ansible.builtin.quote }} \
+        {{ (run_acmesh_cfg_home ~ '/dnsapi') | ansible.builtin.quote }} \
+        {{ (run_acmesh_cfg_home ~ '/notify') | ansible.builtin.quote }} \
         -type f \
         -name '*\.sh' \
         -exec chmod -c 0750 {} \;
 
       # Set permissions of sensitive files directories: 0600 / u=rw,g=,o=
-      chmod -c 0600 '{{ run_acmesh_cfg_config_home }}/account.conf' # may contain credentials (e.g. DNS API or notify credentials)
-      chmod -c 0600 '{{ run_acmesh_cfg_logfile }}'
+      chmod -c 0600 {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }} # may contain credentials (e.g. DNS API or notify credentials)
+      chmod -c 0600 {{ run_acmesh_cfg_logfile | ansible.builtin.quote }}
 
       exit 0
     executable: "/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell

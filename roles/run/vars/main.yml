@@ -136,7 +136,7 @@ __run_acmesh_systemd_renewal_servicefile: "/etc/systemd/system/acmesh-renewal.se
 __run_acmesh_systemd_renewal_timerfile: "/etc/systemd/system/acmesh-renewal.timer"
 
 
-# String. Path to the sha1sum executable
+# String. Path to the sha1sum executable.
 __run_acmesh_sha1sum_executable: "/usr/bin/sha1sum"
 
 

@@ -22,22 +22,22 @@
       set -u # fail on unset vars
       set -o pipefail # fail if any pipe cmd fails
 
-      __run_acmesh_checksum_before="$({{ __run_acmesh_sha1sum_executable }} '{{ run_acmesh_cfg_config_home }}/account.conf')"
+      __run_acmesh_checksum_before=$({{ __run_acmesh_sha1sum_executable }} {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }})
 
       if ! ./acme.sh \
             --info \
-            --home "{{ run_acmesh_cfg_home }}" \
-            --config-home "{{ run_acmesh_cfg_config_home }}" \
-            --certhome "{{ run_acmesh_cfg_cert_home }}" \
-            --log "{{ run_acmesh_cfg_logfile }}" \
-            --log-level {{ run_acmesh_cfg_log_level }} \
-            --syslog {{ run_acmesh_cfg_syslog }} \
+            --home {{ run_acmesh_cfg_home | ansible.builtin.quote }} \
+            --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }} \
+            --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }} \
+            --log {{ run_acmesh_cfg_logfile | ansible.builtin.quote }} \
+            --log-level {{ run_acmesh_cfg_log_level | ansible.builtin.quote }} \
+            --syslog {{ run_acmesh_cfg_syslog | ansible.builtin.quote }} \
             {{ '--auto-upgrade 1'
               if ((run_acmesh_autoupgrade is defined) and
                   (run_acmesh_autoupgrade))
               else
               '--auto-upgrade 0' }} \
-            {{ '--accountemail "' ~ run_acmesh_cfg_accountemail ~ '"'
+            {{ '--accountemail ' ~ (run_acmesh_cfg_accountemail | ansible.builtin.quote)
               if ((run_acmesh_cfg_accountemail is defined) and
                   (run_acmesh_cfg_accountemail))
               else
@@ -46,9 +46,10 @@
         exit 1
       fi
 
-      if [ "${__run_acmesh_checksum_before}" != "$({{ __run_acmesh_sha1sum_executable }} '{{ run_acmesh_cfg_config_home }}/account.conf')" ]
+      __run_acmesh_checksum_after=$({{ __run_acmesh_sha1sum_executable }} {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }})
+      if [ "${__run_acmesh_checksum_before}" != "${__run_acmesh_checksum_after}" ]
       then
-        printf 'Changed config file: {{ run_acmesh_cfg_config_home }}/account.conf'
+        printf 'Changed config file: %s' {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }}
       fi
 
       exit 0

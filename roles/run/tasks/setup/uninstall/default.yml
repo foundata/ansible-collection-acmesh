@@ -15,9 +15,9 @@
   # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
   ansible.builtin.command:
     cmd: >
-      {{ run_acmesh_cfg_home }}/acme.sh
+      {{ (run_acmesh_cfg_home ~ '/acme.sh') | ansible.builtin.quote }}
         --uninstall
-        --config-home "{{ run_acmesh_cfg_config_home }}"
+        --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
   args:
     removes: "{{ run_acmesh_cfg_home }}/acme.sh"
   when:

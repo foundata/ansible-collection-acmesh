@@ -109,16 +109,19 @@
     cmd: |
       set -u # fail on unset vars
       set -o pipefail # fail if any pipe cmd fails
+
       __run_acmesh_version_installed=""
-      if command -v '{{ run_acmesh_cfg_home }}/acme.sh' > /dev/null 2>&1
+      if command -v {{ (run_acmesh_cfg_home ~ '/acme.sh') | ansible.builtin.quote }} > /dev/null 2>&1
       then
-        __run_acmesh_version_installed="$({{ run_acmesh_cfg_home }}/acme.sh --version | tail -1 | sed -e 's/^v//g')"
+        __run_acmesh_version_installed=$({{ (run_acmesh_cfg_home ~ '/acme.sh' ) | ansible.builtin.quote }} --version | tail -1 | sed -e 's/^v//g')
         if ! printf '%s' "${__run_acmesh_version_installed}" | grep -E -q -e '^[[:digit:]\.]*$'
         then
           __run_acmesh_version_installed=''
         fi
       fi
+
       printf '%s' "${__run_acmesh_version_installed}"
+      exit 0
     executable: "/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
   register: __run_acmesh_version_installed_result
   ignore_errors: true
