@@ -5,7 +5,8 @@
 - name: "Config | Default | Configure acme.sh"
   # The command or shell module is used here. This approach is justified:
   #
-  # - No built-in Ansible module provides a direct way to interact with acme.sh.
+  # - No built-in Ansible module provides a direct way to interact with the
+  #   used command.
   # - Inline templating allows for safe and efficient parameter handling,
   #   avoiding the need for multiple additional tasks with little to no benefit.
   #
