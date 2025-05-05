@@ -23,7 +23,9 @@
   #   prints every processed file but reports only when a change is made.
   ansible.builtin.shell:
     cmd: |
-      set -e
+      set -u # fail on unset vars
+      set -o pipefail # fail if any pipe cmd fails
+      set -e # exit on any error (incl. in if/while/tests)
 
       # Set ownership of files and directories: service user and group
       find \

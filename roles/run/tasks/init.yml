@@ -107,6 +107,8 @@
   # - Security concerns are mitigated by strict path usage and input validation.
   ansible.builtin.shell:
     cmd: |
+      set -u # fail on unset vars
+      set -o pipefail # fail if any pipe cmd fails
       __run_acmesh_version_installed=""
       if command -v '{{ run_acmesh_cfg_home }}/acme.sh' > /dev/null 2>&1
       then

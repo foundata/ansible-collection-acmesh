@@ -19,6 +19,9 @@
   # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
   ansible.builtin.shell:
     cmd: |
+      set -u # fail on unset vars
+      set -o pipefail # fail if any pipe cmd fails
+
       __run_acmesh_checksum_before="$({{ __run_acmesh_sha1sum_executable }} '{{ run_acmesh_cfg_config_home }}/account.conf')"
 
       if ! ./acme.sh \
