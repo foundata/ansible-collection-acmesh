@@ -50,14 +50,14 @@
     - "run_acmesh_config"
 
 
-- name: "Main | Include service or daemon management tasks: best platform matches (if any), then default"
+- name: "Main | Include certificate tasks: best platform matches (if any), then default"
   ansible.builtin.include_tasks:
     file: "{{ __run_acmesh_task_file }}"
     apply:
       tags:
-        - "run_acmesh_service"
+        - "run_acmesh_cert"
   vars:
-    __run_acmesh_task_file: "{{ role_path }}/tasks/service/{{ __run_acmesh_loop_item }}"
+    __run_acmesh_task_file: "{{ role_path }}/tasks/cert/{{ __run_acmesh_loop_item }}"
   when:
     - run_acmesh_state == 'present'
     - __run_acmesh_task_file is file
@@ -65,7 +65,7 @@
   loop_control:
     loop_var: "__run_acmesh_loop_item"
   tags:
-    - "run_acmesh_service"
+    - "run_acmesh_cert"
 
 
 - name: "Main | Include setup tasks (uninstall): best platform matches (if any), then default"
