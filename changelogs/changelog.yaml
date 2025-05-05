@@ -1,6 +1,35 @@
 ---
 ancestor: null
 releases:
+  1.1.0:
+    changes:
+      minor_changes:
+        - Added Fedora 42 as supported platform for all collection roles and Molecule
+          test scenarios
+        - Exclude ``extensions/molecule`` from build artifacts. This reduces the size
+          of the resulting artifact. The Ansible Molecule directory is intended for
+          developer testing and not needed in production artifacts, where environment-specific
+          testing can be performed independently.
+        - Improved inline script quoting. Ensure safer handling of input by adding
+          ``ansible.builtin.quote`` where appropriate. Even if inputs are user-controlled
+          or derived from internal variables, it's better to be safe and prevent potential
+          issues with shell parsing.
+      release_summary: 'Release Date: 2025-05-05
+
+
+        Mostly a maintenance release, shipping official Fedora 42 support.
+
+        '
+      removed_features:
+        - Removed Fedora 40 support (End of Life, EOL) from collection roles and Molecule
+          scenarios. The collection may still work on Fedora 40, but no testing or
+          bugfixes will be provided. A warning will be displayed when used on unsupported
+          platforms.
+    fragments:
+      - 1.1.0-release.yaml
+      - platform-update-fedora-40-fedora-42.yaml
+      - script-quoting-remove-molecule-artefact.yml
+    release_date: '2025-05-05'
   1.0.0:
     changes:
       release_summary: 'Release Date: 2025-04-17

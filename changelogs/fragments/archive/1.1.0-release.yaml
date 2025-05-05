@@ -1,0 +1,12 @@
+---
+
+release_summary: |
+  Release Date: 2025-05-05
+
+  Mostly a maintenance release, shipping official Fedora 42 support.
+
+minor_changes:
+  - "Added Fedora 42 as supported platform for all collection roles and Molecule test scenarios"
+
+removed_features:
+  - "Removed Fedora 40 support (End of Life, EOL) from collection roles and Molecule scenarios. The collection may still work on Fedora 40, but no testing or bugfixes will be provided. A warning will be displayed when used on unsupported platforms."
