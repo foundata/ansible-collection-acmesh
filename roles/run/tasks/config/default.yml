@@ -20,8 +20,8 @@
   # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
   ansible.builtin.shell:
     cmd: |
-      set -u # fail on unset vars
-      set -o pipefail # fail if any pipe cmd fails
+      set -u # Fail on unset vars
+      set -o pipefail # Fail if any pipe cmd fails
 
       __run_acmesh_checksum_before=$({{ __run_acmesh_sha1sum_executable }} {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }})
 
@@ -54,7 +54,7 @@
       fi
 
       exit 0
-    executable: "/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
+    executable: "/bin/bash" # Support for other shells untested (so far)
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   changed_when:

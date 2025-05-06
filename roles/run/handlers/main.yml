@@ -23,9 +23,9 @@
   #   prints every processed file but reports only when a change is made.
   ansible.builtin.shell:
     cmd: |
-      set -u # fail on unset vars
-      set -o pipefail # fail if any pipe cmd fails
-      set -e # exit on any error (incl. in if/while/tests)
+      set -u # Fail on unset vars
+      set -o pipefail # Fail if any pipe cmd fails
+      set -e # Exit on any error (incl. in if/while/tests)
 
       # Set ownership of files and directories: service user and group
       find \
@@ -71,7 +71,7 @@
       chmod -c 0600 {{ run_acmesh_cfg_logfile | ansible.builtin.quote }}
 
       exit 0
-    executable: "/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
+    executable: "/bin/bash" # Support for other shells untested (so far)
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   changed_when:

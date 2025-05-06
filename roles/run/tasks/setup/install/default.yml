@@ -258,8 +258,8 @@
   # - Security concerns are mitigated by strict path usage and input validation.
   ansible.builtin.shell:
     cmd: |
-      set -u # fail on unset vars
-      set -o pipefail # fail if any pipe cmd fails
+      set -u # Fail on unset vars
+      set -o pipefail # Fail if any pipe cmd fails
 
       __run_acmesh_version_installed=""
       if command -v {{ (run_acmesh_cfg_home ~ '/acme.sh') | ansible.builtin.quote }} > /dev/null 2>&1
@@ -273,7 +273,7 @@
 
       printf '%s' "${__run_acmesh_version_installed}"
       exit 0
-    executable: "/bin/bash" # this inline script was only tested with Bash yet, so hardcode the shell
+    executable: "/bin/bash" # Support for other shells untested (so far)
   changed_when: false
   ignore_errors: true
   register: __run_acmesh_version_installed_result
@@ -292,7 +292,7 @@
 
 - name: "Setup | Install | Default | Check if acme.sh.env file exists"
   ansible.builtin.stat:
-    path: "{{ run_acmesh_cfg_home }}/acme.sh.env" # might be missing if acme.sh was installed with --no-profile
+    path: "{{ run_acmesh_cfg_home }}/acme.sh.env" # Might be missing if acme.sh was installed with --no-profile
     get_checksum: false
     get_mime: false
     get_attributes: false
