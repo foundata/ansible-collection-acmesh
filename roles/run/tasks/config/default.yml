@@ -58,8 +58,8 @@
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   changed_when:
-    - __run_acmesh_config_result.rc == 0
-    - "'Changed config file' in __run_acmesh_config_result.stdout"
+    - __run_acmesh_config_result['rc'] == 0
+    - ('Changed config file') in __run_acmesh_config_result['stdout']
   register: __run_acmesh_config_result
 
 

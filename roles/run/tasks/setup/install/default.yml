@@ -1,4 +1,4 @@
-# Setup: Manage basic resource installation, such as packages or service users.
+# Install: Manage basic resource setup, such as packages or service users.
 
 ---
 
@@ -239,8 +239,8 @@
     - run_acmesh_autoupgrade
     - __run_acmesh_version_installed is version(__run_acmesh_version_upstream, 'lt', version_type='semver')
   changed_when:
-    - __run_acmesh_upgrade_result.rc == 0
-    - "'Upgrade success' in __run_acmesh_upgrade_result.stdout"
+    - __run_acmesh_upgrade_result['rc'] == 0
+    - ('Upgrade success') in __run_acmesh_upgrade_result['stdout']
   register: __run_acmesh_upgrade_result
   notify: "run_acmesh: set ownership and permissions"
 

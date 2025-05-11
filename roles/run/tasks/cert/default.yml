@@ -204,11 +204,11 @@
     - __run_acmesh_version_installed
     - run_acmesh_certs is defined
   changed_when:
-    - __run_acmesh_issue_result.rc == 0
-    - "'Cert success' in __run_acmesh_issue_result.stdout"
+    - __run_acmesh_issue_result['rc'] == 0
+    - ('Cert success') in __run_acmesh_issue_result['stdout']
   failed_when: >
     (run_acmesh_certs is not defined) or
-    (__run_acmesh_issue_result.rc != 0 and 'Domains not changed' not in __run_acmesh_issue_result.stdout)
+    (__run_acmesh_issue_result['rc'] != 0 and 'Domains not changed' not in __run_acmesh_issue_result['stdout'])
   loop: "{{ run_acmesh_certs }}"
   register: __run_acmesh_issue_result
   notify: "run_acmesh: set ownership and permissions"
@@ -312,8 +312,8 @@
     - __run_acmesh_version_installed
     - run_acmesh_certs is defined
   changed_when:
-    - __run_acmesh_install_result.rc == 0
-    - "'Cert success' in __run_acmesh_install_result.stdout"
+    - __run_acmesh_install_result['rc'] == 0
+    - ('Cert success') in __run_acmesh_install_result['stdout']
   # Errors from --reloadcmd are ignored to avoid chicken-and-egg issues. These
   # errors typically occur when services required for reloading are not yet
   # running because they depend on valid certificates. Services managed by
@@ -321,9 +321,9 @@
   # if issues persist.
   failed_when: >
     (run_acmesh_certs is not defined) or
-    (__run_acmesh_install_result.rc != 0 and 'Installing' not in __run_acmesh_install_result.stdout) or
+    (__run_acmesh_install_result['rc'] != 0 and 'Installing' not in __run_acmesh_install_result['stdout']) or
     (
-      __run_acmesh_install_result.rc != 0 and
+      __run_acmesh_install_result['rc'] != 0 and
       ((__run_acmesh_install_result.stderr_lines | length) > 0) and
       'Reload error' not in __run_acmesh_install_result.stderr
     )

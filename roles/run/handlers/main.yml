@@ -25,7 +25,7 @@
     cmd: |
       set -u # Fail on unset vars
       set -o pipefail # Fail if any pipe cmd fails
-      set -e # Exit on any error (incl. in if/while/tests)
+      set -e # Exit on errors (incl. tests in if/while)
 
       # Set ownership of files and directories: service user and group
       find \
@@ -75,7 +75,7 @@
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   changed_when:
-    - __run_acmesh_permissions_result.rc == 0
-    - __run_acmesh_permissions_result.stdout | trim | length > 0
+    - __run_acmesh_permissions_result['rc'] == 0
+    - __run_acmesh_permissions_result['stdout'] | trim | length > 0
   register: __run_acmesh_permissions_result
   listen: "run_acmesh: set ownership and permissions"

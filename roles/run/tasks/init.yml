@@ -88,7 +88,6 @@
 
 ### acme.sh specific
 
-
 - name: "Init | Show certificate settings"
   ansible.builtin.debug:
     var: run_acmesh_certs
