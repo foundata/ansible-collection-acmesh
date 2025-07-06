@@ -18,11 +18,11 @@
 - name: "Molecule | Verify | Check existence, permissions and ownership: {{ run_acmesh_cfg_home }}"
   ansible.builtin.assert:
     that:
-      - __testing_run_acmesh_cfg_home_stat.stat.exists
-      - __testing_run_acmesh_cfg_home_stat.stat.isdir
-      - __testing_run_acmesh_cfg_home_stat.stat.mode == '0750'
-      - __testing_run_acmesh_cfg_home_stat.stat.pw_name == run_acmesh_user
-      - __testing_run_acmesh_cfg_home_stat.stat.gr_name == run_acmesh_group
+      - __testing_run_acmesh_cfg_home_stat['stat']['exists']
+      - __testing_run_acmesh_cfg_home_stat['stat']['isdir']
+      - __testing_run_acmesh_cfg_home_stat['stat']['mode'] == '0750'
+      - __testing_run_acmesh_cfg_home_stat['stat']['pw_name'] == run_acmesh_user
+      - __testing_run_acmesh_cfg_home_stat['stat']['gr_name'] == run_acmesh_group
     fail_msg: "{{ run_acmesh_cfg_home }} does not exist or has incorrect permissions/ownership"
 
 
@@ -37,11 +37,11 @@
 - name: "Molecule | Verify | Check existence, permissions and ownership: {{ run_acmesh_cfg_config_home }}"
   ansible.builtin.assert:
     that:
-      - __testing_run_acmesh_cfg_config_home_stat.stat.exists
-      - __testing_run_acmesh_cfg_config_home_stat.stat.isdir
-      - __testing_run_acmesh_cfg_config_home_stat.stat.mode == '0750'
-      - __testing_run_acmesh_cfg_config_home_stat.stat.pw_name == run_acmesh_user
-      - __testing_run_acmesh_cfg_config_home_stat.stat.gr_name == run_acmesh_group
+      - __testing_run_acmesh_cfg_config_home_stat['stat']['exists']
+      - __testing_run_acmesh_cfg_config_home_stat['stat']['isdir']
+      - __testing_run_acmesh_cfg_config_home_stat['stat']['mode'] == '0750'
+      - __testing_run_acmesh_cfg_config_home_stat['stat']['pw_name'] == run_acmesh_user
+      - __testing_run_acmesh_cfg_config_home_stat['stat']['gr_name'] == run_acmesh_group
     fail_msg: "{{ run_acmesh_cfg_config_home }} does not exist or has incorrect permissions/ownership"
 
 
@@ -56,11 +56,11 @@
 - name: "Molecule | Verify | Check existence, permissions and ownership: {{ run_acmesh_cfg_cert_home }}"
   ansible.builtin.assert:
     that:
-      - __testing_run_acmesh_cfg_cert_home_stat.stat.exists
-      - __testing_run_acmesh_cfg_cert_home_stat.stat.isdir
-      - __testing_run_acmesh_cfg_cert_home_stat.stat.mode == '0750'
-      - __testing_run_acmesh_cfg_cert_home_stat.stat.pw_name == run_acmesh_user
-      - __testing_run_acmesh_cfg_cert_home_stat.stat.gr_name == run_acmesh_group
+      - __testing_run_acmesh_cfg_cert_home_stat['stat']['exists']
+      - __testing_run_acmesh_cfg_cert_home_stat['stat']['isdir']
+      - __testing_run_acmesh_cfg_cert_home_stat['stat']['mode'] == '0750'
+      - __testing_run_acmesh_cfg_cert_home_stat['stat']['pw_name'] == run_acmesh_user
+      - __testing_run_acmesh_cfg_cert_home_stat['stat']['gr_name'] == run_acmesh_group
     fail_msg: "{{ run_acmesh_cfg_cert_home }} does not exist or has incorrect permissions/ownership"
 
 
@@ -75,11 +75,11 @@
 - name: "Molecule | Verify | Check existence, permissions and ownership: account.conf"
   ansible.builtin.assert:
     that:
-      - __testing_acmesh_account_conf_stat.stat.exists
-      - __testing_acmesh_account_conf_stat.stat.isreg
-      - __testing_acmesh_account_conf_stat.stat.mode == '0600'
-      - __testing_acmesh_account_conf_stat.stat.pw_name == run_acmesh_user
-      - __testing_acmesh_account_conf_stat.stat.gr_name == run_acmesh_group
+      - __testing_acmesh_account_conf_stat['stat']['exists']
+      - __testing_acmesh_account_conf_stat['stat']['isreg']
+      - __testing_acmesh_account_conf_stat['stat']['mode'] == '0600'
+      - __testing_acmesh_account_conf_stat['stat']['pw_name'] == run_acmesh_user
+      - __testing_acmesh_account_conf_stat['stat']['gr_name'] == run_acmesh_group
     fail_msg: "{{ run_acmesh_cfg_config_home }}/account.conf does not exist or has incorrect permissions/ownership"
 
 
@@ -96,11 +96,11 @@
 - name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir of first test domain"
   ansible.builtin.assert:
     that:
-      - __testing_acmesh_testdomain1_certdir_stat.stat.exists
-      - __testing_acmesh_testdomain1_certdir_stat.stat.isdir
-      - __testing_acmesh_testdomain1_certdir_stat.stat.mode == '0750'
-      - __testing_acmesh_testdomain1_certdir_stat.stat.pw_name == run_acmesh_user
-      - __testing_acmesh_testdomain1_certdir_stat.stat.gr_name == run_acmesh_group
+      - __testing_acmesh_testdomain1_certdir_stat['stat']['exists']
+      - __testing_acmesh_testdomain1_certdir_stat['stat']['isdir']
+      - __testing_acmesh_testdomain1_certdir_stat['stat']['mode'] == '0750'
+      - __testing_acmesh_testdomain1_certdir_stat['stat']['pw_name'] == run_acmesh_user
+      - __testing_acmesh_testdomain1_certdir_stat['stat']['gr_name'] == run_acmesh_group
     fail_msg: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc/ does not exist or has incorrect permissions/ownership"
   when:
     - lookup('env', 'TEST_ACMESH_TESTDOMAIN1') | length > 0
