@@ -5,7 +5,7 @@
   ansible.builtin.set_fact:
     __testing_missing_envvars_dnschallenge: "{{ __testing_missing_envvars_dnschallenge | default([]) + [item] }}"
   when:
-    - lookup('env', item) == ''
+    - lookup('env', item, default='') == ''
   changed_when: false # noqa: no-changed-when
   loop:
     - "TEST_ACMESH_ACCOUNTEMAIL"
@@ -70,14 +70,15 @@
           cert_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/cert.cer"
           fullcain_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/fullchain.cer"
           key_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/cert.key"
-          reloadcmd: ""
+          reloadcmd: "true reload"
         # "{letsencrypt,buypass,google}_test" for staging, see
         # https://github.com/acmesh-official/acme.sh/wiki/Server
         server: "letsencrypt_test"
         force: false # optional
         debug: false # optional
-        post_hook: "" # optional
-        renew_hook: "" # optional
+        pre_hook: "true pre" # optional; using a dummy command here to later check if value updating works
+        post_hook: "true post" # optional; using a dummy command here to later check if value updating works
+        renew_hook: "true renew" # optional; using a dummy command here to later check if value updating works
         extra_flags: "" # optional (workaround for edge cases, put --whatever here)
     # Environment variables needed for the DNS API authentication for
     # type: "dns" and dns_provider: "dns_inwx"

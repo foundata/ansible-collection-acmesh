@@ -136,8 +136,11 @@ __run_acmesh_systemd_renewal_servicefile: "/etc/systemd/system/acmesh-renewal.se
 __run_acmesh_systemd_renewal_timerfile: "/etc/systemd/system/acmesh-renewal.timer"
 
 
-# String. Path to the sha1sum executable.
+# String. Paths of misc executables and resources.
 __run_acmesh_sha1sum_executable: "/usr/bin/sha1sum"
+__run_acmesh_base64_executable: "/usr/bin/base64"
+__run_acmesh_sed_executable: "/usr/bin/sed"
+__run_acmesh_grep_executable: "/usr/bin/grep"
 
 
 ### Override defaults of dependencies used by this role (if any).

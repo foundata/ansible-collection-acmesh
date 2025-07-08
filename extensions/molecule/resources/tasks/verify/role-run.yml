@@ -119,11 +119,146 @@
 - name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir of second test domain"
   ansible.builtin.assert:
     that:
-      - __testing_acmesh_testdomain2_certdir_stat.stat.exists
-      - __testing_acmesh_testdomain2_certdir_stat.stat.isdir
-      - __testing_acmesh_testdomain2_certdir_stat.stat.mode == '0750'
-      - __testing_acmesh_testdomain2_certdir_stat.stat.pw_name == run_acmesh_user
-      - __testing_acmesh_testdomain2_certdir_stat.stat.gr_name == run_acmesh_group
+      - __testing_acmesh_testdomain2_certdir_stat['stat']['exists']
+      - __testing_acmesh_testdomain2_certdir_stat['stat']['isdir']
+      - __testing_acmesh_testdomain2_certdir_stat['stat']['mode'] == '0750'
+      - __testing_acmesh_testdomain2_certdir_stat['stat']['pw_name'] == run_acmesh_user
+      - __testing_acmesh_testdomain2_certdir_stat['stat']['gr_name'] == run_acmesh_group
     fail_msg: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/ does not exist or has incorrect permissions/ownership"
   when:
     - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0
+
+
+- name: "Molecule | Verify | Check certificate config file existence (second domain certificate)"
+  ansible.builtin.stat:
+    path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}.conf"
+    get_checksum: false
+    get_mime: false
+  register: __testing_acmesh_domaincfg_stat
+  when:
+    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0
+
+
+- name: "Molecule | Verify | Read certificate config file content (second domain certificate)"
+  ansible.builtin.slurp:
+    src: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}.conf"
+  register: __testing_acmesh_domaincfg_content
+  when:
+    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0
+    - __testing_acmesh_domaincfg_stat['stat']['exists']
+
+
+- name: "Molecule | Verify | Display certificate config file content (second domain certificate)"
+  ansible.builtin.debug:
+    msg: "{{ __testing_acmesh_domaincfg_content_decoded.split('\n') }}"
+    verbosity: 1
+  vars:
+    __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | b64decode }}"
+  when:
+    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0
+    - __testing_acmesh_domaincfg_stat['stat']['exists']
+    - __testing_acmesh_domaincfg_content is defined
+
+
+- name: "Molecule | Verify | Verify current reloadcmd and hook values in certificate config file (second domain certificate)"
+  ansible.builtin.assert:
+    that:
+      - __testing_acmesh_domaincfg_content_decoded is search("Le_PreHook='__ACME_BASE64__START_dHJ1ZSBwcmU=__ACME_BASE64__END_'")
+      - __testing_acmesh_domaincfg_content_decoded is search("Le_PostHook='__ACME_BASE64__START_dHJ1ZSBwb3N0__ACME_BASE64__END_'")
+      - __testing_acmesh_domaincfg_content_decoded is search("Le_RenewHook='__ACME_BASE64__START_dHJ1ZSByZW5ldw==__ACME_BASE64__END_'")
+      - __testing_acmesh_domaincfg_content_decoded is search("Le_ReloadCmd='__ACME_BASE64__START_dHJ1ZSByZWxvYWQ=__ACME_BASE64__END_'")
+    fail_msg: "The certificate config file does not contain the expected reloadcmd and hook values."
+    success_msg: "All reloadcmd and hook values have been found in the certificate config file."
+  vars:
+    __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | b64decode }}"
+  when:
+    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0
+    - __testing_acmesh_domaincfg_stat['stat']['exists']
+    - __testing_acmesh_domaincfg_content is defined
+
+
+- name: "Molecule | Verify |Adapt second domain certificate config: Update reloadcmd and hooks"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+  vars:
+    run_acmesh_state: "present"
+    run_acmesh_cfg_accountemail: "{{ lookup('env', 'TEST_ACMESH_ACCOUNTEMAIL') }}"
+    run_acmesh_certs:
+      # The following parameters are all copied from the call in converge/run-role.yml execpt:
+      # - reloadcmd
+      # - pre_hook
+      # - post_hook
+      # - renew_hook
+      - domains:
+          - name: "{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}"
+            challenge:
+              type: "dns"
+              dns_provider: "dns_inwx"
+              challenge_alias: "{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2_CHALLENGE_ALIAS') }}"
+          - name: "www.{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}"
+            challenge:
+              type: "dns"
+              dns_provider: "dns_inwx"
+              challenge_alias: "www.{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}.{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2_CHALLENGE_ALIAS') }}"
+        install:
+          ca_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/ca.cer"
+          cert_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/cert.cer"
+          fullcain_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/fullchain.cer"
+          key_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/cert.key"
+          reloadcmd: "true reload_update"
+        # "{letsencrypt,buypass,google}_test" for staging, see
+        # https://github.com/acmesh-official/acme.sh/wiki/Server
+        server: "letsencrypt_test"
+        force: false # optional
+        debug: false # optional
+        pre_hook: "true pre_update" # changed value
+        post_hook: "true post_update" # changed value
+        renew_hook: "true renew_update" # changed value
+        extra_flags: "" # optional (workaround for edge cases, put --whatever here)
+    # Environment variables needed for the DNS API authentication for
+    # type: "dns" and dns_provider: "dns_inwx"
+    run_acmesh_environment:
+      INWX_User: "{{ lookup('env', 'TEST_ACMESH_INWX_User') }}"
+      INWX_Password: "{{ lookup('env', 'TEST_ACMESH_INWX_Password') }}"
+  when:
+    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0
+  tags:
+    - "run_acmesh_cert"
+
+
+- name: "Molecule | Verify | Read certificate config file content again (second domain certificate)"
+  ansible.builtin.slurp:
+    src: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}.conf"
+  register: __testing_acmesh_domaincfg_content
+  when:
+    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0
+    - __testing_acmesh_domaincfg_stat['stat']['exists']
+
+
+- name: "Molecule | Verify | Display certificate config file content (second domain certificate)"
+  ansible.builtin.debug:
+    msg: "{{ __testing_acmesh_domaincfg_content_decoded.split('\n') }}"
+    verbosity: 1
+  vars:
+    __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | b64decode }}"
+  when:
+    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0
+    - __testing_acmesh_domaincfg_stat['stat']['exists']
+    - __testing_acmesh_domaincfg_content is defined
+
+
+- name: "Molecule | Verify | Verify updated reloadcmd and hook values in certificate config file (second domain certificate)"
+  ansible.builtin.assert:
+    that:
+      - __testing_acmesh_domaincfg_content_decoded is search("Le_PreHook='__ACME_BASE64__START_dHJ1ZSBwcmVfdXBkYXRl__ACME_BASE64__END_'")
+      - __testing_acmesh_domaincfg_content_decoded is search("Le_PostHook='__ACME_BASE64__START_dHJ1ZSBwb3N0X3VwZGF0ZQ==__ACME_BASE64__END_'")
+      - __testing_acmesh_domaincfg_content_decoded is search("Le_RenewHook='__ACME_BASE64__START_dHJ1ZSByZW5ld191cGRhdGU=__ACME_BASE64__END_'")
+      - __testing_acmesh_domaincfg_content_decoded is search("Le_ReloadCmd='__ACME_BASE64__START_dHJ1ZSByZWxvYWRfdXBkYXRl__ACME_BASE64__END_'")
+    fail_msg: "The certificate config file does not contain the expected, updated reloadcmd and hook values."
+    success_msg: "All updated reloadcmd and hook values have been found in the certificate config file."
+  vars:
+    __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | b64decode }}"
+  when:
+    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0
+    - __testing_acmesh_domaincfg_stat['stat']['exists']
+    - __testing_acmesh_domaincfg_content is defined

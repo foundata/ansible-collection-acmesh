@@ -324,12 +324,209 @@
     (__run_acmesh_install_result['rc'] != 0 and 'Installing' not in __run_acmesh_install_result['stdout']) or
     (
       __run_acmesh_install_result['rc'] != 0 and
-      ((__run_acmesh_install_result.stderr_lines | length) > 0) and
-      'Reload error' not in __run_acmesh_install_result.stderr
+      ((__run_acmesh_install_result['stderr_lines'] | length) > 0) and
+      'Reload error' not in __run_acmesh_install_result['stderr']
     )
   loop: "{{ run_acmesh_certs }}"
   register: __run_acmesh_install_result
   notify: "run_acmesh: set ownership and permissions"
+
+
+- name: "Cert | Default | Update certificate hook and reload cmd configurations"
+  # The command or shell module is used here. This approach is justified:
+  #
+  # - No built-in Ansible module provides a direct way to interact with the
+  #   acme.sh configuration file of a certificate. This needs complex string
+  #   processing with base64 encoding/decoding, multiple Ansible tasks would
+  #   be overkill. Feel free to write an Ansible module instead and remove this
+  #   then (patched welcome).
+  # - This is a workaround for an upstream issue and might get removed when
+  #   the functionality gets added upstream:
+  #   https://github.com/acmesh-official/acme.sh/issues/3936.
+  #
+  # Notes on the command or script itself:
+  #
+  # See the official documentation for a explanation of the influenced feature
+  # https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
+  ansible.builtin.shell:
+    cmd: |
+      set -u # Fail on unset vars
+      set -o pipefail # Fail if any pipe cmd fails
+      set -e # Exit on errors
+
+      # Input parameters
+      CERT_HOME={{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
+      PRIMARY_DOMAIN={{ item['domains'][0]['name'] | ansible.builtin.quote }}
+      EXPECTED_PRE_HOOK={{ item['pre_hook'] | default('') | ansible.builtin.quote }}
+      EXPECTED_POST_HOOK={{ item['post_hook'] | default('') | ansible.builtin.quote }}
+      EXPECTED_RENEW_HOOK={{ item['renew_hook'] | default('') | ansible.builtin.quote }}
+      EXPECTED_RELOAD_CMD={{ ((item['install']['reloadcmd'] | default('')) if (item['install'] is defined) else '') | ansible.builtin.quote }}
+
+      # Function: Decode base64 value from config line
+      decode_value() {
+          local line="${1}"
+          base64_value=$(printf '%s' "${line}" | {{ __run_acmesh_sed_executable }} -n 's/.*__ACME_BASE64__START_\([^_]*\)__ACME_BASE64__END_.*/\1/p')
+          if [ -n "${base64_value}" ]
+          then
+              printf '%s' "${base64_value}" | {{ __run_acmesh_base64_executable }} -d
+          else
+              printf ''
+          fi
+      }
+
+      # Function: Base64 encode value from config line
+      encode_value() {
+          local value="$1"
+          if [ -n "$value" ]
+          then
+              printf '%s' "__ACME_BASE64__START_$(printf '%s' "$value" | {{ __run_acmesh_base64_executable }} -w 0)__ACME_BASE64__END_"
+          else
+              printf ''
+          fi
+      }
+
+      # Function: update a hook or renew command in config file
+      update_b64option_in_config() {
+          local config_file="${1}"
+          local b64option_name="${2}"
+          local new_value="${3}"
+          local encoded_value="$(encode_value "${new_value}")"
+
+          if [ -n "${encoded_value}" ]
+          then
+              # Update existing line
+              if {{ __run_acmesh_grep_executable }} -q "^${b64option_name}=" "${CONFIG_FILE}"
+              then
+                  {{ __run_acmesh_sed_executable }} -i "s|^${b64option_name}=.*|${b64option_name}='${encoded_value}'|" "${CONFIG_FILE}"
+              # Add new line
+              else
+                  printf '%s\n' "${b64option_name}='${encoded_value}'" >> "${CONFIG_FILE}"
+              fi
+          else
+              # Set empty value in extsting line
+              if {{ __run_acmesh_grep_executable }} -q "^${b64option_name}=" "${CONFIG_FILE}"
+              then
+                  {{ __run_acmesh_sed_executable }} -i "s|^${b64option_name}=.*|${b64option_name}=''|" "${CONFIG_FILE}"
+              # Add new line
+              else
+                  printf '%s\n' "${b64option_name}=''" >> "${CONFIG_FILE}"
+              fi
+          fi
+      }
+
+      # Find the certificate config file. Try different possible locations:
+      # ECC (most common / default), RSA, or unspecified (legacy default RSA)
+      CONFIG_FILE=""
+      for suffix in "_ecc" "_rsa" ""
+      do
+          possible_path="${CERT_HOME}/${PRIMARY_DOMAIN}${suffix}/${PRIMARY_DOMAIN}.conf"
+          if [ -f "${possible_path}" ]
+          then
+              CONFIG_FILE="${possible_path}"
+              break
+          fi
+      done
+      if [ -z "${CONFIG_FILE}" ]
+      then
+          printf "error: No certificate config file found for domain: %s" "${PRIMARY_DOMAIN}" 1>&2
+          exit 1
+      fi
+
+      # Process config file
+      CURRENT_PRE_HOOK=""
+      CURRENT_POST_HOOK=""
+      CURRENT_RENEW_HOOK=""
+      CURRENT_RELOAD_CMD=""
+      while IFS= read -r line
+      do
+          case "${line}" in
+              Le_PreHook=*)
+                  CURRENT_PRE_HOOK="$(decode_value "${line}")"
+                  ;;
+              Le_PostHook=*)
+                  CURRENT_POST_HOOK="$(decode_value "${line}")"
+                  ;;
+              Le_RenewHook=*)
+                  CURRENT_RENEW_HOOK="$(decode_value "${line}")"
+                  ;;
+              Le_ReloadCmd=*)
+                  CURRENT_RELOAD_CMD="$(decode_value "${line}")"
+                  ;;
+          esac
+      done < "${CONFIG_FILE}"
+
+      # Track if any changes are made
+      CHANGES_MADE=0
+
+      # Compare and update options if different
+      if [ ! "$CURRENT_PRE_HOOK" = "${EXPECTED_PRE_HOOK}" ]
+      then
+          printf "Updating %s for %s: '%s' -> '%s'\n" "Le_PreHook" "${PRIMARY_DOMAIN}" "${CURRENT_PRE_HOOK}" "${EXPECTED_PRE_HOOK}"
+          update_b64option_in_config "${CONFIG_FILE}" "Le_PreHook" "${EXPECTED_PRE_HOOK}"
+          CHANGES_MADE=1
+      fi
+
+      if [ ! "$CURRENT_POST_HOOK" = "${EXPECTED_POST_HOOK}" ]
+      then
+          printf "Updating %s for %s: '%s' -> '%s'\n" "Le_PostHook" "${PRIMARY_DOMAIN}" "${CURRENT_POST_HOOK}" "${EXPECTED_POST_HOOK}"
+          update_b64option_in_config "${CONFIG_FILE}" "Le_PostHook" "${EXPECTED_POST_HOOK}"
+          CHANGES_MADE=1
+      fi
+
+      if [ ! "$CURRENT_RENEW_HOOK" = "${EXPECTED_RENEW_HOOK}" ]
+      then
+          printf "Updating %s for %s: '%s' -> '%s'\n" "Le_RenewHook" "${PRIMARY_DOMAIN}" "${CURRENT_RENEW_HOOK}" "${EXPECTED_RENEW_HOOK}"
+          update_b64option_in_config "${CONFIG_FILE}" "Le_RenewHook" "${EXPECTED_RENEW_HOOK}"
+          CHANGES_MADE=1
+      fi
+
+      if [ ! "${CURRENT_RELOAD_CMD}" = "${EXPECTED_RELOAD_CMD}" ]
+      then
+          printf "Updating %s for %s: '%s' -> '%s'\n" "Le_ReloadCmd" "${PRIMARY_DOMAIN}" "${CURRENT_RELOAD_CMD}" "${EXPECTED_RELOAD_CMD}"
+          update_b64option_in_config "${CONFIG_FILE}" "Le_ReloadCmd" "${EXPECTED_RELOAD_CMD}"
+          CHANGES_MADE=1
+      fi
+
+      if [ "${CHANGES_MADE}" = "1" ]
+      then
+          printf "Changed config file: Updated configuration for certificate %s." "${PRIMARY_DOMAIN}"
+      fi
+
+      exit 0
+    executable: "/bin/bash" # Support for other shells untested (so far)
+  when:
+    - __run_acmesh_version_installed
+    - run_acmesh_certs is defined
+    - item is defined
+    - item['domains'] is defined
+    - (item['domains'] | length) > 0
+  failed_when:
+    - (__run_acmesh_cmdupdates_result['rc'] != 0) or
+      ((__run_acmesh_cmdupdates_result['stderr_lines'] | length) > 0)
+  changed_when:
+    - __run_acmesh_cmdupdates_result['rc'] == 0
+    - __run_acmesh_cmdupdates_result['stdout'] | trim | length > 0
+  loop: "{{ run_acmesh_certs }}"
+  register: __run_acmesh_cmdupdates_result
+  notify: "run_acmesh: set ownership and permissions"
+
+
+- name: "Cert | Default | Display hook and reload cmd configuration update results"
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+    verbosity: 3
+  when:
+    - __run_acmesh_version_installed
+    - run_acmesh_certs is defined
+    - item | length > 0
+  loop: >-
+    {{
+      __run_acmesh_cmdupdates_result['results'] | default([])
+      | selectattr('stdout_lines', 'defined')
+      | selectattr('stdout_lines')
+      | map(attribute='stdout_lines')
+      | list
+    }}
 
 
 - name: "Cert | Default | Gather certificate information"
