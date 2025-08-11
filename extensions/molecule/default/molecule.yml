@@ -28,13 +28,13 @@ platforms:
   # Using foundata Integration Test Target (ITT) images which aim to replicate a
   # "VM-like" testing environment and provide a fully functional systemd.
 
+  # Debian 13 (Trixie)
+  - name: "molecule-debian13"
+    image: "quay.io/foundata/debian13-itt:latest"
+    systemd: true
   # Debian 12 (Bookworm)
   - name: "molecule-debian12"
     image: "quay.io/foundata/debian12-itt:latest"
-    systemd: true
-  # Debian 11 (Bullseye)
-  - name: "molecule-debian11"
-    image: "quay.io/foundata/debian11-itt:latest"
     systemd: true
 
   # Ubuntu 24.04 LTS (Noble Numbat)

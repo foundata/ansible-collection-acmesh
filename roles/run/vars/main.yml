@@ -44,8 +44,8 @@ __run_acmesh_used_facts:
 __run_acmesh_supported_platforms:
   - name: "Debian"
     versions:
-      - "11"
       - "12"
+      - "13"
   - name: "Fedora"
     versions:
       - "42"
