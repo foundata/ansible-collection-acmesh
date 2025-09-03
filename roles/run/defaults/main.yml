@@ -7,226 +7,33 @@
 
 ---
 
-# String. Determines whether the managed resources should be "present" or
-# "absent". Defaults to "present". Possible values:
-#
-# - "present": Ensures that required components, such as software packages,
-#   are installed and configured.
-# - "absent": Reverts changes as much as possible, such as removing packages,
-#   deleting created users, stopping services, restoring modified settings, …
+
 run_acmesh_state: "present"
 
-
-# Boolean. If set to true, all managed packages will be upgraded during each
-# Ansible run (e.g., when the package provider detects a newer version than
-# the currently installed one). Defaults to false.
 run_acmesh_autoupgrade: false
 
-
-# Boolean. Enables daily automatic certificate renewal via systemd timer.
-# Defaults to true.
 run_acmesh_autorenewal: true
 
-
-# Dictionary. Defines environment variables required for ACME DNS challenges.
-#
-# This is typically needed for DNS challenge plugins, such as those requiring
-# DNS API credentials (e.g., "HETZNER_Token", "INWX_User", "INWX_Password").
-# Multiple variables can be defined in parallel to support different providers
-# for different domains on the same server. For more details on acme.sh's
-# DNS API support see https://github.com/acmesh-official/acme.sh/wiki/dnsapi
-#
-# Example:
-#   run_acmesh_environment:
-#     "HETZNER_Token": "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
 run_acmesh_environment:
   {} # Remove the "{}" when adding values to this dict.
 
-
-# List. Defines certificates to be requested, their associated domains,
-# challenge methods, and installation details. Each item in the list is a
-# dictionary with the following keys:
-#
-# - domains: List of dictionaries specifying the domains to be included in the
-#   certificate request, along with their challenge configurations. If multiple
-#   domains are defined, they will be included in the same certificate as
-#   Subject Alternative Names (SANs).
-#
-#   Each dictionary in the list contains:
-#   - name: String. The domain name to request a certificate for.
-#   - challenge: Dictionary defining the ACME challenge parameters. The required
-#     parameters depend on the challenge type:
-#     - type: String. Challenge method. See
-#       https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
-#       for details. Supported values:
-#       - "dns": Uses a DNS challenge.
-#       - "webroot": Uses a webroot-based challenge.
-#       - "standalone": Uses acme.sh's builtin standalone webserver which can
-#          listen at 80 port to issue the cert.
-#       - "alpn": Uses acme.sh's builtin standalone webserver which can
-#          listen at 443 port to issue the cert.
-#     - dns_provider: String, optional. Required for "dns" challenges. Specifies
-#       the DNS provider for API-based verification. See
-#       https://github.com/acmesh-official/acme.sh/wiki/dnsapi for supported
-#       providers and their name. You usually have to provide credentials for
-#       their APIs via the "run_acmesh_environment" variable.
-#     - challenge_alias: String, optional. Used with "dns" challenges when using
-#       CNAME delegation. Requires a CNAME record such as:
-#       _acme-challenge.example.com -> _acme-challenge.example.com.example.net
-#       See https://github.com/acmesh-official/acme.sh/wiki/DNS-alias-mode for
-#       details.
-#     - webroot: String, optional. Required for "webroot" challenges. Specifies
-#       the directory where the ACME challenge response should be placed.
-#       See https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
-#       for details
-#     - httpport: String, optional. Used with "httpport" challenges. Specifies
-#       a non-standard port for acme.sh's internal HTTP webserver to listen,
-#       might be needed behind a reverse proxy or load balancer.
-#     - tlsport: String, optional. Used with "alpn" challenges. Specifies
-#       a non-standard port for acme.sh's internal HTTPS webserver to listen,
-#       might be needed behind a reverse proxy or load balancer.
-#
-# - install: Dictionary defining where to install the issued certificates.
-#   The following keys specify file paths and a reload command:
-#   - ca_file: String. Path to the certificate authority (CA) file.
-#   - cert_file: String. Path to the certificate file.
-#   - fullchain_file: String. Path to the full certificate chain file.
-#   - key_file: String. Path to the private key file.
-#   - reloadcmd: String. Command to reload or restart services after certificate
-#     renewal (e.g., web server or mail server).
-#
-# - server: String, optional. Specifies the ACME CA server to use. Defaults
-#   to "letsencrypt". Other options include:
-#   - "letsencrypt_test", "buypass_test", "google_test" for staging environments.
-#   - Custom CA URLs can also be used. See
-#     https://github.com/acmesh-official/acme.sh/wiki/Server for a full list
-#     and details.
-#
-# - force: Boolean, optional. If true, forces certificate issuance even if
-#   the current certificate is still valid. Defaults to false.
-#
-# - debug: Boolean, optional. If true, enables debug mode for troubleshooting.
-#   Defaults to false.
-#
-# - pre_hook: String, optional. Command to execute before attempting certificate
-#   issuance or renewal. See
-#   https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
-#   for details.
-#
-# - post_hook: String, optional. Command to execute after a successful
-#   certificate issuance or renewal. See
-#   https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
-#   for details.
-#
-# - renew_hook: String, optional. Command to execute after renewing the
-#   certificate. See
-#   https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
-#   for details.
-#
-# - extra_flags: String, optional. Additional CLI flags for edge cases. Useful
-#   for passing custom parameters during certificate issuance wich are not
-#   natively supported by this role, just pass them as "--foo --bar 'baz'".
-#
-# Example:
-#
-# run_acmesh_certs:
-#   # first certificate: "example.org"
-#   - domains:
-#       - name: "example.org"
-#         challenge: # parameters depend on type
-#           type: "webroot"
-#           webroot: "/var/www/example.org"
-#     install:
-#       ca_file: "/etc/pki/tls/certs/example.org/ca.cer"
-#       cert_file: "/etc/pki/tls/certs/example.org/cert.cer"
-#       fullcain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
-#       key_file: "/etc/pki/tls/certs/example.org/cert.key"
-#       reloadcmd: "systemctl reload apache2.service;"
-#   # second certificate: "foo.example.com" with an additional "bar.example.com" SAN
-#   - domains:
-#       - name: "foo.example.com"
-#         challenge: # parameters depend on type
-#           type: "dns"
-#           dns_provider: "dns_hetzner"
-#           challenge_alias: "foo.example.com.example.net"
-#       - name: "bar.example.com"
-#         challenge:
-#           type: "dns"
-#           dns_provider: "dns_inwx"
-#           challenge_alias: "bar.example.com.example.net"
-#     install:
-#       ca_file: "/etc/pki/tls/certs/foo.example.com/ca.cer"
-#       cert_file: "/etc/pki/tls/certs/foo.example.com/cert.cer"
-#       fullcain_file: "/etc/pki/tls/certs/foo.example.com/fullchain.cer"
-#       key_file: "/etc/pki/tls/certs/foo.example.com/cert.key"
-#       reloadcmd: "systemctl reload nginx.service; systemctl restart postfix.service"
-#     # optional, CA alias or URL, defaults to "letsencrypt". "{letsencrypt,buypass,google}_test"
-#     # for staging, see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
-#     server: "zerossl"
-#     force: false  # optional
-#     debug: false # optional
-#     post_hook: ""  # optional
-#     renew_hook: "" # optional
-#     extra_flags: "" # optional (workaround for edge cases, put --whatever in here, used during issuing a cert")
-#
-# # Environment variables needed for the DNS API authentication for
-# # type: "dns" and dns_provider: "dns_hetzner" /  dns_provider: "dns_inwx"
-# run_acmesh_environment:
-#   HETZNER_Token: "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
-#   INWX_User: "exampleuser"
-#   INWX_Password: "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
-#
 run_acmesh_certs:
   [] # Remove the "[]" when adding values to this list.
 
-
-# String. Specifies the service user account that runs acme.sh and owns
-# relevant files and directories.
 run_acmesh_user: "acmesh"
 
-
-# String. Specifies the group associated with the service user for managing
-# acme.sh and its file permissions.
 run_acmesh_group: "acmesh"
 
-
-# String. Specifies the email address to be associated with the ACME account.
-# This email is used for expiration notices and recovery purposes.
-# If not set, some ACME providers might refuse to issue certificates.
 run_acmesh_cfg_accountemail: ""
 
-# String. Specifies the installation directory for the acme.sh software
-# (relates to acme.sh option --home). Defaults to "/opt/acme.sh". Will also
-# be used as home directory of the service user defined (see run_acmesh_user).
 run_acmesh_cfg_home: "/opt/acme.sh"
 
-
-# String. Defines where configuration files are stored (relates to acme.sh
-# option --config-home). Defaults to "/etc/acme.sh".
 run_acmesh_cfg_config_home: "/etc/acme.sh"
 
-
-# String. Specifies the directory where certificates are maintained by
-# acme.sh (relates to acme.sh option --certhome). Defaults to
-# "/var/opt/acme.sh". ⚠️ Do not rely on the files in this directory directly.
-# Instead, copy the certificates where needed using the "install" key of
-# run_acmesh_certs (relates to acme.sh option --install-cert). This ensures
-# that the certificates are properly maintained and automatically reinstalled
-# upon renewal. See the following for more information:
-# https://github.com/acmesh-official/acme.sh/issues/2350#issuecomment-1449235599
 run_acmesh_cfg_cert_home: "/var/opt/acme.sh"
 
-
-# String. Path to the log file where acme.sh logs its operations (relates to
-# acme.sh option --log). Defaults to "/var/log/acme.sh.log".
 run_acmesh_cfg_logfile: "/var/log/acme.sh.log"
 
-
-# Integer. Specifies the log level (relates to acme.sh option --log-level).
-# Defaults to 1. Possible values are 1 (less logging) and 2 (more logging).
 run_acmesh_cfg_log_level: 1
 
-# Integer. Specifies what to log (relates to acme.sh option --syslog).
-# Defaults to 3. Possible values are 0 (disable syslog), 3 (errors),
-# 6 (info) and 7 (debug)
 run_acmesh_cfg_syslog: 3
