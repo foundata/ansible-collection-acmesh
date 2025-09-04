@@ -31,7 +31,7 @@ argument_specs:
 
       run_acmesh_autoupgrade:
         description: |
-          If set to true, all managed packages will be upgraded during each Ansible
+          If set to `true`, all managed packages will be upgraded during each Ansible
           run (e.g., when the package provider detects a newer version than the
           currently installed one).
         type: "bool"
@@ -58,8 +58,10 @@ argument_specs:
 
           Example:
 
-            run_acmesh_environment:
-              "HETZNER_Token": "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
+          ```
+          run_acmesh_environment:
+            "HETZNER_Token": "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
+          ```
         type: "dict"
         default: {}
         required: true
@@ -68,90 +70,11 @@ argument_specs:
         description: |
           Defines certificates to be requested, their associated domains,
           challenge methods, and installation details. Each item in the list is a
-          dictionary with the following keys:
-
-          - domains: List of dictionaries specifying the domains to be included in the
-            certificate request, along with their challenge configurations. If multiple
-            domains are defined, they will be included in the same certificate as
-            Subject Alternative Names (SANs).
-
-            Each dictionary in the list contains:
-            - name: String. The domain name to request a certificate for.
-            - challenge: Dictionary defining the ACME challenge parameters. The required
-              parameters depend on the challenge type:
-              - type: String. Challenge method. See
-                https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
-                for details. Supported values:
-                - "dns": Uses a DNS challenge.
-                - "webroot": Uses a webroot-based challenge.
-                - "standalone": Uses acme.sh's builtin standalone webserver which can
-                  listen at 80 port to issue the cert.
-                - "alpn": Uses acme.sh's builtin standalone webserver which can
-                  listen at 443 port to issue the cert.
-              - dns_provider: String, optional. Required for "dns" challenges. Specifies
-                the DNS provider for API-based verification. See
-                https://github.com/acmesh-official/acme.sh/wiki/dnsapi for supported
-                providers and their name. You usually have to provide credentials for
-                their APIs via the "run_acmesh_environment" variable.
-              - challenge_alias: String, optional. Used with "dns" challenges when using
-                CNAME delegation. Requires a CNAME record such as:
-                _acme-challenge.example.com -> _acme-challenge.example.com.example.net
-                See https://github.com/acmesh-official/acme.sh/wiki/DNS-alias-mode for
-                details.
-              - webroot: String, optional. Required for "webroot" challenges. Specifies
-                the directory where the ACME challenge response should be placed.
-                See https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
-                for details
-              - httpport: String, optional. Used with "httpport" challenges. Specifies
-                a non-standard port for acme.sh's internal HTTP webserver to listen,
-                might be needed behind a reverse proxy or load balancer.
-              - tlsport: String, optional. Used with "alpn" challenges. Specifies
-                a non-standard port for acme.sh's internal HTTPS webserver to listen,
-                might be needed behind a reverse proxy or load balancer.
-
-          - install: Dictionary defining where to install the issued certificates.
-            The following keys specify file paths and a reload command:
-            - ca_file: String. Path to the certificate authority (CA) file.
-            - cert_file: String. Path to the certificate file.
-            - fullchain_file: String. Path to the full certificate chain file.
-            - key_file: String. Path to the private key file.
-            - reloadcmd: String. Command to reload or restart services after certificate
-              renewal (e.g., web server or mail server).
-
-          - server: String, optional. Specifies the ACME CA server to use. Defaults
-            to "letsencrypt". Other options include:
-            - "letsencrypt_test", "buypass_test", "google_test" for staging environments.
-            - Custom CA URLs can also be used. See
-              https://github.com/acmesh-official/acme.sh/wiki/Server for a full list
-              and details.
-
-          - force: Boolean, optional. If true, forces certificate issuance even if
-            the current certificate is still valid. Defaults to false.
-
-          - debug: Boolean, optional. If true, enables debug mode for troubleshooting.
-            Defaults to false.
-
-          - pre_hook: String, optional. Command to execute before attempting certificate
-            issuance or renewal. See
-            https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
-            for details.
-
-          - post_hook: String, optional. Command to execute after a successful
-            certificate issuance or renewal. See
-            https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
-            for details.
-
-          - renew_hook: String, optional. Command to execute after renewing the
-            certificate. See
-            https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
-            for details.
-
-          - extra_flags: String, optional. Additional CLI flags for edge cases. Useful
-            for passing custom parameters during certificate issuance wich are not
-            natively supported by this role, just pass them as "--foo --bar 'baz'".
+          dictionary with suboptions / keys.
 
           Example:
 
+          ```
           run_acmesh_certs:
             # first certificate: "example.org"
             - domains:
@@ -198,38 +121,86 @@ argument_specs:
             HETZNER_Token: "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
             INWX_User: "exampleuser"
             INWX_Password: "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
+          ```
         type: "list"
         elements: "dict"
         default: []
         required: true
         options:
           domains:
+            description: |
+              List of dictionaries specifying the domains to be included in the
+              certificate request, along with their challenge configurations. If multiple
+              domains are defined, they will be included in the same certificate as
+              Subject Alternative Names (SANs).
             type: "list"
             elements: "dict"
             options:
               name:
+                description: |
+                  The domain name to request a certificate for.
                 type: "str"
               challenge:
+                description: |
+                  Dictionary defining the ACME challenge parameters. The required
+                  parameters depend on the challenge type
                 type: "dict"
                 options:
                   type:
+                    description: |
+                     Challenge method. See https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
+                     for details.
                     type: "str"
                     choices:
-                      - "alpn"
+                      - "alpn" # Uses acme.sh's builtin standalone webserver which can listen at 443 port to issue the cert.
                       - "dns"
-                      - "standalone"
+                      - "standalone" # Uses acme.sh's builtin standalone webserver which can listen at 80 port to issue the cert.
                       - "webroot"
                   dns_provider:
+                    description: |
+                      Optional. Required for "dns" challenges. Specifies
+                      the DNS provider for API-based verification. See
+                      https://github.com/acmesh-official/acme.sh/wiki/dnsapi for supported
+                      providers and their name. You usually have to provide credentials for
+                      their APIs via the "run_acmesh_environment" variable.
                     type: "str"
                   challenge_alias:
+                    description: |
+                      Optional. Used with "dns" challenges when using CNAME delegation. Requires
+                      a CNAME record such as:
+                      `_acme-challenge.example.com` -> `_acme-challenge.example.com.example.net`
+                      See https://github.com/acmesh-official/acme.sh/wiki/DNS-alias-mode for
+                      details.
                     type: "str"
                   domain_alias:
+                    description: |
+                      Optional. Required for "webroot" challenges. Specifies
+                      the directory where the ACME challenge response should be placed.
+                      See https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
+                      for details.
                     type: "str"
                   httpport:
+                    description: |
+                      Optional. Used with "httpport" challenges. Specifies
+                      a non-standard port for acme.sh's internal HTTP webserver to listen,
+                      might be needed behind a reverse proxy or load balancer.
                     type: "int"
                   tlsport:
+                    description: |
+                      Optional. Used with "alpn" challenges. Specifies a non-standard port for
+                      acme.sh's internal HTTPS webserver to listen, might be needed behind a
+                      reverse proxy or load balancer.
                     type: "int"
           install:
+            description: |
+              Dictionary defining where to install the issued certificates.
+              The following keys specify file paths and a reload command:
+              - ca_file: String. Path to the certificate authority (CA) file.
+              - cert_file: String. Path to the certificate file.
+              - fullchain_file: String. Path to the full certificate chain file.
+              - key_file: String. Path to the private key file.
+              - reloadcmd: String. Command to reload or restart services after certificate
+                renewal (e.g., web server or mail server).
             type: "dict"
             options:
               ca_file:
@@ -243,20 +214,48 @@ argument_specs:
               reloadcmd:
                 type: "str"
           server:
+            description: |
+              Optional. Specifies the ACME CA server to use. Defaults
+              to `letsencrypt`. Other options include:
+              - "letsencrypt_test", "buypass_test", "google_test" for staging environments.
+              - Custom CA URLs can also be used. See
+                https://github.com/acmesh-official/acme.sh/wiki/Server for a full list
+                and details.
+            default: "letsencrypt"
             type: "str"
           force:
+            description: |
+              Optional. If true, forces certificate issuance even if
+              the current certificate is still valid. Defaults to `false`.
             type: "bool"
           debug:
             type: "bool"
           dnssleep:
             type: "int"
           pre_hook:
+            description: |
+              Optional. Command to execute before attempting certificate
+              issuance or renewal. See
+              https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
+              for details.
             type: "str"
           post_hook:
+            description: |
+              Optional. Command to execute after a successful certificate issuance or renewal. See
+              https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
+              for details.
             type: "str"
           renew_hook:
+            description: |
+              Optional. Command to execute after renewing the certificate. See
+              https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
+              for details.
             type: "str"
           extra_flags:
+            description: |
+              Optional. Additional CLI flags for edge cases. Useful for passing custom parameters during
+              certificate issuance wich are not natively supported by this role, just pass them as
+              "--foo --bar 'baz'".
             type: "str"
 
       run_acmesh_user:
@@ -337,8 +336,8 @@ argument_specs:
       run_acmesh_cfg_syslog:
         description: |
           Specifies what to log (relates to acme.sh option --syslog).
-           Possible values are 0 (disable syslog), 3 (errors), 6 (info) and 7
-           (debug).
+          Possible values are 0 (disable syslog), 3 (errors), 6 (info) and 7
+          (debug)
         type: "int"
         default: 3
         required: true

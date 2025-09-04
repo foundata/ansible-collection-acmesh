@@ -8,32 +8,199 @@
 ---
 
 
+# Determines whether the managed resources should be `present` or `absent`.
+#
+# `present` ensures that required components, such as software packages, are
+# installed and configured.
+#
+# `absent` reverts changes as much as possible, such as removing packages,
+# deleting created users, stopping services, restoring modified settings, …
+#
+# - Type: str
+# - Required: Yes
+# - Default: present
+# - Choices: present, absent
 run_acmesh_state: "present"
 
+# If set to true, all managed packages will be upgraded during each Ansible run
+# (e.g., when the package provider detects a newer version than the currently
+# installed one).
+#
+# - Type: bool
+# - Required: Yes
+# - Default: false
 run_acmesh_autoupgrade: false
 
+# Enables daily automatic certificate renewal via systemd timer (this role is
+# not using acme.sh's cronjob function).
+#
+# - Type: bool
+# - Required: Yes
+# - Default: true
 run_acmesh_autorenewal: true
 
+# Defines environment variables required for ACME DNS challenges.
+#
+# This is typically needed for DNS challenge plugins, such as those requiring
+# DNS API credentials (e.g., `HETZNER_Token`, `INWX_User`, `INWX_Password`).
+# Multiple variables can be defined in parallel to support different providers
+# for different domains on the same server. For more details on acme.sh's DNS
+# API support see https://github.com/acmesh-official/acme.sh/wiki/dnsapi
+#
+# Example:
+#
+# ```
+# run_acmesh_environment:
+#   "HETZNER_Token": "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
+# ```
+#
+# - Type: dict
+# - Required: Yes
+# - Default: {}
 run_acmesh_environment:
   {} # Remove the "{}" when adding values to this dict.
 
+# Defines certificates to be requested, their associated domains, challenge
+# methods, and installation details. Each item in the list is a dictionary with
+# suboptions / keys.
+#
+# Example:
+#
+# ```
+# run_acmesh_certs:
+#   # first certificate: "example.org"
+#   - domains:
+#       - name: "example.org"
+#         challenge: # parameters depend on type
+#           type: "webroot"
+#           webroot: "/var/www/example.org"
+#     install:
+#       ca_file: "/etc/pki/tls/certs/example.org/ca.cer"
+#       cert_file: "/etc/pki/tls/certs/example.org/cert.cer"
+#       fullcain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
+#       key_file: "/etc/pki/tls/certs/example.org/cert.key"
+#       reloadcmd: "systemctl reload apache2.service;"
+#   # second certificate: "foo.example.com" with an additional "bar.example.com" SAN
+#   - domains:
+#       - name: "foo.example.com"
+#         challenge: # parameters depend on type
+#           type: "dns"
+#           dns_provider: "dns_hetzner"
+#           challenge_alias: "foo.example.com.example.net"
+#       - name: "bar.example.com"
+#         challenge:
+#           type: "dns"
+#           dns_provider: "dns_inwx"
+#           challenge_alias: "bar.example.com.example.net"
+#     install:
+#       ca_file: "/etc/pki/tls/certs/foo.example.com/ca.cer"
+#       cert_file: "/etc/pki/tls/certs/foo.example.com/cert.cer"
+#       fullcain_file: "/etc/pki/tls/certs/foo.example.com/fullchain.cer"
+#       key_file: "/etc/pki/tls/certs/foo.example.com/cert.key"
+#       reloadcmd: "systemctl reload nginx.service; systemctl restart postfix.service"
+#     # optional, CA alias or URL, defaults to "letsencrypt". "{letsencrypt,buypass,google}_test"
+#     # for staging, see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
+#     server: "zerossl"
+#     force: false  # optional
+#     debug: false # optional
+#     post_hook: ""  # optional
+#     renew_hook: "" # optional
+#     extra_flags: "" # optional (workaround for edge cases, put --whatever in here, used during issuing a cert")
+#
+# # Environment variables needed for the DNS API authentication for
+# # type: "dns" and dns_provider: "dns_hetzner" /  dns_provider: "dns_inwx"
+# run_acmesh_environment:
+# HETZNER_Token: "{{ lookup('ansible.builtin.unvault', '...') | string | trim
+# }}"
+# INWX_User: "exampleuser"
+# INWX_Password: "{{ lookup('ansible.builtin.unvault', '...') | string | trim
+# }}"
+# ```
+#
+# - Type: list
+# - Required: Yes
+# - Default: []
+# - List elements: dict
 run_acmesh_certs:
   [] # Remove the "[]" when adding values to this list.
 
+# Specifies the service user account that runs acme.sh and owns relevant files
+# and directories.
+#
+# - Type: str
+# - Required: Yes
+# - Default: acmesh
 run_acmesh_user: "acmesh"
 
+# Specifies the group associated with the service user for managing acme.sh and
+# its file permissions.
+#
+# - Type: str
+# - Required: Yes
+# - Default: acmesh
 run_acmesh_group: "acmesh"
 
+# Specifies the email address to be associated with the ACME account. This email
+# is used for expiration notices and recovery purposes. Some ACME providers
+# might refuse to issue certificates if not set.
+#
+# - Type: str
+# - Required: Yes
+# - Default:
 run_acmesh_cfg_accountemail: ""
 
+# Specifies the installation directory for the acme.sh software (relates to
+# acme.sh option --home). Will also be used as home directory of the service
+# user defined (see `run_acmesh_user``).
+#
+# - Type: str
+# - Required: Yes
+# - Default: /opt/acme.sh
 run_acmesh_cfg_home: "/opt/acme.sh"
 
+# Defines where configuration files are stored (relates to acme.sh option
+# --config-home).
+#
+# - Type: str
+# - Required: Yes
+# - Default: /etc/acme.sh
 run_acmesh_cfg_config_home: "/etc/acme.sh"
 
+# Specifies the directory where certificates are maintained by acme.sh (relates
+# to acme.sh option --certhome). ⚠️ Do not rely on the files in this directory
+# directly. Instead, copy the certificates where needed using the "install" key
+# of `run_acmesh_certs` (relates to acme.sh option --install-cert). This ensures
+# that the certificates are properly maintained and automatically reinstalled
+# upon renewal. See the following for more information:
+# https://github.com/acmesh-official/acme.sh/issues/2350#issuecomment-1449235599
+#
+# - Type: str
+# - Required: Yes
+# - Default: /var/opt/acme.sh
 run_acmesh_cfg_cert_home: "/var/opt/acme.sh"
 
+# Path to the log file where acme.sh logs its operations (relates to acme.sh
+# option --log).
+#
+# - Type: str
+# - Required: Yes
+# - Default: /var/log/acme.sh.log
 run_acmesh_cfg_logfile: "/var/log/acme.sh.log"
 
+# Specifies the log level (relates to acme.sh option --log-level). Possible
+# values are 1 (less logging) and 2 (more logging).
+#
+# - Type: int
+# - Required: Yes
+# - Default: 1
+# - Choices: 1, 2
 run_acmesh_cfg_log_level: 1
 
+# Specifies what to log (relates to acme.sh option --syslog). Possible values
+# are 0 (disable syslog), 3 (errors), 6 (info) and 7 (debug)
+#
+# - Type: int
+# - Required: Yes
+# - Default: 3
+# - Choices: 0, 3, 6, 7
 run_acmesh_cfg_syslog: 3
