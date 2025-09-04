@@ -22,9 +22,9 @@
 # - Choices: present, absent
 run_acmesh_state: "present"
 
-# If set to true, all managed packages will be upgraded during each Ansible run
-# (e.g., when the package provider detects a newer version than the currently
-# installed one).
+# If set to `true`, all managed packages will be upgraded during each Ansible
+# run (e.g., when the package provider detects a newer version than the
+# currently installed one).
 #
 # - Type: bool
 # - Required: Yes
@@ -146,7 +146,7 @@ run_acmesh_group: "acmesh"
 #
 # - Type: str
 # - Required: Yes
-# - Default:
+# - Default: 
 run_acmesh_cfg_accountemail: ""
 
 # Specifies the installation directory for the acme.sh software (relates to

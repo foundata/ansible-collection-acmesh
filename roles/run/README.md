@@ -82,7 +82,7 @@ The following variables can be configured for this role:
 | Variable | Type | Required | Default | Description (abstract) |
 |----------|------|----------|---------|------------------------|
 | `run_acmesh_state` | `str` | Yes | `"present"` | Determines whether the managed resources should be `present` or `absent`.<br><br>`present` ensures that required components, such as software packages, are installed and configured.<br><br>`absent` reverts changes as much as possible, such as […](#variable-run_acmesh_state) |
-| `run_acmesh_autoupgrade` | `bool` | Yes | `false` | If set to true, all managed packages will be upgraded during each Ansible run (e.g., when the package provider detects a newer version than the currently installed one). |
+| `run_acmesh_autoupgrade` | `bool` | Yes | `false` | If set to `true`, all managed packages will be upgraded during each Ansible run (e.g., when the package provider detects a newer version than the currently installed one). |
 | `run_acmesh_autorenewal` | `bool` | Yes | `true` | Enables daily automatic certificate renewal via systemd timer (this role is not using acme.sh's cronjob function). |
 | `run_acmesh_environment` | `dict` | Yes | `{}` | Defines environment variables required for ACME DNS challenges.<br><br>This is typically needed for DNS challenge plugins, such as those requiring DNS API credentials (e.g., `HETZNER_Token`, `INWX_User`, `INWX_Password`). Multiple variables can be […](#variable-run_acmesh_environment) |
 | `run_acmesh_certs` | `list` | Yes | `[]` | Defines certificates to be requested, their associated domains, challenge methods, and installation details. Each item in the list is a dictionary with suboptions / keys.<br><br>Example:<br><br>``` run_acmesh_certs: # first certificate: "example.org" […](#variable-run_acmesh_certs) |
@@ -115,7 +115,7 @@ deleting created users, stopping services, restoring modified settings, …
 
 ### `run_acmesh_autoupgrade`<a id="variable-run_acmesh_autoupgrade"></a>
 
-If set to true, all managed packages will be upgraded during each Ansible
+If set to `true`, all managed packages will be upgraded during each Ansible
 run (e.g., when the package provider detects a newer version than the
 currently installed one).
 
@@ -374,7 +374,7 @@ to `letsencrypt`. Other options include:
 #### `force`<a id="variable-run_acmesh_certs-sub-force"></a>
 
 Optional. If true, forces certificate issuance even if
-the current certificate is still valid. Defaults to false.
+the current certificate is still valid. Defaults to `false`.
 
 - **Type**: `bool`
 - **Required**: No
