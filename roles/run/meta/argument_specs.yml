@@ -24,7 +24,6 @@ argument_specs:
           deleting created users, stopping services, restoring modified settings, …
         type: "str"
         default: "present"
-        required: true
         choices:
           - "present"
           - "absent"
@@ -36,7 +35,6 @@ argument_specs:
           currently installed one).
         type: "bool"
         default: false
-        required: true
 
       run_acmesh_autorenewal:
         description: |
@@ -44,7 +42,6 @@ argument_specs:
           is not using acme.sh's cronjob function).
         type: "bool"
         default: true
-        required: true
 
       run_acmesh_environment:
         description: |
@@ -60,11 +57,10 @@ argument_specs:
 
           ```
           run_acmesh_environment:
-            "HETZNER_Token": "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
+            "HETZNER_Token": "\{\{ lookup('ansible.builtin.unvault', '...') | string | trim \}\}"
           ```
         type: "dict"
         default: {}
-        required: true
 
       run_acmesh_certs:
         description: |
@@ -118,14 +114,13 @@ argument_specs:
           # Environment variables needed for the DNS API authentication for
           # type: "dns" and dns_provider: "dns_hetzner" /  dns_provider: "dns_inwx"
           run_acmesh_environment:
-            HETZNER_Token: "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
+            HETZNER_Token: "\{\{ lookup('ansible.builtin.unvault', '...') | string | trim \}\}"
             INWX_User: "exampleuser"
-            INWX_Password: "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
+            INWX_Password: "\{\{ lookup('ansible.builtin.unvault', '...') | string | trim \}\}"
           ```
         type: "list"
         elements: "dict"
         default: []
-        required: true
         options:
           domains:
             description: |
@@ -264,7 +259,6 @@ argument_specs:
           files and directories.
         type: "str"
         default: "acmesh"
-        required: true
 
       run_acmesh_group:
         description: |
@@ -272,7 +266,6 @@ argument_specs:
           acme.sh and its file permissions.
         type: "str"
         default: "acmesh"
-        required: true
 
       run_acmesh_cfg_accountemail:
         description: |
@@ -281,7 +274,6 @@ argument_specs:
           Some ACME providers might refuse to issue certificates if not set.
         type: "str"
         default: ""
-        required: true
 
       run_acmesh_cfg_home:
         description: |
@@ -290,7 +282,6 @@ argument_specs:
           service user defined (see `run_acmesh_user``).
         type: "str"
         default: "/opt/acme.sh"
-        required: true
 
       run_acmesh_cfg_config_home:
         description: |
@@ -298,7 +289,6 @@ argument_specs:
           --config-home).
         type: "str"
         default: "/etc/acme.sh"
-        required: true
 
       run_acmesh_cfg_cert_home:
         description: |
@@ -312,7 +302,6 @@ argument_specs:
           https://github.com/acmesh-official/acme.sh/issues/2350#issuecomment-1449235599
         type: "str"
         default:  "/var/opt/acme.sh"
-        required: true
 
       run_acmesh_cfg_logfile:
         description: |
@@ -320,7 +309,6 @@ argument_specs:
           option --log).
         type: "str"
         default: "/var/log/acme.sh.log"
-        required: true
 
       run_acmesh_cfg_log_level:
         description: |
@@ -328,7 +316,6 @@ argument_specs:
           Possible values are 1 (less logging) and 2 (more logging).
         type: "int"
         default: 1
-        required: true
         choices:
           - 1
           - 2
@@ -340,7 +327,6 @@ argument_specs:
           (debug)
         type: "int"
         default: 3
-        required: true
         choices:
           - 0
           - 3
