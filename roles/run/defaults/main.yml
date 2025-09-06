@@ -17,7 +17,7 @@
 # deleting created users, stopping services, restoring modified settings, …
 #
 # - Type: str
-# - Required: Yes
+# - Required: No
 # - Default: present
 # - Choices: present, absent
 run_acmesh_state: "present"
@@ -27,7 +27,7 @@ run_acmesh_state: "present"
 # currently installed one).
 #
 # - Type: bool
-# - Required: Yes
+# - Required: No
 # - Default: false
 run_acmesh_autoupgrade: false
 
@@ -35,7 +35,7 @@ run_acmesh_autoupgrade: false
 # not using acme.sh's cronjob function).
 #
 # - Type: bool
-# - Required: Yes
+# - Required: No
 # - Default: true
 run_acmesh_autorenewal: true
 
@@ -51,11 +51,11 @@ run_acmesh_autorenewal: true
 #
 # ```
 # run_acmesh_environment:
-#   "HETZNER_Token": "{{ lookup('ansible.builtin.unvault', '...') | string | trim }}"
+#   "HETZNER_Token": "\{\{ lookup('ansible.builtin.unvault', '...') | string | trim \}\}"
 # ```
 #
 # - Type: dict
-# - Required: Yes
+# - Required: No
 # - Default: {}
 run_acmesh_environment:
   {} # Remove the "{}" when adding values to this dict.
@@ -110,15 +110,13 @@ run_acmesh_environment:
 # # Environment variables needed for the DNS API authentication for
 # # type: "dns" and dns_provider: "dns_hetzner" /  dns_provider: "dns_inwx"
 # run_acmesh_environment:
-# HETZNER_Token: "{{ lookup('ansible.builtin.unvault', '...') | string | trim
-# }}"
-# INWX_User: "exampleuser"
-# INWX_Password: "{{ lookup('ansible.builtin.unvault', '...') | string | trim
-# }}"
+#   HETZNER_Token: "\{\{ lookup('ansible.builtin.unvault', '...') | string | trim \}\}"
+#   INWX_User: "exampleuser"
+#   INWX_Password: "\{\{ lookup('ansible.builtin.unvault', '...') | string | trim \}\}"
 # ```
 #
 # - Type: list
-# - Required: Yes
+# - Required: No
 # - Default: []
 # - List elements: dict
 run_acmesh_certs:
@@ -128,7 +126,7 @@ run_acmesh_certs:
 # and directories.
 #
 # - Type: str
-# - Required: Yes
+# - Required: No
 # - Default: acmesh
 run_acmesh_user: "acmesh"
 
@@ -136,7 +134,7 @@ run_acmesh_user: "acmesh"
 # its file permissions.
 #
 # - Type: str
-# - Required: Yes
+# - Required: No
 # - Default: acmesh
 run_acmesh_group: "acmesh"
 
@@ -145,7 +143,7 @@ run_acmesh_group: "acmesh"
 # might refuse to issue certificates if not set.
 #
 # - Type: str
-# - Required: Yes
+# - Required: No
 # - Default: 
 run_acmesh_cfg_accountemail: ""
 
@@ -154,7 +152,7 @@ run_acmesh_cfg_accountemail: ""
 # user defined (see `run_acmesh_user``).
 #
 # - Type: str
-# - Required: Yes
+# - Required: No
 # - Default: /opt/acme.sh
 run_acmesh_cfg_home: "/opt/acme.sh"
 
@@ -162,7 +160,7 @@ run_acmesh_cfg_home: "/opt/acme.sh"
 # --config-home).
 #
 # - Type: str
-# - Required: Yes
+# - Required: No
 # - Default: /etc/acme.sh
 run_acmesh_cfg_config_home: "/etc/acme.sh"
 
@@ -175,7 +173,7 @@ run_acmesh_cfg_config_home: "/etc/acme.sh"
 # https://github.com/acmesh-official/acme.sh/issues/2350#issuecomment-1449235599
 #
 # - Type: str
-# - Required: Yes
+# - Required: No
 # - Default: /var/opt/acme.sh
 run_acmesh_cfg_cert_home: "/var/opt/acme.sh"
 
@@ -183,7 +181,7 @@ run_acmesh_cfg_cert_home: "/var/opt/acme.sh"
 # option --log).
 #
 # - Type: str
-# - Required: Yes
+# - Required: No
 # - Default: /var/log/acme.sh.log
 run_acmesh_cfg_logfile: "/var/log/acme.sh.log"
 
@@ -191,7 +189,7 @@ run_acmesh_cfg_logfile: "/var/log/acme.sh.log"
 # values are 1 (less logging) and 2 (more logging).
 #
 # - Type: int
-# - Required: Yes
+# - Required: No
 # - Default: 1
 # - Choices: 1, 2
 run_acmesh_cfg_log_level: 1
@@ -200,7 +198,7 @@ run_acmesh_cfg_log_level: 1
 # are 0 (disable syslog), 3 (errors), 6 (info) and 7 (debug)
 #
 # - Type: int
-# - Required: Yes
+# - Required: No
 # - Default: 3
 # - Choices: 0, 3, 6, 7
 run_acmesh_cfg_syslog: 3
