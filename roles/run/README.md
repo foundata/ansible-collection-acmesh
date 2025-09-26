@@ -89,7 +89,7 @@ The following variables can be configured for this role:
 | `run_acmesh_user` | `str` | No | `"acmesh"` | Specifies the service user account that runs acme.sh and owns relevant files and directories. |
 | `run_acmesh_group` | `str` | No | `"acmesh"` | Specifies the group associated with the service user for managing acme.sh and its file permissions. |
 | `run_acmesh_cfg_accountemail` | `str` | No | `""` | Specifies the email address to be associated with the ACME account. This email is used for expiration notices and recovery purposes. Some ACME providers might refuse to issue certificates if not set. |
-| `run_acmesh_cfg_home` | `str` | No | `"/opt/acme.sh"` | Specifies the installation directory for the acme.sh software (relates to acme.sh option --home). Will also be used as home directory of the service user defined (see `run_acmesh_user``). |
+| `run_acmesh_cfg_home` | `str` | No | `"/opt/acme.sh"` | Specifies the installation directory for the acme.sh software (relates to acme.sh option --home). Will also be used as home directory of the service user defined (see `run_acmesh_user`). |
 | `run_acmesh_cfg_config_home` | `str` | No | `"/etc/acme.sh"` | Defines where configuration files are stored (relates to acme.sh option --config-home). |
 | `run_acmesh_cfg_cert_home` | `str` | No | `"/var/opt/acme.sh"` | Specifies the directory where certificates are maintained by acme.sh (relates to acme.sh option --certhome). ⚠️ Do not rely on the files in this directory directly. Instead, copy the certificates where needed using the "install" key of […](#variable-run_acmesh_cfg_cert_home) |
 | `run_acmesh_cfg_logfile` | `str` | No | `"/var/log/acme.sh.log"` | Path to the log file where acme.sh logs its operations (relates to acme.sh option --log). |
@@ -534,7 +534,7 @@ Some ACME providers might refuse to issue certificates if not set.
 
 Specifies the installation directory for the acme.sh software  (relates
 to acme.sh option --home). Will also  be used as home directory of the
-service user defined (see `run_acmesh_user``).
+service user defined (see `run_acmesh_user`).
 
 - **Type**: `str`
 - **Required**: No

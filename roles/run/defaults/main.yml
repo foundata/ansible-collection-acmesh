@@ -149,7 +149,7 @@ run_acmesh_cfg_accountemail: ""
 
 # Specifies the installation directory for the acme.sh software (relates to
 # acme.sh option --home). Will also be used as home directory of the service
-# user defined (see `run_acmesh_user``).
+# user defined (see `run_acmesh_user`).
 #
 # - Type: str
 # - Required: No

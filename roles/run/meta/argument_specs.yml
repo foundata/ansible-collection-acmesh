@@ -279,7 +279,7 @@ argument_specs:
         description: |
           Specifies the installation directory for the acme.sh software  (relates
           to acme.sh option --home). Will also  be used as home directory of the
-          service user defined (see `run_acmesh_user``).
+          service user defined (see `run_acmesh_user`).
         type: "str"
         default: "/opt/acme.sh"
 
