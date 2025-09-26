@@ -6,7 +6,7 @@ The `foundata.acmesh.run` Ansible role (part if the `foundata.acmesh` Ansible co
 
 ## Table of contents<a id="toc"></a>
 
-- [Features](#features)<!-- BEGIN ANSIBLE DOCSMITH TOC -->
+- [Features](#features)<!-- ANSIBLE DOCSMITH TOC START -->
 - [Role variables](#variables)
   - [`run_acmesh_state`](#variable-run_acmesh_state)
   - [`run_acmesh_autoupgrade`](#variable-run_acmesh_autoupgrade)
@@ -45,7 +45,7 @@ The `foundata.acmesh.run` Ansible role (part if the `foundata.acmesh` Ansible co
   - [`run_acmesh_cfg_logfile`](#variable-run_acmesh_cfg_logfile)
   - [`run_acmesh_cfg_log_level`](#variable-run_acmesh_cfg_log_level)
   - [`run_acmesh_cfg_syslog`](#variable-run_acmesh_cfg_syslog)
-<!-- END ANSIBLE DOCSMITH TOC -->
+<!-- ANSIBLE DOCSMITH TOC END -->
 - [Example playbooks, using this role](#examples)
 - [Supported tags](#tags)
 - [Dependencies](#dependencies)
@@ -73,7 +73,7 @@ Currently not supported:
 - Native handling of the Apache and NGINX modes (but you can use `extra_flags` to pass `--nginx` or `--apache` if really necessary).
 
 
-<!-- BEGIN ANSIBLE DOCSMITH MAIN -->
+<!-- ANSIBLE DOCSMITH MAIN START -->
 
 ## Role variables<a id="variables"></a>
 
@@ -617,7 +617,7 @@ Possible values are 0 (disable syslog), 3 (errors), 6 (info) and 7
 
 
 
-<!-- END ANSIBLE DOCSMITH MAIN -->
+<!-- ANSIBLE DOCSMITH MAIN END -->
 
 
 ## Example playbooks, using this role<a id="examples"></a>
