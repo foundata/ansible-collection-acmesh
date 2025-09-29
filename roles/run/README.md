@@ -1,6 +1,6 @@
 # Ansible role: `foundata.acmesh.run`
 
-The `foundata.acmesh.run` Ansible role (part if the `foundata.acmesh` Ansible collection). It provides automated management of ACME certificates using acme.sh.
+The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible collection). It provides automated management of ACME certificates using acme.sh.
 
 
 
