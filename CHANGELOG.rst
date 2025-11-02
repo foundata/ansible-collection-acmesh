@@ -4,6 +4,36 @@ foundata.acmesh Ansible collection Release Notes
 
 .. contents:: Topics
 
+v1.2.0
+======
+
+Release Summary
+---------------
+
+Release Date: 2025-11-02
+
+Maintenance release.
+
+Minor Changes
+-------------
+
+- Added a new fact ``__run_acmesh_is_installed`` to indicate whether acme.sh is installed as boolean.
+- Molecule: Added Debian 13 (Trixie) as a test target platform.
+- ``foundata.acmesh.run`` - Added Molecule verification tests to ensure hook configuration updates work correctly and validate the proper base64 encoding of hook commands in certificate config files.
+- ``foundata.acmesh.run`` - Added automatic hook and reload command configuration updates for existing certificates. The role now detects when hook configurations (pre_hook, post_hook, renew_hook, reloadcmd) have changed in Ansible variables and automatically updates the corresponding base64-encoded values in acme.sh certificate config files without requiring certificate re-issuance. This is a workaround for upstream issue https://github.com/acmesh-official/acme.sh/issues/3936.
+- ``foundata.acmesh.run``: Added Debian 13 (Trixie) as a supported platform.
+
+Removed Features (previously deprecated)
+----------------------------------------
+
+- Molecule: Removed Debian 11 (Bullseye) as a test target platform.
+- ``foundata.acmesh.run``: Removed Debian 11 (Bullseye) from the list of supported platforms. The role will continue to work on Debian 11 but will display a warning. To avoid this, either remain on or pin the previous version of the collection. Bugs and issues related to Debian 11 will no longer be fixed.
+
+Bugfixes
+--------
+
+- Fixed `broken conditionals <https://docs.ansible.com/ansible/latest/porting_guides/porting_guide_core_2.19.html#broken-conditionals>`_. Ansible Core 2.19 / Ansible 12 introduced stricter behavior, e.g. non-boolean expressions in ``when:`` now raise errors by default.
+
 v1.1.0
 ======
 

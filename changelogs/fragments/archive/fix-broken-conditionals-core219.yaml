@@ -1,0 +1,7 @@
+---
+
+minor_changes:
+  - "Added a new fact ``__run_acmesh_is_installed`` to indicate whether acme.sh is installed as boolean."
+
+bugfixes:
+  - "Fixed `broken conditionals <https://docs.ansible.com/ansible/latest/porting_guides/porting_guide_core_2.19.html#broken-conditionals>`_. Ansible Core 2.19 / Ansible 12 introduced stricter behavior, e.g. non-boolean expressions in ``when:`` now raise errors by default."
