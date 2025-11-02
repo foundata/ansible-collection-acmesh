@@ -42,7 +42,7 @@
     decrypt: true
     force: false # do not overwrite anything if already existing on target
   when:
-    - __run_acmesh_version_installed
+    - __run_acmesh_is_installed
     - run_acmesh_certs is defined
     - item['stat'] is defined
     - item['stat']['exists']
@@ -87,7 +87,7 @@
     decrypt: true
     force: false # do not overwrite anything if already existing on target
   when:
-    - __run_acmesh_version_installed
+    - __run_acmesh_is_installed
     - run_acmesh_certs is defined
     - item['stat'] is defined
     - item['stat']['exists']
@@ -201,7 +201,7 @@
     chdir: "{{ run_acmesh_cfg_home }}"
   environment: "{{ run_acmesh_environment | default(omit) }}"
   when:
-    - __run_acmesh_version_installed
+    - __run_acmesh_is_installed
     - run_acmesh_certs is defined
   changed_when:
     - __run_acmesh_issue_result['rc'] == 0
@@ -222,7 +222,7 @@
     group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0750
   when:
-    - __run_acmesh_version_installed
+    - __run_acmesh_is_installed
     - run_acmesh_certs is defined
   loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('ca_file', 'defined') | list }}"
 
@@ -235,7 +235,7 @@
     group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0750
   when:
-    - __run_acmesh_version_installed
+    - __run_acmesh_is_installed
     - run_acmesh_certs is defined
   loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('cert_file', 'defined') | list }}"
 
@@ -248,7 +248,7 @@
     group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0750
   when:
-    - __run_acmesh_version_installed
+    - __run_acmesh_is_installed
     - run_acmesh_certs is defined
   loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('fullcain_file', 'defined') | list }}"
 
@@ -261,7 +261,7 @@
     group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0750
   when:
-    - __run_acmesh_version_installed
+    - __run_acmesh_is_installed
     - run_acmesh_certs is defined
   loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | map(attribute='install') | selectattr('key_file', 'defined') | list }}"
 
@@ -309,7 +309,7 @@
     chdir: "{{ run_acmesh_cfg_home }}"
   environment: "{{ run_acmesh_environment | default(omit) }}"
   when:
-    - __run_acmesh_version_installed
+    - __run_acmesh_is_installed
     - run_acmesh_certs is defined
   changed_when:
     - __run_acmesh_install_result['rc'] == 0
@@ -495,7 +495,7 @@
       exit 0
     executable: "/bin/bash" # Support for other shells untested (so far)
   when:
-    - __run_acmesh_version_installed
+    - __run_acmesh_is_installed
     - run_acmesh_certs is defined
     - item is defined
     - item['domains'] is defined
@@ -516,7 +516,7 @@
     msg: "{{ item }}"
     verbosity: 3
   when:
-    - __run_acmesh_version_installed
+    - __run_acmesh_is_installed
     - run_acmesh_certs is defined
     - item | length > 0
   loop: >-
@@ -536,7 +536,7 @@
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   when:
-    - __run_acmesh_version_installed
+    - __run_acmesh_is_installed
     - ansible_verbosity > 3
   changed_when: false
   register: __run_acmesh_list_domains_result
@@ -547,6 +547,6 @@
     msg: "{{ __run_acmesh_list_domains_result['stdout_lines'] }}"
     verbosity: 3
   when:
-    - __run_acmesh_version_installed
-    - __run_acmesh_list_domains_result
+    - __run_acmesh_is_installed
+    - __run_acmesh_list_domains_result is defined
     - ansible_verbosity > 3

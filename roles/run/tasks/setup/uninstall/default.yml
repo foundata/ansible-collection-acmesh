@@ -22,7 +22,7 @@
   args:
     removes: "{{ run_acmesh_cfg_home }}/acme.sh"
   when:
-    - __run_acmesh_version_installed
+    - __run_acmesh_is_installed
 
 
 - name: "Setup | Uninstall | Default | Remove packages"

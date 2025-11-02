@@ -108,7 +108,7 @@
     suffix: "-acmesh"
   changed_when: false
   when:
-    - not __run_acmesh_version_installed
+    - not __run_acmesh_is_installed
   register: __run_acmesh_tempdir
 
 
@@ -117,7 +117,7 @@
     var: __run_acmesh_tempdir
     verbosity: 2
   when:
-    - not __run_acmesh_version_installed
+    - not __run_acmesh_is_installed
 
 
 - name: "Setup | Install | Default | git clone {{ __run_acmesh_git_url }}"
@@ -128,7 +128,7 @@
     dest: "{{ __run_acmesh_tempdir['path'] }}"
     update: true
   when:
-    - not __run_acmesh_version_installed
+    - not __run_acmesh_is_installed
 
 
 - name: "Setup | Install | Default | Ensure existence and permissions of main directories"
@@ -192,7 +192,7 @@
     chdir: "{{ __run_acmesh_tempdir['path'] }}"
     creates: "{{ run_acmesh_cfg_home }}/acme.sh"
   when:
-    - not __run_acmesh_version_installed
+    - not __run_acmesh_is_installed
   notify: "run_acmesh: set ownership and permissions"
 
 
@@ -233,8 +233,9 @@
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   when:
-    - __run_acmesh_version_installed
-    - __run_acmesh_version_upstream
+    - __run_acmesh_is_installed
+    - __run_acmesh_version_installed is defined
+    - __run_acmesh_version_upstream is defined
     - run_acmesh_autoupgrade is defined
     - run_acmesh_autoupgrade
     - __run_acmesh_version_installed is version(__run_acmesh_version_upstream, 'lt', version_type='semver')
@@ -279,9 +280,10 @@
   register: __run_acmesh_version_installed_result
 
 
-- name: "Setup | Install | Default | Update / overwrite installed version fact"
+- name: "Setup | Install | Default | Update / overwrite installed version facts"
   ansible.builtin.set_fact:
-    __run_acmesh_version_installed: "{{ __run_acmesh_version_installed_result | ternary(__run_acmesh_version_installed_result['stdout'], false) }}"
+    __run_acmesh_is_installed: "{{ (__run_acmesh_version_installed_result is success) | ternary((__run_acmesh_version_installed_result['stdout'] | length > 0), false) }}"
+    __run_acmesh_version_installed: "{{ (__run_acmesh_version_installed_result is success) | ternary(__run_acmesh_version_installed_result['stdout'], false) }}"
 
 
 - name: "Setup | Install | Default | Display installed version (if any, false means \"not installed\")"
@@ -333,7 +335,7 @@
     line: '\1grep -i "^\2'
     backrefs: true
   when:
-    - __run_acmesh_version_installed
+    - __run_acmesh_is_installed
     - __run_acmesh_version_installed is version('3.0.6', 'le', version_type='semver')
 
 

@@ -127,9 +127,10 @@
   changed_when: false
 
 
-- name: "Init | Set installed version as fact"
+- name: "Init | Set installed version as facts"
   ansible.builtin.set_fact:
-    __run_acmesh_version_installed: "{{ (__run_acmesh_version_installed_result) | ternary(__run_acmesh_version_installed_result['stdout'], false) }}"
+    __run_acmesh_is_installed: "{{ (__run_acmesh_version_installed_result is success) | ternary((__run_acmesh_version_installed_result['stdout'] | length > 0), false) }}"
+    __run_acmesh_version_installed: "{{ (__run_acmesh_version_installed_result is success) | ternary(__run_acmesh_version_installed_result['stdout'], false) }}"
 
 
 - name: "Init | Display installed version (if any, false means \"not installed\")"
