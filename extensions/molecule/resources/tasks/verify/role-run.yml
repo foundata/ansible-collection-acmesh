@@ -160,6 +160,61 @@
     - __testing_acmesh_domaincfg_content is defined
 
 
+- name: "Molecule | Verify | Build list of installed certificate files"
+  ansible.builtin.set_fact:
+    __testing_acmesh_cert_files_installed: |
+      {%- set _files = [] -%}
+
+      {%- set _d1 = lookup('env', 'TEST_ACMESH_TESTDOMAIN1') -%}
+      {%- if _d1 | length > 0 -%}
+        {%- for _fname in ['ca.cer', 'cert.cer', 'fullchain.cer', 'cert.key'] -%}
+          {%- set _ = _files.append('/etc/pki/tls/certs/' ~ _d1 ~ '/' ~ _fname) -%}
+        {%- endfor -%}
+      {%- endif -%}
+
+      {%- set _d2 = lookup('env', 'TEST_ACMESH_TESTDOMAIN2') -%}
+      {%- if _d2 | length > 0 -%}
+        {%- for _fname in ['ca.cer', 'cert.cer', 'fullchain.cer', 'cert.key'] -%}
+          {%- set _ = _files.append('/etc/pki/tls/certs/' ~ _d2 ~ '/' ~ _fname) -%}
+        {%- endfor -%}
+      {%- endif -%}
+
+      {{ _files }}
+  when:
+    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN1') | length > 0) or
+      (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0)
+
+
+- name: "Molecule | Verify | Gather stats for installed certificate files"
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    get_checksum: false
+    get_mime: false
+  loop: "{{ __testing_acmesh_cert_files_installed | default([]) }}"
+  register: __testing_acmesh_cert_files_installed_stat
+  when:
+    - __testing_acmesh_cert_files_installed is defined
+    - __testing_acmesh_cert_files_installed | length > 0
+
+
+- name: "Molecule | Verify | Check existence, permissions and ownership: installed certificate files"
+  ansible.builtin.assert:
+    that:
+      - item['stat']['exists']
+      - item['stat']['isreg']
+      - item['stat']['mode'] == '0640'
+      - item['stat']['pw_name'] == run_acmesh_user
+      - item['stat']['gr_name'] == run_acmesh_group
+    fail_msg: "{{ item['stat']['path'] }} does not exist or has incorrect permissions/ownership"
+  loop: "{{ __testing_acmesh_cert_files_installed_stat['results'] | default([]) }}"
+  loop_control:
+    label: "{{ item['stat']['path'] | default('undefined') }}"
+  when:
+    - __testing_acmesh_cert_files_installed_stat is defined
+    - __testing_acmesh_cert_files_installed_stat['results'] is defined
+    - __testing_acmesh_cert_files_installed_stat['results'] | length > 0
+
+
 - name: "Molecule | Verify | Verify current reloadcmd and hook values in certificate config file (second domain certificate)"
   ansible.builtin.assert:
     that:

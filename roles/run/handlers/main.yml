@@ -27,11 +27,24 @@
       set -o pipefail # Fail if any pipe cmd fails
       set -e # Exit on errors (incl. tests in if/while)
 
+      {# Collect dirs from cert file install data (used below in find invocations) #}
+      {% set _dirs = [] %}
+      {% for _cert in run_acmesh_certs | default([]) %}
+        {% for _key in ['ca_file', 'cert_file', 'fullcain_file', 'key_file'] %}
+          {% if _cert['install'] is defined and _cert['install'][_key] is defined and _cert['install'][_key] %}
+            {% set _ = _dirs.append((_cert['install'][_key] | dirname)) %}
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+
       # Set ownership of files and directories: service user and group
       find \
         {{ run_acmesh_cfg_home | ansible.builtin.quote }} \
         {{ run_acmesh_cfg_config_home | ansible.builtin.quote }} \
         {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }} \
+        {% for _dir in _dirs | unique %}
+        {{ _dir | ansible.builtin.quote }} \
+        {% endfor %}
         -exec chown -c {{ (run_acmesh_user ~ ':' ~ run_acmesh_group) | ansible.builtin.quote }} {} \;
       chown -c {{ (run_acmesh_user ~ ':' ~ run_acmesh_group) | ansible.builtin.quote }} {{ (run_acmesh_cfg_config_home ~ '/account.conf') |
                                                                                            ansible.builtin.quote }}
@@ -42,6 +55,9 @@
         {{ run_acmesh_cfg_home | ansible.builtin.quote }} \
         {{ run_acmesh_cfg_config_home | ansible.builtin.quote }} \
         {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }} \
+        {% for _dir in _dirs | unique %}
+        {{ _dir | ansible.builtin.quote }} \
+        {% endfor %}
         -type d \
         -exec chmod -c 0750 {} \;
 
@@ -51,6 +67,9 @@
         {{ run_acmesh_cfg_home | ansible.builtin.quote }} \
         {{ run_acmesh_cfg_config_home | ansible.builtin.quote }} \
         {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }} \
+        {% for _dir in _dirs | unique %}
+        {{ _dir | ansible.builtin.quote }} \
+        {% endfor %}
         -type f \
         -not -name '*\.sh' \
         -not -wholename {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }} \
