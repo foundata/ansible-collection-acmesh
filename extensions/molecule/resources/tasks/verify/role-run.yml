@@ -177,7 +177,7 @@
     - __testing_acmesh_domaincfg_content is defined
 
 
-- name: "Molecule | Verify |Adapt second domain certificate config: Update reloadcmd and hooks"
+- name: "Molecule | Verify | Adapt second domain certificate config: Update reloadcmd and hooks"
   ansible.builtin.include_role:
     name: "foundata.acmesh.run"
   vars:

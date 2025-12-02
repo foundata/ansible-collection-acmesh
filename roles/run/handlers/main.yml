@@ -19,7 +19,7 @@
   #
   # Notes on the command or script itself:
   #
-  # - the -c (long version but not as portabl: --changes) of chmod and chown
+  # - the -c (long version, sadly not as portable: --changes) of chmod and chown
   #   prints every processed file but reports only when a change is made.
   ansible.builtin.shell:
     cmd: |
