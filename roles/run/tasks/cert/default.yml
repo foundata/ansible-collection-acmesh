@@ -332,6 +332,29 @@
   notify: "run_acmesh: set ownership and permissions"
 
 
+- name: "Cert | Permissions | Set permissions for installed cert files"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
+    mode: "0640"
+  loop: >-
+    {{
+      run_acmesh_certs | default([])
+      | map(attribute='install')
+      | map('dict2items')
+      | list
+      | flatten
+      | selectattr('key', 'in', ['ca_file', 'cert_file', 'fullcain_file', 'key_file'])
+      | map(attribute='value')
+      | reject('equalto', '')
+      | list
+    }}
+  when:
+    - run_acmesh_certs is defined
+    - __run_acmesh_install_result is success
+
+
 - name: "Cert | Default | Update certificate hook and reload cmd configurations"
   # The command or shell module is used here. This approach is justified:
   #
