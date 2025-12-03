@@ -83,6 +83,55 @@
     fail_msg: "{{ run_acmesh_cfg_config_home }}/account.conf does not exist or has incorrect permissions/ownership"
 
 
+- name: "Molecule | Verify | Gather service facts"
+  ansible.builtin.service_facts:
+
+
+- name: "Molecule | Verify | Check acmesh-renewal.service is existing, static status"
+  ansible.builtin.assert:
+    that:
+      - "'acmesh-renewal.service' in ansible_facts['services']"
+      - ansible_facts['services']['acmesh-renewal.service']['status'] in ['static']
+    fail_msg: "acmesh-renewal.service is not existing as expected or wrong status"
+
+
+- name: "Molecule | Verify | Show acmesh-renewal.timer properties"
+  ansible.builtin.command:
+    cmd: >
+      systemctl show acmesh-renewal.timer --property=Triggers,Unit,UnitFileState,LoadState,WantedBy
+  register: __testing_acmesh_timer_show
+  changed_when: false
+
+
+- name: "Molecule | Verify | Assert acmesh-renewal.timer configuration looks correct"
+  ansible.builtin.assert:
+    that:
+      - __testing_acmesh_timer_show['stdout'] is search('Triggers=acmesh-renewal.service')
+      - __testing_acmesh_timer_show['stdout'] is search('Unit=acmesh-renewal.service')
+      - __testing_acmesh_timer_show['stdout'] is search('UnitFileState=enabled')
+      - __testing_acmesh_timer_show['stdout'] is search('LoadState=loaded')
+      - __testing_acmesh_timer_show['stdout'] is search('WantedBy=timers.target')
+    fail_msg: "acmesh-renewal.timer does not have the expected configuration (OnCalendar / Unit / active state)"
+
+
+- name: "Molecule | Verify | Show acmesh-renewal.service properties"
+  ansible.builtin.command:
+    cmd: >
+      systemctl show acmesh-renewal.service --property=Type,User,Group,ExecStart,WorkingDirectory
+  register: __testing_acmesh_service_show
+  changed_when: false
+
+- name: "Molecule | Verify | Assert acmesh-renewal.service configuration looks correct"
+  ansible.builtin.assert:
+    that:
+      - __testing_acmesh_service_show['stdout'] is search('Type=oneshot')
+      - __testing_acmesh_service_show['stdout'] is search('User=' ~ run_acmesh_user)
+      - __testing_acmesh_service_show['stdout'] is search('Group=' ~ run_acmesh_group)
+      - __testing_acmesh_service_show['stdout'] is search('WorkingDirectory=' ~ run_acmesh_cfg_home)
+      - __testing_acmesh_service_show['stdout'] is search('ExecStart={ path=' ~ run_acmesh_cfg_home ~ '/acme.sh')
+    fail_msg: "acmesh-renewal.service does not have the expected configuration"
+
+
 - name: "Molecule | Verify | Gather stats for directory: certificate data dir of first test domain"
   ansible.builtin.stat:
     path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc/"
