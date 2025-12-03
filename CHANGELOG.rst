@@ -4,6 +4,21 @@ foundata.acmesh Ansible collection Release Notes
 
 .. contents:: Topics
 
+v1.2.1
+======
+
+Release Summary
+---------------
+
+Release Date: 2025-12-03
+
+Bugfix release.
+
+Bugfixes
+--------
+
+- Files created by ``Cert | Default | Install certificate(s)`` / ``acme.sh --install-cert`` were ignored by the handler to set ownership and permissions of files and directories (restrict to service user and/or group).
+
 v1.2.0
 ======
 
