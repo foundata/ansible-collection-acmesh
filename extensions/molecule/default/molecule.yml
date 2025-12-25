@@ -64,13 +64,13 @@ platforms:
     image: "quay.io/foundata/centosstream9-itt:latest"
     systemd: true
 
+  # Fedora 43
+  - name: "molecule-fedora43"
+    image: "quay.io/foundata/fedora43-itt:latest"
+    systemd: true
   # Fedora 42
   - name: "molecule-fedora42"
     image: "quay.io/foundata/fedora42-itt:latest"
-    systemd: true
-  # Fedora 41
-  - name: "molecule-fedora41"
-    image: "quay.io/foundata/fedora41-itt:latest"
     systemd: true
 
   # openSUSE Leap 15.6
