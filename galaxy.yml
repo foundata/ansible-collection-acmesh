@@ -4,7 +4,7 @@
 
 namespace: "foundata"
 name: "acmesh"
-version: "1.2.1"
+version: "1.3.0"
 license:
   # See https://spdx.org/licenses/ for valid IDs and syntax. The project's
   # REUSE.toml file provides detailed licensing and copyright information
