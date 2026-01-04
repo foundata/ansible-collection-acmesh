@@ -52,7 +52,7 @@ __run_acmesh_supported_platforms:
       - "42"
   - name: "openSUSE Leap"
     versions:
-      - "15.6"
+      - "16.0"
   - name: "RedHat" # includes AlmaLinux, Rocky and CentOS Stream
     versions:
       - "9"
