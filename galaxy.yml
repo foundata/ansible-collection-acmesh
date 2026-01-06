@@ -18,6 +18,9 @@ description: >
   Manage acme.sh (shell script implementing the ACME client protocol). Issue and
   maintain X.509 certificates.
 repository: "https://github.com/foundata/ansible-collection-acmesh"
+documentation: "https://foundata.com/en/projects/ansible-collection-acmesh/#doc"
+issues: "https://foundata.com/en/projects/ansible-collection-acmesh/#issues"
+homepage: "https://foundata.com/en/projects/ansible-collection-acmesh/"
 tags:
   - "application"
   - "security"
