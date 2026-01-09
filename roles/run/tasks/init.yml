@@ -4,10 +4,9 @@
 
 - name: "Init | Gather role-specific facts"
   ansible.builtin.setup:
-    gather_subset:
-      - "distribution"
+    gather_subset: "{{ __run_acmesh_used_facts }}"
   when:
-    - not ansible_facts.keys() | list | intersect(__run_acmesh_used_facts) == __run_acmesh_used_facts
+    - not (__run_acmesh_used_facts is subset(ansible_facts.keys()))
 
 
 - name: "Init | Include role meta data"
