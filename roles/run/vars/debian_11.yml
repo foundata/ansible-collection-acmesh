@@ -9,5 +9,5 @@
 ---
 
 # String. Paths of misc executables and resources.
-__run_acmesh_sed_executable: "/bin/sed"
-__run_acmesh_grep_executable: "/bin/grep"
+__run_acmesh_sed_exec_path: "/bin/sed"
+__run_acmesh_grep_exec_path: "/bin/grep"

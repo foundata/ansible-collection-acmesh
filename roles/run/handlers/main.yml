@@ -83,7 +83,7 @@
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   changed_when:
-    - __run_acmesh_permissions_result['rc'] == 0
+    - __run_acmesh_permissions_result is success
     - __run_acmesh_permissions_result['stdout'] | trim | length > 0
   register: __run_acmesh_permissions_result
   listen: "run_acmesh: set ownership and permissions"

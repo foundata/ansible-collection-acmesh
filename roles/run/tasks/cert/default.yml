@@ -204,11 +204,11 @@
     - __run_acmesh_is_installed
     - run_acmesh_certs is defined
   changed_when:
-    - __run_acmesh_issue_result['rc'] == 0
+    - __run_acmesh_issue_result is success
     - ('Cert success') in __run_acmesh_issue_result['stdout']
   failed_when: >
     (run_acmesh_certs is not defined) or
-    (__run_acmesh_issue_result['rc'] != 0 and 'Domains not changed' not in __run_acmesh_issue_result['stdout'])
+    ((__run_acmesh_issue_result is failed) and ('Domains not changed' not in __run_acmesh_issue_result['stdout']))
   loop: "{{ run_acmesh_certs }}"
   register: __run_acmesh_issue_result
   notify: "run_acmesh: set ownership and permissions"
@@ -312,7 +312,7 @@
     - __run_acmesh_is_installed
     - run_acmesh_certs is defined
   changed_when:
-    - __run_acmesh_install_result['rc'] == 0
+    - __run_acmesh_install_result is success
     - ('Cert success') in __run_acmesh_install_result['stdout']
   # Errors from --reloadcmd are ignored to avoid chicken-and-egg issues. These
   # errors typically occur when services required for reloading are not yet
@@ -321,9 +321,9 @@
   # if issues persist.
   failed_when: >
     (run_acmesh_certs is not defined) or
-    (__run_acmesh_install_result['rc'] != 0 and 'Installing' not in __run_acmesh_install_result['stdout']) or
+    ((__run_acmesh_install_result is failed) and ('Installing' not in __run_acmesh_install_result['stdout'])) or
     (
-      __run_acmesh_install_result['rc'] != 0 and
+      __run_acmesh_install_result is failed and
       ((__run_acmesh_install_result['stderr_lines'] | length) > 0) and
       'Reload error' not in __run_acmesh_install_result['stderr']
     )
@@ -388,10 +388,10 @@
       # Function: Decode base64 value from config line
       decode_value() {
           local line="${1}"
-          base64_value=$(printf '%s' "${line}" | {{ __run_acmesh_sed_executable }} -n 's/.*__ACME_BASE64__START_\([^_]*\)__ACME_BASE64__END_.*/\1/p')
+          base64_value=$(printf '%s' "${line}" | {{ __run_acmesh_sed_exec_path }} -n 's/.*__ACME_BASE64__START_\([^_]*\)__ACME_BASE64__END_.*/\1/p')
           if [ -n "${base64_value}" ]
           then
-              printf '%s' "${base64_value}" | {{ __run_acmesh_base64_executable }} -d
+              printf '%s' "${base64_value}" | {{ __run_acmesh_base64_exec_path }} -d
           else
               printf ''
           fi
@@ -402,7 +402,7 @@
           local value="$1"
           if [ -n "$value" ]
           then
-              printf '%s' "__ACME_BASE64__START_$(printf '%s' "$value" | {{ __run_acmesh_base64_executable }} -w 0)__ACME_BASE64__END_"
+              printf '%s' "__ACME_BASE64__START_$(printf '%s' "$value" | {{ __run_acmesh_base64_exec_path }} -w 0)__ACME_BASE64__END_"
           else
               printf ''
           fi
@@ -418,18 +418,18 @@
           if [ -n "${encoded_value}" ]
           then
               # Update existing line
-              if {{ __run_acmesh_grep_executable }} -q "^${b64option_name}=" "${CONFIG_FILE}"
+              if {{ __run_acmesh_grep_exec_path }} -q "^${b64option_name}=" "${CONFIG_FILE}"
               then
-                  {{ __run_acmesh_sed_executable }} -i "s|^${b64option_name}=.*|${b64option_name}='${encoded_value}'|" "${CONFIG_FILE}"
+                  {{ __run_acmesh_sed_exec_path }} -i "s|^${b64option_name}=.*|${b64option_name}='${encoded_value}'|" "${CONFIG_FILE}"
               # Add new line
               else
                   printf '%s\n' "${b64option_name}='${encoded_value}'" >> "${CONFIG_FILE}"
               fi
           else
               # Set empty value in extsting line
-              if {{ __run_acmesh_grep_executable }} -q "^${b64option_name}=" "${CONFIG_FILE}"
+              if {{ __run_acmesh_grep_exec_path }} -q "^${b64option_name}=" "${CONFIG_FILE}"
               then
-                  {{ __run_acmesh_sed_executable }} -i "s|^${b64option_name}=.*|${b64option_name}=''|" "${CONFIG_FILE}"
+                  {{ __run_acmesh_sed_exec_path }} -i "s|^${b64option_name}=.*|${b64option_name}=''|" "${CONFIG_FILE}"
               # Add new line
               else
                   printf '%s\n' "${b64option_name}=''" >> "${CONFIG_FILE}"
@@ -524,10 +524,10 @@
     - item['domains'] is defined
     - (item['domains'] | length) > 0
   failed_when:
-    - (__run_acmesh_cmdupdates_result['rc'] != 0) or
+    - (__run_acmesh_cmdupdates_result is failed) or
       ((__run_acmesh_cmdupdates_result['stderr_lines'] | length) > 0)
   changed_when:
-    - __run_acmesh_cmdupdates_result['rc'] == 0
+    - __run_acmesh_cmdupdates_result is success
     - __run_acmesh_cmdupdates_result['stdout'] | trim | length > 0
   loop: "{{ run_acmesh_certs }}"
   register: __run_acmesh_cmdupdates_result

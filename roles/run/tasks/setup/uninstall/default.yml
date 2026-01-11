@@ -63,8 +63,8 @@
     - "{{ run_acmesh_cfg_home }}"
     - "{{ run_acmesh_cfg_config_home }}"
     - "{{ run_acmesh_cfg_logfile }}"
-    - "{{ __run_acmesh_profiled_envfile }}"
-    - "{{ __run_acmesh_systemd_renewal_servicefile }}"
-    - "{{ __run_acmesh_systemd_renewal_timerfile }}"
+    - "{{ __run_acmesh_profiled_envfile_path }}"
+    - "{{ __run_acmesh_systemd_renewal_servicefile_path }}"
+    - "{{ __run_acmesh_systemd_renewal_timerfile_path }}"
 
 # FIXME / TODO delete additional, non-primary group for service user if it is empty

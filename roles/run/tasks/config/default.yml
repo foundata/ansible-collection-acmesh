@@ -23,7 +23,7 @@
       set -u # Fail on unset vars
       set -o pipefail # Fail if any pipe cmd fails
 
-      __run_acmesh_checksum_before=$({{ __run_acmesh_sha1sum_executable }} {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }})
+      __run_acmesh_checksum_before=$({{ __run_acmesh_sha1sum_exec_path }} {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }})
 
       if ! ./acme.sh \
             --info \
@@ -47,7 +47,7 @@
         exit 1
       fi
 
-      __run_acmesh_checksum_after=$({{ __run_acmesh_sha1sum_executable }} {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }})
+      __run_acmesh_checksum_after=$({{ __run_acmesh_sha1sum_exec_path }} {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }})
       if [ "${__run_acmesh_checksum_before}" != "${__run_acmesh_checksum_after}" ]
       then
         printf 'Changed config file: %s' {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }}
@@ -58,14 +58,14 @@
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   changed_when:
-    - __run_acmesh_config_result['rc'] == 0
+    - __run_acmesh_config_result is success
     - ('Changed config file') in __run_acmesh_config_result['stdout']
   register: __run_acmesh_config_result
 
 
 - name: "Config | Default | Create systemd unit file (acmesh-renewal.service)"
   ansible.builtin.copy:
-    dest: "{{ __run_acmesh_systemd_renewal_servicefile }}"
+    dest: "{{ __run_acmesh_systemd_renewal_servicefile_path }}"
     content: |
       [Unit]
       Description=acme.sh - renew certificates
@@ -90,7 +90,7 @@
 
 - name: "Config | Default | Create systemd unit file (acmesh-renewal.timer)"
   ansible.builtin.copy:
-    dest: "{{ __run_acmesh_systemd_renewal_timerfile }}"
+    dest: "{{ __run_acmesh_systemd_renewal_timerfile_path }}"
     content: |
       [Unit]
       Description=acme.sh - daily certificate renewal

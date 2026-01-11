@@ -240,7 +240,7 @@
     - run_acmesh_autoupgrade
     - __run_acmesh_version_installed is version(__run_acmesh_version_upstream, 'lt', version_type='semver')
   changed_when:
-    - __run_acmesh_upgrade_result['rc'] == 0
+    - __run_acmesh_upgrade_result is success
     - ('Upgrade success') in __run_acmesh_upgrade_result['stdout']
   register: __run_acmesh_upgrade_result
   notify: "run_acmesh: set ownership and permissions"
@@ -307,7 +307,7 @@
 - name: "Setup | Install | Default | Symlink env file for profile.d"
   ansible.builtin.file:
     src: "{{ run_acmesh_cfg_home }}/acme.sh.env"
-    dest: "{{ __run_acmesh_profiled_envfile }}"
+    dest: "{{ __run_acmesh_profiled_envfile_path }}"
     state: "link"
   when:
     - __run_acmesh_envfile_stat_result is defined

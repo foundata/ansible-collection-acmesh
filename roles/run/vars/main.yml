@@ -123,24 +123,24 @@ __run_acmesh_githubapi_release_latest_url: "https://api.github.com/repos/acmesh-
 
 # String. Path to the environment file sourced in /etc/profile.d/.
 # This file ensures that acme.sh environment variables are set for all users.
-__run_acmesh_profiled_envfile: "/etc/profile.d/acme.sh.env.sh"
+__run_acmesh_profiled_envfile_path: "/etc/profile.d/acme.sh.env.sh"
 
 
 # String. Path to the systemd service unit file for acme.sh certificate renewal.
 # This defines the command and execution environment for automated certificate renewal.
-__run_acmesh_systemd_renewal_servicefile: "/etc/systemd/system/acmesh-renewal.service"
+__run_acmesh_systemd_renewal_servicefile_path: "/etc/systemd/system/acmesh-renewal.service"
 
 
 # String. Path to the systemd timer unit file for acme.sh certificate renewal.
 # This timer schedules the execution of the renewal service at regular intervals.
-__run_acmesh_systemd_renewal_timerfile: "/etc/systemd/system/acmesh-renewal.timer"
+__run_acmesh_systemd_renewal_timerfile_path: "/etc/systemd/system/acmesh-renewal.timer"
 
 
 # String. Paths of misc executables and resources.
-__run_acmesh_sha1sum_executable: "/usr/bin/sha1sum"
-__run_acmesh_base64_executable: "/usr/bin/base64"
-__run_acmesh_sed_executable: "/usr/bin/sed"
-__run_acmesh_grep_executable: "/usr/bin/grep"
+__run_acmesh_sha1sum_exec_path: "/usr/bin/sha1sum"
+__run_acmesh_base64_exec_path: "/usr/bin/base64"
+__run_acmesh_sed_exec_path: "/usr/bin/sed"
+__run_acmesh_grep_exec_path: "/usr/bin/grep"
 
 
 ### Override defaults of dependencies used by this role (if any).
