@@ -5,6 +5,18 @@ This repository contains the `foundata.acmesh` Ansible Collection.
 It provides resources to manage and use [acme.sh](https://acme.sh/), as shell-based [Automatic Certificate Management Environment (ACME)](https://en.wikipedia.org/wiki/Automatic_Certificate_Management_Environment) client. It allows the issuance and maintenance of X.509 certificates, commonly used for securing HTTPS/TLS/SSL services on web servers.
 
 
+<div align="center" id="project-readme-header">
+<br>
+<br>
+
+**⭐ Found this useful? Support open-source and star this project:**
+
+[![GitHub repository](https://img.shields.io/github/stars/foundata/ansible-collection-acmesh.svg)](https://github.com/foundata/ansible-collection-acmesh)
+
+<br>
+</div>
+
+
 
 ## Table of contents<a id="toc"></a>
 
