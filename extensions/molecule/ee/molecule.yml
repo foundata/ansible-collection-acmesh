@@ -1,0 +1,95 @@
+# Configuration for the Ansible Molecule "ee" (Execution-environment) scenario.
+#
+# This scenario tests that the artifact can be included in an Ansible Execution
+# Environment (EE) built with ansible-builder.
+#
+# See the official documentation for details on this file and all settings:
+# https://ansible.readthedocs.io/projects/molecule/configuration/
+#
+# This scenario uses Podman to create and manage a container based testing
+# environment. Ensure Podman is installed on your system to use it:
+# https://podman.io/docs/installation.
+#
+# Podman is an alternative to Docker, offering improved security and better
+# systemd integration. Additionally, it is typically easier to install, as
+# most distributions provide a fully-features package it in their default
+# repositories.
+
+---
+
+driver:
+  name: "default"
+  options:
+    managed: false
+
+
+# Target platforms for testing
+platforms:
+  # No target platforms needed - we test on localhost by building an EE image
+  - name: "localhost"
+
+
+# Scenario execution order
+# Idempotence is excluded because EE builds are inherently non-idempotent
+# (building always creates new artifacts)
+scenario:
+  test_sequence:
+    - dependency
+    - cleanup
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    # - idempotence  # Excluded: EE builds are not idempotent
+    - side_effect
+    - verify
+    - cleanup
+    - destroy
+
+
+# Ansible dependencies (collections, roles) of this Molecule scenario
+dependency:
+  name: "galaxy"
+  enabled: true
+  options:
+    requirements-file: "${MOLECULE_SCENARIO_DIRECTORY}/requirements.yml"
+    ignore-certs: false
+    ignore-errors: false
+
+
+# Configuration parameters for Ansible to provision test infrastructure and
+# enable Molecule to execute test scenarios against the provisioned environment.
+# See the following for more information:
+# https://ansible.readthedocs.io/projects/molecule/configuration/#provisioner
+# https://ansible.readthedocs.io/projects/molecule/configuration/#molecule.interpolation.Interpolator.interpolate
+provisioner:
+  name: "ansible"
+  inventory:
+    links:
+      hosts: "inventory/hosts.yml"
+  config_options:
+    defaults:
+      # If the role(s) are not found by Molecule, try to run molecule with
+      # an adjusted MOLECULE_GLOB environment variable. This is usually easier
+      # and safer than setting
+      #   roles_path: ".."
+      #   collections_path: "../.."
+      # See molecule/README.md#faq-role-path-detection for details.
+      verbosity: ${ANSIBLE_VERBOSITY:-0} # noqa
+      display_args_to_stdout: ${ANSIBLE_DISPLAY_ARGS_TO_STDOUT:-false} # noqa
+      # set forks >= number of test platforms for better performance
+      forks: ${ANSIBLE_FORKS:-12} # noqa
+  playbooks:
+    create: "../shared/playbooks/create.yml"
+    prepare: "../shared/playbooks/prepare.yml"
+    converge: "../shared/playbooks/converge.yml"
+    side_effect: "../shared/playbooks/side_effect.yml"
+    verify: "../shared/playbooks/verify.yml"
+    cleanup: "../shared/playbooks/cleanup.yml"
+    destroy: "../shared/playbooks/destroy.yml"
+
+
+verifier:
+  name: "ansible"
+  enabled: true
