@@ -201,9 +201,9 @@ Multiple domains per certificate with DNS challenge and challenge alias:
         # Environment variables needed for the DNS API authentication for
         # type: "dns" and dns_provider: "dns_hetzner" /  dns_provider: "dns_inwx"
         run_acmesh_environment:
-          HETZNER_Token: "{{ lookup('ansible.builtin.unvault', '...') | string | ansible.builtin.trim }}"
+          HETZNER_Token: "{{ lookup('ansible.builtin.unvault', '...') | ansible.builtin.string | ansible.builtin.trim }}"
           INWX_User: "exampleuser"
-          INWX_Password: "{{ lookup('ansible.builtin.unvault', '...') | string | ansible.builtin.trim }}"
+          INWX_Password: "{{ lookup('ansible.builtin.unvault', '...') | ansible.builtin.string | ansible.builtin.trim }}"
 ```
 
 Uninstall (certificate files, if present, will be preserved):
@@ -330,7 +330,7 @@ Example:
 
 ```
 run_acmesh_environment:
-  "HETZNER_Token": "\{\{ lookup('ansible.builtin.unvault', '...') | string | ansible.builtin.trim \}\}"
+  "HETZNER_Token": "\{\{ lookup('ansible.builtin.unvault', '...') | ansible.builtin.string | ansible.builtin.trim \}\}"
 ```
 
 - **Type**: `dict`
@@ -393,9 +393,9 @@ run_acmesh_certs:
 # Environment variables needed for the DNS API authentication for
 # type: "dns" and dns_provider: "dns_hetzner" /  dns_provider: "dns_inwx"
 run_acmesh_environment:
-  HETZNER_Token: "\{\{ lookup('ansible.builtin.unvault', '...') | string | ansible.builtin.trim \}\}"
+  HETZNER_Token: "\{\{ lookup('ansible.builtin.unvault', '...') | ansible.builtin.string | ansible.builtin.trim \}\}"
   INWX_User: "exampleuser"
-  INWX_Password: "\{\{ lookup('ansible.builtin.unvault', '...') | string | ansible.builtin.trim \}\}"
+  INWX_Password: "\{\{ lookup('ansible.builtin.unvault', '...') | ansible.builtin.string | ansible.builtin.trim \}\}"
 ```
 
 - **Type**: `list`
