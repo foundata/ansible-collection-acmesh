@@ -347,7 +347,7 @@
       | ansible.builtin.flatten
       | selectattr('key', 'in', ['ca_file', 'cert_file', 'fullcain_file', 'key_file'])
       | ansible.builtin.map(attribute='value')
-      | reject('equalto', '')
+      | ansible.builtin.reject('equalto', '')
       | ansible.builtin.list
     }}
   when:
