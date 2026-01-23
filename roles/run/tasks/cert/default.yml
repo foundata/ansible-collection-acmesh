@@ -528,7 +528,7 @@
       ((__run_acmesh_cmdupdates_result['stderr_lines'] | length) > 0)
   changed_when:
     - __run_acmesh_cmdupdates_result is success
-    - __run_acmesh_cmdupdates_result['stdout'] | trim | length > 0
+    - __run_acmesh_cmdupdates_result['stdout'] | ansible.builtin.trim | length > 0
   loop: "{{ run_acmesh_certs }}"
   register: __run_acmesh_cmdupdates_result
   notify: "run_acmesh: set ownership and permissions"

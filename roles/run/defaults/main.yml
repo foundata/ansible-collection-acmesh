@@ -51,7 +51,7 @@ run_acmesh_autorenewal: true
 #
 # ```
 # run_acmesh_environment:
-#   "HETZNER_Token": "\{\{ lookup('ansible.builtin.unvault', '...') | string | trim \}\}"
+#   "HETZNER_Token": "\{\{ lookup('ansible.builtin.unvault', '...') | string | ansible.builtin.trim \}\}"
 # ```
 #
 # - Type: dict
@@ -110,9 +110,9 @@ run_acmesh_environment:
 # # Environment variables needed for the DNS API authentication for
 # # type: "dns" and dns_provider: "dns_hetzner" /  dns_provider: "dns_inwx"
 # run_acmesh_environment:
-#   HETZNER_Token: "\{\{ lookup('ansible.builtin.unvault', '...') | string | trim \}\}"
+#   HETZNER_Token: "\{\{ lookup('ansible.builtin.unvault', '...') | string | ansible.builtin.trim \}\}"
 #   INWX_User: "exampleuser"
-#   INWX_Password: "\{\{ lookup('ansible.builtin.unvault', '...') | string | trim \}\}"
+#   INWX_Password: "\{\{ lookup('ansible.builtin.unvault', '...') | string | ansible.builtin.trim \}\}"
 # ```
 #
 # - Type: list
@@ -144,7 +144,7 @@ run_acmesh_group: "acmesh"
 #
 # - Type: str
 # - Required: No
-# - Default: 
+# - Default:
 run_acmesh_cfg_accountemail: ""
 
 # Specifies the installation directory for the acme.sh software (relates to
