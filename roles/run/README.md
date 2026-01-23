@@ -6,7 +6,7 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
 
 ## Table of contents<a id="toc"></a>
 
-- [Features](#features
+- [Features](#features)
 - [Example playbooks, using this role](#examples)
 - [Supported tags](#tags))<!-- ANSIBLE DOCSMITH TOC START -->
 - [Role variables](#variables)
