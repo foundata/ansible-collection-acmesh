@@ -82,7 +82,7 @@
   vars:
     __run_acmesh_vars_file: "{{ role_path }}/vars/{{ item }}"
   when:
-    - __run_acmesh_vars_file is file
+    - __run_acmesh_vars_file is ansible.builtin.file
 
 
 ### acme.sh specific
