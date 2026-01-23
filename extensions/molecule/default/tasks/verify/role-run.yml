@@ -202,7 +202,7 @@
     msg: "{{ __testing_acmesh_domaincfg_content_decoded.split('\n') }}"
     verbosity: 1
   vars:
-    __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | b64decode }}"
+    __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | ansible.builtin.b64decode }}"
   when:
     - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0
     - __testing_acmesh_domaincfg_stat['stat']['exists']
@@ -274,7 +274,7 @@
     fail_msg: "The certificate config file does not contain the expected reloadcmd and hook values."
     success_msg: "All reloadcmd and hook values have been found in the certificate config file."
   vars:
-    __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | b64decode }}"
+    __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | ansible.builtin.b64decode }}"
   when:
     - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0
     - __testing_acmesh_domaincfg_stat['stat']['exists']
@@ -344,7 +344,7 @@
     msg: "{{ __testing_acmesh_domaincfg_content_decoded.split('\n') }}"
     verbosity: 1
   vars:
-    __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | b64decode }}"
+    __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | ansible.builtin.b64decode }}"
   when:
     - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0
     - __testing_acmesh_domaincfg_stat['stat']['exists']
@@ -361,7 +361,7 @@
     fail_msg: "The certificate config file does not contain the expected, updated reloadcmd and hook values."
     success_msg: "All updated reloadcmd and hook values have been found in the certificate config file."
   vars:
-    __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | b64decode }}"
+    __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | ansible.builtin.b64decode }}"
   when:
     - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | length > 0
     - __testing_acmesh_domaincfg_stat['stat']['exists']
