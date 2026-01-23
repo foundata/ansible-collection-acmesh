@@ -344,7 +344,7 @@
       | ansible.builtin.map(attribute='install')
       | ansible.builtin.map('dict2items')
       | ansible.builtin.list
-      | flatten
+      | ansible.builtin.flatten
       | selectattr('key', 'in', ['ca_file', 'cert_file', 'fullcain_file', 'key_file'])
       | ansible.builtin.map(attribute='value')
       | reject('equalto', '')
