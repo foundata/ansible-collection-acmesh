@@ -16,8 +16,8 @@
   when:
     - run_acmesh_certs is defined
   loop: >
-    {{ run_acmesh_certs | selectattr('domains', 'defined') | ansible.builtin.map(attribute='domains') |
-       flatten | selectattr('name', 'defined') | ansible.builtin.map(attribute='name') | ansible.builtin.unique }}
+    {{ run_acmesh_certs | ansible.builtin.selectattr('domains', 'defined') | ansible.builtin.map(attribute='domains') |
+       flatten | ansible.builtin.selectattr('name', 'defined') | ansible.builtin.map(attribute='name') | ansible.builtin.unique }}
   register: __run_acmesh_local_preseed_rsa_result
 
 
@@ -61,8 +61,8 @@
   when:
     - run_acmesh_certs is defined
   loop: >
-    {{ run_acmesh_certs | selectattr('domains', 'defined') | ansible.builtin.map(attribute='domains') |
-       flatten | selectattr('name', 'defined') | ansible.builtin.map(attribute='name') | ansible.builtin.unique }}
+    {{ run_acmesh_certs | ansible.builtin.selectattr('domains', 'defined') | ansible.builtin.map(attribute='domains') |
+       flatten | ansible.builtin.selectattr('name', 'defined') | ansible.builtin.map(attribute='name') | ansible.builtin.unique }}
   register: __run_acmesh_local_preseed_ecc_result
 
 
@@ -224,7 +224,7 @@
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is defined
-  loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | ansible.builtin.map(attribute='install') | selectattr('ca_file', 'defined') | ansible.builtin.list }}"
+  loop: "{{ run_acmesh_certs | ansible.builtin.selectattr('install', 'defined') | ansible.builtin.map(attribute='install') | ansible.builtin.selectattr('ca_file', 'defined') | ansible.builtin.list }}"
 
 
 - name: "Cert | Default | Create target directories for certificate installation(s) (based on data for --cert-file, if any)"
@@ -237,7 +237,7 @@
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is defined
-  loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | ansible.builtin.map(attribute='install') | selectattr('cert_file', 'defined') | ansible.builtin.list }}"
+  loop: "{{ run_acmesh_certs | ansible.builtin.selectattr('install', 'defined') | ansible.builtin.map(attribute='install') | ansible.builtin.selectattr('cert_file', 'defined') | ansible.builtin.list }}"
 
 
 - name: "Cert | Default | Create target directories for certificate installation(s) (based on data for --fullcain-file, if any)"
@@ -250,7 +250,7 @@
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is defined
-  loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | ansible.builtin.map(attribute='install') | selectattr('fullcain_file', 'defined') | ansible.builtin.list }}"
+  loop: "{{ run_acmesh_certs | ansible.builtin.selectattr('install', 'defined') | ansible.builtin.map(attribute='install') | ansible.builtin.selectattr('fullcain_file', 'defined') | ansible.builtin.list }}"
 
 
 - name: "Cert | Default | Create target directories for certificate installation(s) (based on data for --key-file, if any)"
@@ -263,7 +263,7 @@
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is defined
-  loop: "{{ run_acmesh_certs | selectattr('install', 'defined') | ansible.builtin.map(attribute='install') | selectattr('key_file', 'defined') | ansible.builtin.list }}"
+  loop: "{{ run_acmesh_certs | ansible.builtin.selectattr('install', 'defined') | ansible.builtin.map(attribute='install') | ansible.builtin.selectattr('key_file', 'defined') | ansible.builtin.list }}"
 
 
 - name: "Cert | Default | Install certificate(s)"
@@ -345,7 +345,7 @@
       | ansible.builtin.map('dict2items')
       | ansible.builtin.list
       | ansible.builtin.flatten
-      | selectattr('key', 'in', ['ca_file', 'cert_file', 'fullcain_file', 'key_file'])
+      | ansible.builtin.selectattr('key', 'in', ['ca_file', 'cert_file', 'fullcain_file', 'key_file'])
       | ansible.builtin.map(attribute='value')
       | ansible.builtin.reject('equalto', '')
       | ansible.builtin.list
@@ -545,8 +545,8 @@
   loop: >-
     {{
       __run_acmesh_cmdupdates_result['results'] | ansible.builtin.default([])
-      | selectattr('stdout_lines', 'defined')
-      | selectattr('stdout_lines')
+      | ansible.builtin.selectattr('stdout_lines', 'defined')
+      | ansible.builtin.selectattr('stdout_lines')
       | ansible.builtin.map(attribute='stdout_lines')
       | ansible.builtin.list
     }}
