@@ -199,7 +199,7 @@
             '' }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
-  environment: "{{ run_acmesh_environment | default(omit) }}"
+  environment: "{{ run_acmesh_environment | ansible.builtin.default(omit) }}"
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is defined
@@ -307,7 +307,7 @@
             '' }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
-  environment: "{{ run_acmesh_environment | default(omit) }}"
+  environment: "{{ run_acmesh_environment | ansible.builtin.default(omit) }}"
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is defined
@@ -340,7 +340,7 @@
     mode: "0640"
   loop: >-
     {{
-      run_acmesh_certs | default([])
+      run_acmesh_certs | ansible.builtin.default([])
       | ansible.builtin.map(attribute='install')
       | ansible.builtin.map('dict2items')
       | ansible.builtin.list
@@ -380,10 +380,10 @@
       # Input parameters
       CERT_HOME={{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
       PRIMARY_DOMAIN={{ item['domains'][0]['name'] | ansible.builtin.quote }}
-      EXPECTED_PRE_HOOK={{ item['pre_hook'] | default('') | ansible.builtin.quote }}
-      EXPECTED_POST_HOOK={{ item['post_hook'] | default('') | ansible.builtin.quote }}
-      EXPECTED_RENEW_HOOK={{ item['renew_hook'] | default('') | ansible.builtin.quote }}
-      EXPECTED_RELOAD_CMD={{ ((item['install']['reloadcmd'] | default('')) if (item['install'] is defined) else '') | ansible.builtin.quote }}
+      EXPECTED_PRE_HOOK={{ item['pre_hook'] | ansible.builtin.default('') | ansible.builtin.quote }}
+      EXPECTED_POST_HOOK={{ item['post_hook'] | ansible.builtin.default('') | ansible.builtin.quote }}
+      EXPECTED_RENEW_HOOK={{ item['renew_hook'] | ansible.builtin.default('') | ansible.builtin.quote }}
+      EXPECTED_RELOAD_CMD={{ ((item['install']['reloadcmd'] | ansible.builtin.default('')) if (item['install'] is defined) else '') | ansible.builtin.quote }}
 
       # Function: Decode base64 value from config line
       decode_value() {
@@ -544,7 +544,7 @@
     - item | ansible.builtin.length > 0
   loop: >-
     {{
-      __run_acmesh_cmdupdates_result['results'] | default([])
+      __run_acmesh_cmdupdates_result['results'] | ansible.builtin.default([])
       | selectattr('stdout_lines', 'defined')
       | selectattr('stdout_lines')
       | ansible.builtin.map(attribute='stdout_lines')

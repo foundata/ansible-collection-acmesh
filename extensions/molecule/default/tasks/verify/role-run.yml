@@ -239,7 +239,7 @@
     path: "{{ item }}"
     get_checksum: false
     get_mime: false
-  loop: "{{ __testing_acmesh_cert_files_installed | default([]) }}"
+  loop: "{{ __testing_acmesh_cert_files_installed | ansible.builtin.default([]) }}"
   register: __testing_acmesh_cert_files_installed_stat
   when:
     - __testing_acmesh_cert_files_installed is defined
@@ -255,9 +255,9 @@
       - item['stat']['pw_name'] == run_acmesh_user
       - item['stat']['gr_name'] == run_acmesh_group
     fail_msg: "{{ item['stat']['path'] }} does not exist or has incorrect permissions/ownership"
-  loop: "{{ __testing_acmesh_cert_files_installed_stat['results'] | default([]) }}"
+  loop: "{{ __testing_acmesh_cert_files_installed_stat['results'] | ansible.builtin.default([]) }}"
   loop_control:
-    label: "{{ item['stat']['path'] | default('undefined') }}"
+    label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
   when:
     - __testing_acmesh_cert_files_installed_stat is defined
     - __testing_acmesh_cert_files_installed_stat['results'] is defined
