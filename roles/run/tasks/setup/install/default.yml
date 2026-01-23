@@ -48,7 +48,7 @@
       {%- if __run_acmesh_github_response is success and
              __run_acmesh_github_response.json is defined and
              __run_acmesh_github_response.json.tag_name is defined -%}
-        {%- set version = __run_acmesh_github_response.json.tag_name | regex_replace('^v', '') -%}
+        {%- set version = __run_acmesh_github_response.json.tag_name | ansible.builtin.regex_replace('^v', '') -%}
         {{- version if (version is match('^[0-9\.]*$')) else '' -}}
       {%- else -%}
         {{ false }}
