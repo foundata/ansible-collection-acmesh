@@ -8,7 +8,7 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
 
 - [Features](#features)
 - [Example playbooks, using this role](#examples)
-- [Supported tags](#tags))<!-- ANSIBLE DOCSMITH TOC START -->
+- [Supported tags](#tags)<!-- ANSIBLE DOCSMITH TOC START -->
 - [Role variables](#variables)
   - [`run_acmesh_state`](#variable-run_acmesh_state)
   - [`run_acmesh_autoupgrade`](#variable-run_acmesh_autoupgrade)
