@@ -324,7 +324,7 @@
     ((__run_acmesh_install_result is failed) and ('Installing' not in __run_acmesh_install_result['stdout'])) or
     (
       __run_acmesh_install_result is failed and
-      ((__run_acmesh_install_result['stderr_lines'] | length) > 0) and
+      ((__run_acmesh_install_result['stderr_lines'] | ansible.builtin.length) > 0) and
       'Reload error' not in __run_acmesh_install_result['stderr']
     )
   loop: "{{ run_acmesh_certs }}"
@@ -522,13 +522,13 @@
     - run_acmesh_certs is defined
     - item is defined
     - item['domains'] is defined
-    - (item['domains'] | length) > 0
+    - (item['domains'] | ansible.builtin.length) > 0
   failed_when:
     - (__run_acmesh_cmdupdates_result is failed) or
-      ((__run_acmesh_cmdupdates_result['stderr_lines'] | length) > 0)
+      ((__run_acmesh_cmdupdates_result['stderr_lines'] | ansible.builtin.length) > 0)
   changed_when:
     - __run_acmesh_cmdupdates_result is success
-    - __run_acmesh_cmdupdates_result['stdout'] | ansible.builtin.trim | length > 0
+    - __run_acmesh_cmdupdates_result['stdout'] | ansible.builtin.trim | ansible.builtin.length > 0
   loop: "{{ run_acmesh_certs }}"
   register: __run_acmesh_cmdupdates_result
   notify: "run_acmesh: set ownership and permissions"
@@ -541,7 +541,7 @@
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is defined
-    - item | length > 0
+    - item | ansible.builtin.length > 0
   loop: >-
     {{
       __run_acmesh_cmdupdates_result['results'] | default([])

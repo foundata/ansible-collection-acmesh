@@ -8,7 +8,7 @@
     state: "absent"
   when:
     - __run_acmesh_packages_removal is defined
-    - (__run_acmesh_packages_removal | length) > 0
+    - (__run_acmesh_packages_removal | ansible.builtin.length) > 0
 
 
 - name: "Setup | Install | Default | Install or upgrade packages"
@@ -19,7 +19,7 @@
     allowerasing: "{{ true if (((ansible_facts['os_family'] | ansible.builtin.lower) == 'redhat') and ('curl' in __run_acmesh_packages_install)) else omit }}"
   when:
     - __run_acmesh_packages_install is defined
-    - (__run_acmesh_packages_install | length) > 0
+    - (__run_acmesh_packages_install | ansible.builtin.length) > 0
 
 
 - name: "Setup | Install | Default | Remove unwanted files and directories (e.g., to prevent conflicts or resolve incompatibilities)"
@@ -28,7 +28,7 @@
     state: "absent"
   when:
     - __run_acmesh_paths_removal is defined
-    - (__run_acmesh_paths_removal | length) > 0
+    - (__run_acmesh_paths_removal | ansible.builtin.length) > 0
   loop: "{{ __run_acmesh_paths_removal }}"
 
 
@@ -282,7 +282,7 @@
 
 - name: "Setup | Install | Default | Update / overwrite installed version facts"
   ansible.builtin.set_fact:
-    __run_acmesh_is_installed: "{{ (__run_acmesh_version_installed_result is success) | ternary((__run_acmesh_version_installed_result['stdout'] | length > 0), false) }}"
+    __run_acmesh_is_installed: "{{ (__run_acmesh_version_installed_result is success) | ternary((__run_acmesh_version_installed_result['stdout'] | ansible.builtin.length > 0), false) }}"
     __run_acmesh_version_installed: "{{ (__run_acmesh_version_installed_result is success) | ternary(__run_acmesh_version_installed_result['stdout'], false) }}"
 
 

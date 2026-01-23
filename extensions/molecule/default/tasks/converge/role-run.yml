@@ -25,7 +25,7 @@
   changed_when: false # noqa: no-changed-when
   when:
     - __testing_missing_envvars_dnschallenge is defined
-    - __testing_missing_envvars_dnschallenge | length > 0
+    - __testing_missing_envvars_dnschallenge | ansible.builtin.length > 0
 
 
 - name: "Molecule | Converge | Issue certificates via DNS challenge: include the foundata.acmesh.run role"
@@ -87,7 +87,7 @@
       INWX_Password: "{{ lookup('env', 'TEST_ACMESH_INWX_Password') }}"
   when:
     - __testing_missing_envvars_dnschallenge is not defined or
-      (__testing_missing_envvars_dnschallenge | length <= 0)
+      (__testing_missing_envvars_dnschallenge | ansible.builtin.length <= 0)
 
 
 - name: "Molecule | Converge | Basic fallback test (install only): include the foundata.acmesh.run role"
@@ -97,4 +97,4 @@
     run_acmesh_state: "present"
   when:
     - __testing_missing_envvars_dnschallenge is defined
-    - __testing_missing_envvars_dnschallenge | length > 0
+    - __testing_missing_envvars_dnschallenge | ansible.builtin.length > 0
