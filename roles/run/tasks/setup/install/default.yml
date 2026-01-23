@@ -238,7 +238,7 @@
     - __run_acmesh_version_upstream is defined
     - run_acmesh_autoupgrade is defined
     - run_acmesh_autoupgrade
-    - __run_acmesh_version_installed is version(__run_acmesh_version_upstream, 'lt', version_type='semver')
+    - __run_acmesh_version_installed is ansible.builtin.version(__run_acmesh_version_upstream, 'lt', version_type='semver')
   changed_when:
     - __run_acmesh_upgrade_result is ansible.builtin.success
     - ('Upgrade success') in __run_acmesh_upgrade_result['stdout']
@@ -336,7 +336,7 @@
     backrefs: true
   when:
     - __run_acmesh_is_installed
-    - __run_acmesh_version_installed is version('3.0.6', 'le', version_type='semver')
+    - __run_acmesh_version_installed is ansible.builtin.version('3.0.6', 'le', version_type='semver')
 
 
 - name: "Setup | Install | Default | Clean-up temporary working directory"
