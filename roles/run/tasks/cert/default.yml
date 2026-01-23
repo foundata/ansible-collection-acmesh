@@ -17,7 +17,7 @@
     - run_acmesh_certs is defined
   loop: >
     {{ run_acmesh_certs | selectattr('domains', 'defined') | map(attribute='domains') |
-       flatten | selectattr('name', 'defined') | map(attribute='name') | unique }}
+       flatten | selectattr('name', 'defined') | map(attribute='name') | ansible.builtin.unique }}
   register: __run_acmesh_local_preseed_rsa_result
 
 
@@ -62,7 +62,7 @@
     - run_acmesh_certs is defined
   loop: >
     {{ run_acmesh_certs | selectattr('domains', 'defined') | map(attribute='domains') |
-       flatten | selectattr('name', 'defined') | map(attribute='name') | unique }}
+       flatten | selectattr('name', 'defined') | map(attribute='name') | ansible.builtin.unique }}
   register: __run_acmesh_local_preseed_ecc_result
 
 
