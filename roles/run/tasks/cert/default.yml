@@ -216,7 +216,7 @@
 
 - name: "Cert | Default | Create target directories for certificate installation(s) (based on data for --ca-file, if any)"
   ansible.builtin.file:
-    path: "{{ item['ca_file'] | dirname }}"
+    path: "{{ item['ca_file'] | ansible.builtin.dirname }}"
     state: "directory"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
@@ -229,7 +229,7 @@
 
 - name: "Cert | Default | Create target directories for certificate installation(s) (based on data for --cert-file, if any)"
   ansible.builtin.file:
-    path: "{{ item['cert_file'] | dirname }}"
+    path: "{{ item['cert_file'] | ansible.builtin.dirname }}"
     state: "directory"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
@@ -242,7 +242,7 @@
 
 - name: "Cert | Default | Create target directories for certificate installation(s) (based on data for --fullcain-file, if any)"
   ansible.builtin.file:
-    path: "{{ item['fullcain_file'] | dirname }}"
+    path: "{{ item['fullcain_file'] | ansible.builtin.dirname }}"
     state: "directory"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
@@ -255,7 +255,7 @@
 
 - name: "Cert | Default | Create target directories for certificate installation(s) (based on data for --key-file, if any)"
   ansible.builtin.file:
-    path: "{{ item['key_file'] | dirname }}"
+    path: "{{ item['key_file'] | ansible.builtin.dirname }}"
     state: "directory"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
