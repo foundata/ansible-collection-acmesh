@@ -204,11 +204,11 @@
     - __run_acmesh_is_installed
     - run_acmesh_certs is defined
   changed_when:
-    - __run_acmesh_issue_result is success
+    - __run_acmesh_issue_result is ansible.builtin.success
     - ('Cert success') in __run_acmesh_issue_result['stdout']
   failed_when: >
     (run_acmesh_certs is not defined) or
-    ((__run_acmesh_issue_result is failed) and ('Domains not changed' not in __run_acmesh_issue_result['stdout']))
+    ((__run_acmesh_issue_result is ansible.builtin.failed) and ('Domains not changed' not in __run_acmesh_issue_result['stdout']))
   loop: "{{ run_acmesh_certs }}"
   register: __run_acmesh_issue_result
   notify: "run_acmesh: set ownership and permissions"
@@ -312,7 +312,7 @@
     - __run_acmesh_is_installed
     - run_acmesh_certs is defined
   changed_when:
-    - __run_acmesh_install_result is success
+    - __run_acmesh_install_result is ansible.builtin.success
     - ('Cert success') in __run_acmesh_install_result['stdout']
   # Errors from --reloadcmd are ignored to avoid chicken-and-egg issues. These
   # errors typically occur when services required for reloading are not yet
@@ -321,9 +321,9 @@
   # if issues persist.
   failed_when: >
     (run_acmesh_certs is not defined) or
-    ((__run_acmesh_install_result is failed) and ('Installing' not in __run_acmesh_install_result['stdout'])) or
+    ((__run_acmesh_install_result is ansible.builtin.failed) and ('Installing' not in __run_acmesh_install_result['stdout'])) or
     (
-      __run_acmesh_install_result is failed and
+      __run_acmesh_install_result is ansible.builtin.failed and
       ((__run_acmesh_install_result['stderr_lines'] | ansible.builtin.length) > 0) and
       'Reload error' not in __run_acmesh_install_result['stderr']
     )
@@ -352,7 +352,7 @@
     }}
   when:
     - run_acmesh_certs is defined
-    - __run_acmesh_install_result is success
+    - __run_acmesh_install_result is ansible.builtin.success
 
 
 - name: "Cert | Default | Update certificate hook and reload cmd configurations"
@@ -524,10 +524,10 @@
     - item['domains'] is defined
     - (item['domains'] | ansible.builtin.length) > 0
   failed_when:
-    - (__run_acmesh_cmdupdates_result is failed) or
+    - (__run_acmesh_cmdupdates_result is ansible.builtin.failed) or
       ((__run_acmesh_cmdupdates_result['stderr_lines'] | ansible.builtin.length) > 0)
   changed_when:
-    - __run_acmesh_cmdupdates_result is success
+    - __run_acmesh_cmdupdates_result is ansible.builtin.success
     - __run_acmesh_cmdupdates_result['stdout'] | ansible.builtin.trim | ansible.builtin.length > 0
   loop: "{{ run_acmesh_certs }}"
   register: __run_acmesh_cmdupdates_result
