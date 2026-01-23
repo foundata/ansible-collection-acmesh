@@ -1,0 +1,11 @@
+
+# Execution Environment dependencies for the foundata.acmesh collection
+
+---
+
+version: 3
+
+dependencies:
+  galaxy:
+    collections: {}
+    roles: {}
