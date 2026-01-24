@@ -29,7 +29,6 @@ tags:
 # Collections that this collection requires to be installed.
 # Note: "*" selects the latest version available (not: "any")
 dependencies:
-  "ansible.utils": ">=5.1.0"
   "ansible.posix": ">=2.0.0"
 
 # List of file glob-like patterns to filter files or directories that should
