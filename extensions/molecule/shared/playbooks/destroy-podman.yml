@@ -31,8 +31,6 @@
       when:
         - (__testing_state is not ansible.builtin.defined) or (__testing_state is not ansible.builtin.mapping)
       # "cleanup" and "destroy" phases must tolerate missing containers
-      failed_when: false
-      ignore_errors: true
       ignore_unreachable: true
 
 
@@ -101,10 +99,7 @@
         path: "{{ molecule_ephemeral_directory }}/__testing_state_{{ (inventory_hostname | ansible.builtin.md5) }}.yml"
         state: "absent"
       # "cleanup" and "destroy" phases must tolerate missing containers
-      failed_when: false
-      ignore_errors: true
       ignore_unreachable: true
-
 
 
 # The following play runs on localhost only as the tasks do not require
@@ -117,7 +112,7 @@
   no_log: "{{ molecule_no_log | ansible.builtin.default(false) }}"
   tasks:
 
-    - name: "Molecule | Destroy (Podman) | Remove dynamic inventory file"
+    - name: "Molecule | Destroy (Podman) | Remove molecule_inventory.yml"
       ansible.builtin.file:
         path: "{{ molecule_ephemeral_directory }}/inventory/molecule_inventory.yml"
         state: "absent"
