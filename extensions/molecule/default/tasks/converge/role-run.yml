@@ -24,7 +24,7 @@
       required environment variables are missing or invalid: {{ __testing_missing_envvars_dnschallenge | join(', ') }}.
   changed_when: false # noqa: no-changed-when
   when:
-    - __testing_missing_envvars_dnschallenge is defined
+    - __testing_missing_envvars_dnschallenge is ansible.builtin.defined
     - __testing_missing_envvars_dnschallenge | ansible.builtin.length > 0
 
 
@@ -86,7 +86,7 @@
       INWX_User: "{{ lookup('env', 'TEST_ACMESH_INWX_User') }}"
       INWX_Password: "{{ lookup('env', 'TEST_ACMESH_INWX_Password') }}"
   when:
-    - __testing_missing_envvars_dnschallenge is not defined or
+    - __testing_missing_envvars_dnschallenge is not ansible.builtin.defined or
       (__testing_missing_envvars_dnschallenge | ansible.builtin.length <= 0)
 
 
@@ -96,5 +96,5 @@
   vars:
     run_acmesh_state: "present"
   when:
-    - __testing_missing_envvars_dnschallenge is defined
+    - __testing_missing_envvars_dnschallenge is ansible.builtin.defined
     - __testing_missing_envvars_dnschallenge | ansible.builtin.length > 0

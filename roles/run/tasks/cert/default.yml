@@ -14,7 +14,7 @@
     get_mime: false
     get_attributes: false
   when:
-    - run_acmesh_certs is defined
+    - run_acmesh_certs is ansible.builtin.defined
   loop: >
     {{ run_acmesh_certs | ansible.builtin.selectattr('domains', 'defined') | ansible.builtin.map(attribute='domains') |
        flatten | ansible.builtin.selectattr('name', 'defined') | ansible.builtin.map(attribute='name') | ansible.builtin.unique }}
@@ -26,8 +26,8 @@
     var: __run_acmesh_local_preseed_rsa_result
     verbosity: 3
   when:
-    - run_acmesh_certs is defined
-    - __run_acmesh_local_preseed_rsa_result is defined
+    - run_acmesh_certs is ansible.builtin.defined
+    - __run_acmesh_local_preseed_rsa_result is ansible.builtin.defined
 
 
 - name: "Cert | Default | Pre-seed already issued certs (RSA) from local source (if any)"
@@ -43,10 +43,10 @@
     force: false # do not overwrite anything if already existing on target
   when:
     - __run_acmesh_is_installed
-    - run_acmesh_certs is defined
-    - item['stat'] is defined
+    - run_acmesh_certs is ansible.builtin.defined
+    - item['stat'] is ansible.builtin.defined
     - item['stat']['exists']
-    - item['stat']['path'] is defined
+    - item['stat']['path'] is ansible.builtin.defined
   loop: "{{ __run_acmesh_local_preseed_rsa_result['results'] }}"
 
 
@@ -59,7 +59,7 @@
     get_mime: false
     get_attributes: false
   when:
-    - run_acmesh_certs is defined
+    - run_acmesh_certs is ansible.builtin.defined
   loop: >
     {{ run_acmesh_certs | ansible.builtin.selectattr('domains', 'defined') | ansible.builtin.map(attribute='domains') |
        flatten | ansible.builtin.selectattr('name', 'defined') | ansible.builtin.map(attribute='name') | ansible.builtin.unique }}
@@ -71,8 +71,8 @@
     var: __run_acmesh_local_preseed_ecc_result
     verbosity: 3
   when:
-    - run_acmesh_certs is defined
-    - __run_acmesh_local_preseed_ecc_result is defined
+    - run_acmesh_certs is ansible.builtin.defined
+    - __run_acmesh_local_preseed_ecc_result is ansible.builtin.defined
 
 
 - name: "Cert | Default | Pre-seed already issued certs (ECC) from local source (if any)"
@@ -88,10 +88,10 @@
     force: false # do not overwrite anything if already existing on target
   when:
     - __run_acmesh_is_installed
-    - run_acmesh_certs is defined
-    - item['stat'] is defined
+    - run_acmesh_certs is ansible.builtin.defined
+    - item['stat'] is ansible.builtin.defined
     - item['stat']['exists']
-    - item['stat']['path'] is defined
+    - item['stat']['path'] is ansible.builtin.defined
   loop: "{{ __run_acmesh_local_preseed_ecc_result['results'] }}"
 
 
@@ -111,90 +111,90 @@
         {% for item_domain in item['domains'] %}
           --domain {{ item_domain['name'] | ansible.builtin.quote }}
           {{ '--dns ' ~ (item_domain['challenge']['dns_provider'] | ansible.builtin.quote)
-              if ((item_domain['challenge'] is defined) and
-                  (item_domain['challenge']['type'] is defined) and
+              if ((item_domain['challenge'] is ansible.builtin.defined) and
+                  (item_domain['challenge']['type'] is ansible.builtin.defined) and
                   (item_domain['challenge']['type'] == 'dns') and
-                  (item_domain['challenge']['dns_provider'] is defined) and
+                  (item_domain['challenge']['dns_provider'] is ansible.builtin.defined) and
                   (item_domain['challenge']['dns_provider']))
               else
               '' }}
           {{ '--domain-alias ' ~ (item_domain['challenge']['domain_alias'] | ansible.builtin.quote)
-              if ((item_domain['challenge']['domain_alias'] is defined) and
+              if ((item_domain['challenge']['domain_alias'] is ansible.builtin.defined) and
                   (item_domain['challenge']['domain_alias']))
               else
               '' }}
           {{ '--challenge-alias ' ~ (item_domain['challenge']['challenge_alias'] | ansible.builtin.quote)
-              if ((item_domain['challenge']['challenge_alias'] is defined) and
+              if ((item_domain['challenge']['challenge_alias'] is ansible.builtin.defined) and
                   (item_domain['challenge']['challenge_alias']))
               else
               '' }}
           {{ '--webroot ' ~ (item_domain['challenge']['webroot'] | ansible.builtin.quote)
-              if ((item_domain['challenge'] is defined) and
-                  (item_domain['challenge']['type'] is defined) and
+              if ((item_domain['challenge'] is ansible.builtin.defined) and
+                  (item_domain['challenge']['type'] is ansible.builtin.defined) and
                   (item_domain['challenge']['type'] == 'webroot') and
-                  (item_domain['challenge']['webroot'] is defined) and
+                  (item_domain['challenge']['webroot'] is ansible.builtin.defined) and
                   (item_domain['challenge']['webroot']))
               else
               '' }}
           {{ '--standalone'
-              if ((item_domain['challenge'] is defined) and
-                  (item_domain['challenge']['type'] is defined) and
+              if ((item_domain['challenge'] is ansible.builtin.defined) and
+                  (item_domain['challenge']['type'] is ansible.builtin.defined) and
                   (item_domain['challenge']['type'] == 'standalone'))
               else
               '' }}
           {{ '--httpport ' ~ (item_domain['challenge']['httpport'] | ansible.builtin.quote)
-              if ((item_domain['challenge']['httpport'] is defined) and
+              if ((item_domain['challenge']['httpport'] is ansible.builtin.defined) and
                   (item_domain['challenge']['httpport']))
               else
               '' }}
           {{ '--alpn'
-              if ((item_domain['challenge'] is defined) and
-                  (item_domain['challenge']['type'] is defined) and
+              if ((item_domain['challenge'] is ansible.builtin.defined) and
+                  (item_domain['challenge']['type'] is ansible.builtin.defined) and
                   (item_domain['challenge']['type'] == 'alpn'))
               else
               '' }}
           {{ '--tlsport ' ~ (item_domain['challenge']['tlsport'] | ansible.builtin.quote)
-              if ((item_domain['challenge']['tlsport'] is defined) and
+              if ((item_domain['challenge']['tlsport'] is ansible.builtin.defined) and
                   (item_domain['challenge']['tlsport']))
               else
               '' }}
         {% endfor %}
         {{ '--force'
-            if ((item['force'] is defined) and
+            if ((item['force'] is ansible.builtin.defined) and
                 (item['force']))
             else
             '' }}
         {{ '--debug'
-            if ((item['debug'] is defined) and
+            if ((item['debug'] is ansible.builtin.defined) and
                 (item['debug']))
             else
             '' }}
         {{ '--dnssleep ' ~ (item['dnssleep'] | ansible.builtin.quote)
-            if (item['dnssleep'] is defined)
+            if (item['dnssleep'] is ansible.builtin.defined)
             else
             '' }}
         {{ '--pre-hook ' ~ (item['pre_hook'] | ansible.builtin.quote)
-            if ((item['pre_hook'] is defined) and
+            if ((item['pre_hook'] is ansible.builtin.defined) and
                 (item['pre_hook']))
             else
             '' }}
         {{ '--post-hook ' ~ (item['post_hook'] | ansible.builtin.quote)
-            if ((item['post_hook'] is defined) and
+            if ((item['post_hook'] is ansible.builtin.defined) and
                 (item['post_hook']))
             else
             '' }}
         {{ '--renew-hook ' ~ (item['renew_hook'] | ansible.builtin.quote)
-            if ((item['renew_hook'] is defined) and
+            if ((item['renew_hook'] is ansible.builtin.defined) and
                 (item['renew_hook']))
             else
             '' }}
         {{ '--server ' ~ (item['server'] | ansible.builtin.quote)
-            if ((item['server'] is defined) and
+            if ((item['server'] is ansible.builtin.defined) and
                 (item['server']))
             else
             '--server letsencrypt' }}
         {{  item['extra_flags']
-            if (item['extra_flags'] is defined)
+            if (item['extra_flags'] is ansible.builtin.defined)
             else
             '' }}
   args:
@@ -202,12 +202,12 @@
   environment: "{{ run_acmesh_environment | ansible.builtin.default(omit) }}"
   when:
     - __run_acmesh_is_installed
-    - run_acmesh_certs is defined
+    - run_acmesh_certs is ansible.builtin.defined
   changed_when:
     - __run_acmesh_issue_result is ansible.builtin.success
     - ('Cert success') in __run_acmesh_issue_result['stdout']
   failed_when: >
-    (run_acmesh_certs is not defined) or
+    (run_acmesh_certs is not ansible.builtin.defined) or
     ((__run_acmesh_issue_result is ansible.builtin.failed) and ('Domains not changed' not in __run_acmesh_issue_result['stdout']))
   loop: "{{ run_acmesh_certs }}"
   register: __run_acmesh_issue_result
@@ -223,7 +223,7 @@
     mode: "u=rwx,g=rx,o=" # 0750
   when:
     - __run_acmesh_is_installed
-    - run_acmesh_certs is defined
+    - run_acmesh_certs is ansible.builtin.defined
   loop: "{{ run_acmesh_certs | ansible.builtin.selectattr('install', 'defined') | ansible.builtin.map(attribute='install') | ansible.builtin.selectattr('ca_file', 'defined') | ansible.builtin.list }}"
 
 
@@ -236,7 +236,7 @@
     mode: "u=rwx,g=rx,o=" # 0750
   when:
     - __run_acmesh_is_installed
-    - run_acmesh_certs is defined
+    - run_acmesh_certs is ansible.builtin.defined
   loop: "{{ run_acmesh_certs | ansible.builtin.selectattr('install', 'defined') | ansible.builtin.map(attribute='install') | ansible.builtin.selectattr('cert_file', 'defined') | ansible.builtin.list }}"
 
 
@@ -249,7 +249,7 @@
     mode: "u=rwx,g=rx,o=" # 0750
   when:
     - __run_acmesh_is_installed
-    - run_acmesh_certs is defined
+    - run_acmesh_certs is ansible.builtin.defined
   loop: "{{ run_acmesh_certs | ansible.builtin.selectattr('install', 'defined') | ansible.builtin.map(attribute='install') | ansible.builtin.selectattr('fullcain_file', 'defined') | ansible.builtin.list }}"
 
 
@@ -262,7 +262,7 @@
     mode: "u=rwx,g=rx,o=" # 0750
   when:
     - __run_acmesh_is_installed
-    - run_acmesh_certs is defined
+    - run_acmesh_certs is ansible.builtin.defined
   loop: "{{ run_acmesh_certs | ansible.builtin.selectattr('install', 'defined') | ansible.builtin.map(attribute='install') | ansible.builtin.selectattr('key_file', 'defined') | ansible.builtin.list }}"
 
 
@@ -281,27 +281,27 @@
         --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
         --domain {{ item['domains'][0]['name'] | ansible.builtin.quote }}
         {{ '--ca-file ' ~ (item['install']['ca_file'] | ansible.builtin.quote)
-            if ((item['install']['ca_file'] is defined) and
+            if ((item['install']['ca_file'] is ansible.builtin.defined) and
                 (item['install']['ca_file']))
             else
             '' }}
         {{ '--cert-file ' ~ (item['install']['cert_file'] | ansible.builtin.quote)
-            if ((item['install']['cert_file'] is defined) and
+            if ((item['install']['cert_file'] is ansible.builtin.defined) and
                 (item['install']['cert_file']))
             else
             '' }}
         {{ '--fullchain-file ' ~ (item['install']['fullcain_file'] | ansible.builtin.quote)
-            if ((item['install']['fullcain_file'] is defined) and
+            if ((item['install']['fullcain_file'] is ansible.builtin.defined) and
                 (item['install']['fullcain_file']))
             else
             '' }}
         {{ '--key-file ' ~ (item['install']['key_file'] | ansible.builtin.quote)
-            if ((item['install']['key_file'] is defined) and
+            if ((item['install']['key_file'] is ansible.builtin.defined) and
                 (item['install']['key_file']))
             else
             '' }}
         {{ '--reloadcmd ' ~ (item['install']['reloadcmd'] | ansible.builtin.quote)
-            if ((item['install']['reloadcmd'] is defined) and
+            if ((item['install']['reloadcmd'] is ansible.builtin.defined) and
                 (item['install']['reloadcmd']))
             else
             '' }}
@@ -310,7 +310,7 @@
   environment: "{{ run_acmesh_environment | ansible.builtin.default(omit) }}"
   when:
     - __run_acmesh_is_installed
-    - run_acmesh_certs is defined
+    - run_acmesh_certs is ansible.builtin.defined
   changed_when:
     - __run_acmesh_install_result is ansible.builtin.success
     - ('Cert success') in __run_acmesh_install_result['stdout']
@@ -320,7 +320,7 @@
   # Ansible that rely on these certificates should trigger relevant errors later
   # if issues persist.
   failed_when: >
-    (run_acmesh_certs is not defined) or
+    (run_acmesh_certs is not ansible.builtin.defined) or
     ((__run_acmesh_install_result is ansible.builtin.failed) and ('Installing' not in __run_acmesh_install_result['stdout'])) or
     (
       __run_acmesh_install_result is ansible.builtin.failed and
@@ -351,7 +351,7 @@
       | ansible.builtin.list
     }}
   when:
-    - run_acmesh_certs is defined
+    - run_acmesh_certs is ansible.builtin.defined
     - __run_acmesh_install_result is ansible.builtin.success
 
 
@@ -383,7 +383,7 @@
       EXPECTED_PRE_HOOK={{ item['pre_hook'] | ansible.builtin.default('') | ansible.builtin.quote }}
       EXPECTED_POST_HOOK={{ item['post_hook'] | ansible.builtin.default('') | ansible.builtin.quote }}
       EXPECTED_RENEW_HOOK={{ item['renew_hook'] | ansible.builtin.default('') | ansible.builtin.quote }}
-      EXPECTED_RELOAD_CMD={{ ((item['install']['reloadcmd'] | ansible.builtin.default('')) if (item['install'] is defined) else '') | ansible.builtin.quote }}
+      EXPECTED_RELOAD_CMD={{ ((item['install']['reloadcmd'] | ansible.builtin.default('')) if (item['install'] is ansible.builtin.defined) else '') | ansible.builtin.quote }}
 
       # Function: Decode base64 value from config line
       decode_value() {
@@ -519,9 +519,9 @@
     executable: "/bin/bash" # Support for other shells untested (so far)
   when:
     - __run_acmesh_is_installed
-    - run_acmesh_certs is defined
-    - item is defined
-    - item['domains'] is defined
+    - run_acmesh_certs is ansible.builtin.defined
+    - item is ansible.builtin.defined
+    - item['domains'] is ansible.builtin.defined
     - (item['domains'] | ansible.builtin.length) > 0
   failed_when:
     - (__run_acmesh_cmdupdates_result is ansible.builtin.failed) or
@@ -540,7 +540,7 @@
     verbosity: 3
   when:
     - __run_acmesh_is_installed
-    - run_acmesh_certs is defined
+    - run_acmesh_certs is ansible.builtin.defined
     - item | ansible.builtin.length > 0
   loop: >-
     {{
@@ -571,5 +571,5 @@
     verbosity: 3
   when:
     - __run_acmesh_is_installed
-    - __run_acmesh_list_domains_result is defined
+    - __run_acmesh_list_domains_result is ansible.builtin.defined
     - ansible_verbosity > 3

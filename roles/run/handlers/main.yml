@@ -38,7 +38,7 @@
       chown -c {{ (run_acmesh_user ~ ':' ~ run_acmesh_group) | ansible.builtin.quote }} {{ run_acmesh_cfg_logfile | ansible.builtin.quote }}
       {% for _cert in run_acmesh_certs | ansible.builtin.default([]) %}
         {% for _key in ['ca_file', 'cert_file', 'fullcain_file', 'key_file'] %}
-          {% if _cert['install'] is defined and _cert['install'][_key] is defined and _cert['install'][_key] %}
+          {% if _cert['install'] is ansible.builtin.defined and _cert['install'][_key] is ansible.builtin.defined and _cert['install'][_key] %}
             chmod -c 0640 {{ _cert['install'][_key] | ansible.builtin.quote }}
             chown -c {{ (run_acmesh_user ~ ':' ~ run_acmesh_group) | ansible.builtin.quote }} {{ _cert['install'][_key] | ansible.builtin.quote }}
           {% endif %}

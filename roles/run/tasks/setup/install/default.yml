@@ -7,7 +7,7 @@
     name: "{{ __run_acmesh_packages_removal }}"
     state: "absent"
   when:
-    - __run_acmesh_packages_removal is defined
+    - __run_acmesh_packages_removal is ansible.builtin.defined
     - (__run_acmesh_packages_removal | ansible.builtin.length) > 0
 
 
@@ -18,7 +18,7 @@
     # work-around for conflicts with curl-minimal on Red Hat platforms
     allowerasing: "{{ true if (((ansible_facts['os_family'] | ansible.builtin.lower) == 'redhat') and ('curl' in __run_acmesh_packages_install)) else omit }}"
   when:
-    - __run_acmesh_packages_install is defined
+    - __run_acmesh_packages_install is ansible.builtin.defined
     - (__run_acmesh_packages_install | ansible.builtin.length) > 0
 
 
@@ -27,7 +27,7 @@
     path: "{{ item }}"
     state: "absent"
   when:
-    - __run_acmesh_paths_removal is defined
+    - __run_acmesh_paths_removal is ansible.builtin.defined
     - (__run_acmesh_paths_removal | ansible.builtin.length) > 0
   loop: "{{ __run_acmesh_paths_removal }}"
 
@@ -46,8 +46,8 @@
   ansible.builtin.set_fact:
     __run_acmesh_version_upstream: >-
       {%- if __run_acmesh_github_response is ansible.builtin.success and
-             __run_acmesh_github_response.json is defined and
-             __run_acmesh_github_response.json.tag_name is defined -%}
+             __run_acmesh_github_response.json is ansible.builtin.defined and
+             __run_acmesh_github_response.json.tag_name is ansible.builtin.defined -%}
         {%- set version = __run_acmesh_github_response.json.tag_name | ansible.builtin.regex_replace('^v', '') -%}
         {{- version if (version is match('^[0-9\.]*$')) else '' -}}
       {%- else -%}
@@ -179,12 +179,12 @@
         --syslog {{ run_acmesh_cfg_syslog | ansible.builtin.quote }}
         --nocron
         {{ '--auto-upgrade 1'
-          if ((run_acmesh_autoupgrade is defined) and
+          if ((run_acmesh_autoupgrade is ansible.builtin.defined) and
               (run_acmesh_autoupgrade))
           else
           '--auto-upgrade 0' }}
         {{ '--accountemail ' ~ (run_acmesh_cfg_accountemail | ansible.builtin.quote)
-          if ((run_acmesh_cfg_accountemail is defined) and
+          if ((run_acmesh_cfg_accountemail is ansible.builtin.defined) and
               (run_acmesh_cfg_accountemail))
           else
           '' }}
@@ -221,12 +221,12 @@
         --log-level {{ run_acmesh_cfg_log_level | ansible.builtin.quote }}
         --syslog {{ run_acmesh_cfg_syslog | ansible.builtin.quote }}
         {{ '--auto-upgrade 1'
-          if ((run_acmesh_autoupgrade is defined) and
+          if ((run_acmesh_autoupgrade is ansible.builtin.defined) and
               (run_acmesh_autoupgrade))
           else
           '--auto-upgrade 0' }}
         {{ '--accountemail ' ~ (run_acmesh_cfg_accountemail | ansible.builtin.quote)
-          if ((run_acmesh_cfg_accountemail is defined) and
+          if ((run_acmesh_cfg_accountemail is ansible.builtin.defined) and
               (run_acmesh_cfg_accountemail))
           else
           '' }}
@@ -234,9 +234,9 @@
     chdir: "{{ run_acmesh_cfg_home }}"
   when:
     - __run_acmesh_is_installed
-    - __run_acmesh_version_installed is defined
-    - __run_acmesh_version_upstream is defined
-    - run_acmesh_autoupgrade is defined
+    - __run_acmesh_version_installed is ansible.builtin.defined
+    - __run_acmesh_version_upstream is ansible.builtin.defined
+    - run_acmesh_autoupgrade is ansible.builtin.defined
     - run_acmesh_autoupgrade
     - __run_acmesh_version_installed is ansible.builtin.version(__run_acmesh_version_upstream, 'lt', version_type='semver')
   changed_when:
@@ -310,7 +310,7 @@
     dest: "{{ __run_acmesh_profiled_envfile_path }}"
     state: "link"
   when:
-    - __run_acmesh_envfile_stat_result is defined
+    - __run_acmesh_envfile_stat_result is ansible.builtin.defined
     - __run_acmesh_envfile_stat_result['stat']['exists']
 
 
@@ -320,7 +320,7 @@
     state: "absent"
     regexp: "^\\. \"{{ run_acmesh_cfg_home }}/acme.sh.env\"$"
   when:
-    - __run_acmesh_envfile_stat_result is defined
+    - __run_acmesh_envfile_stat_result is ansible.builtin.defined
     - __run_acmesh_envfile_stat_result['stat']['exists']
 
 
@@ -344,5 +344,5 @@
     path: "{{ __run_acmesh_tempdir['path'] }}"
     state: "absent"
   when:
-    - __run_acmesh_tempdir is defined
-    - __run_acmesh_tempdir['path'] is defined
+    - __run_acmesh_tempdir is ansible.builtin.defined
+    - __run_acmesh_tempdir['path'] is ansible.builtin.defined

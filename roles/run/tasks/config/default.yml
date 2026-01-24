@@ -34,12 +34,12 @@
             --log-level {{ run_acmesh_cfg_log_level | ansible.builtin.quote }} \
             --syslog {{ run_acmesh_cfg_syslog | ansible.builtin.quote }} \
             {{ '--auto-upgrade 1'
-              if ((run_acmesh_autoupgrade is defined) and
+              if ((run_acmesh_autoupgrade is ansible.builtin.defined) and
                   (run_acmesh_autoupgrade))
               else
               '--auto-upgrade 0' }} \
             {{ '--accountemail ' ~ (run_acmesh_cfg_accountemail | ansible.builtin.quote)
-              if ((run_acmesh_cfg_accountemail is defined) and
+              if ((run_acmesh_cfg_accountemail is ansible.builtin.defined) and
                   (run_acmesh_cfg_accountemail))
               else
               '' }}
