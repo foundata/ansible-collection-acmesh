@@ -1,5 +1,12 @@
 ---
 
 minor_changes:
-  - Exclude ``extensions/molecule`` from build artifacts. This reduces the size of the resulting artifact. The Ansible Molecule directory is intended for developer testing and not needed in production artifacts, where environment-specific testing can be performed independently.
-  - Improved inline script quoting. Ensure safer handling of input by adding ``ansible.builtin.quote`` where appropriate. Even if inputs are user-controlled or derived from internal variables, it's better to be safe and prevent potential issues with shell parsing.
+  - >
+    Exclude ``extensions/molecule`` from build artifacts. This reduces the size of the
+    resulting artifact. The Ansible Molecule directory is intended for developer testing
+    and not needed in production artifacts, where environment-specific testing can be
+    erformed independently.
+  - Improved inline script quoting. Ensure safer handling of input by adding
+    ``ansible.builtin.quote`` where appropriate. Even if inputs are user-controlled or
+    derived from internal variables, it's better to be safe and prevent potential issues
+    with shell parsing.

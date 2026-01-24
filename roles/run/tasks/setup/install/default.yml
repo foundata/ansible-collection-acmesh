@@ -55,7 +55,7 @@
       {%- endif -%}
 
 
-- name: "Setup | Install | Default | Display latest upstream version (if any, false means \"nothing detected\")"
+- name: "Setup | Install | Default | Display latest upstream version (if any, empty string means \"nothing detected\")"
   ansible.builtin.debug:
     var: __run_acmesh_version_upstream
     verbosity: 1
@@ -282,11 +282,25 @@
 
 - name: "Setup | Install | Default | Update / overwrite installed version facts"
   ansible.builtin.set_fact:
-    __run_acmesh_is_installed: "{{ (__run_acmesh_version_installed_result is ansible.builtin.success) | ansible.builtin.ternary((__run_acmesh_version_installed_result['stdout'] | ansible.builtin.length > 0), false) }}"
-    __run_acmesh_version_installed: "{{ (__run_acmesh_version_installed_result is ansible.builtin.success) | ansible.builtin.ternary(__run_acmesh_version_installed_result['stdout'], false) }}"
+    __run_acmesh_is_installed: >-
+      {{
+        (__run_acmesh_version_installed_result is ansible.builtin.success)
+        | ansible.builtin.ternary(
+          (__run_acmesh_version_installed_result['stdout'] | ansible.builtin.default('') | ansible.builtin.length > 0),
+          false
+        )
+      }}
+    __run_acmesh_version_installed: >-
+      {{
+        (__run_acmesh_version_installed_result is ansible.builtin.success)
+        | ansible.builtin.ternary(
+          (__run_acmesh_version_installed_result['stdout'] | ansible.builtin.default('')),
+          ''
+        )
+      }}
 
 
-- name: "Setup | Install | Default | Display installed version (if any, false means \"not installed\")"
+- name: "Setup | Install | Default | Display installed version (if any, empty string means \"not installed\")"
   ansible.builtin.debug:
     var: __run_acmesh_version_installed
     verbosity: 1

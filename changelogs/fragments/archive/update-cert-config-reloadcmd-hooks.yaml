@@ -1,5 +1,14 @@
 ---
 
 minor_changes:
-  - "``foundata.acmesh.run`` - Added automatic hook and reload command configuration updates for existing certificates. The role now detects when hook configurations (pre_hook, post_hook, renew_hook, reloadcmd) have changed in Ansible variables and automatically updates the corresponding base64-encoded values in acme.sh certificate config files without requiring certificate re-issuance. This is a workaround for upstream issue https://github.com/acmesh-official/acme.sh/issues/3936."
-  - "``foundata.acmesh.run`` - Added Molecule verification tests to ensure hook configuration updates work correctly and validate the proper base64 encoding of hook commands in certificate config files."
+  - >
+    ``foundata.acmesh.run`` - Added automatic hook and reload command configuration
+    updates for existing certificates. The role now detects when hook configurations
+    (pre_hook, post_hook, renew_hook, reloadcmd) have changed in Ansible variables and
+    automatically updates the corresponding base64-encoded values in acme.sh certificate
+    config files without requiring certificate re-issuance. This is a workaround for
+    upstream issue https://github.com/acmesh-official/acme.sh/issues/3936.
+  - >
+    ``foundata.acmesh.run`` - Added Molecule verification tests to ensure hook
+    configuration updates work correctly and validate the proper base64 encoding of hook
+    commands in certificate config files.

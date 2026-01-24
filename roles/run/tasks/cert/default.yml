@@ -224,7 +224,14 @@
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
-  loop: "{{ run_acmesh_certs | ansible.builtin.selectattr('install', 'defined') | ansible.builtin.map(attribute='install') | ansible.builtin.selectattr('ca_file', 'defined') | ansible.builtin.list }}"
+  loop: >-
+    {{
+      run_acmesh_certs
+      | ansible.builtin.selectattr('install', 'defined')
+      | ansible.builtin.map(attribute='install')
+      | ansible.builtin.selectattr('ca_file', 'defined')
+      | ansible.builtin.list
+    }}
 
 
 - name: "Cert | Default | Create target directories for certificate installation(s) (based on data for --cert-file, if any)"
@@ -237,7 +244,14 @@
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
-  loop: "{{ run_acmesh_certs | ansible.builtin.selectattr('install', 'defined') | ansible.builtin.map(attribute='install') | ansible.builtin.selectattr('cert_file', 'defined') | ansible.builtin.list }}"
+  loop: >-
+    {{
+      run_acmesh_certs
+      | ansible.builtin.selectattr('install', 'defined')
+      | ansible.builtin.map(attribute='install')
+      | ansible.builtin.selectattr('cert_file', 'defined')
+      | ansible.builtin.list
+    }}
 
 
 - name: "Cert | Default | Create target directories for certificate installation(s) (based on data for --fullcain-file, if any)"
@@ -250,7 +264,14 @@
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
-  loop: "{{ run_acmesh_certs | ansible.builtin.selectattr('install', 'defined') | ansible.builtin.map(attribute='install') | ansible.builtin.selectattr('fullcain_file', 'defined') | ansible.builtin.list }}"
+  loop: >-
+    {{
+      run_acmesh_certs
+      | ansible.builtin.selectattr('install', 'defined')
+      | ansible.builtin.map(attribute='install')
+      | ansible.builtin.selectattr('fullcain_file', 'defined')
+      | ansible.builtin.list
+    }}
 
 
 - name: "Cert | Default | Create target directories for certificate installation(s) (based on data for --key-file, if any)"
@@ -263,7 +284,14 @@
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
-  loop: "{{ run_acmesh_certs | ansible.builtin.selectattr('install', 'defined') | ansible.builtin.map(attribute='install') | ansible.builtin.selectattr('key_file', 'defined') | ansible.builtin.list }}"
+  loop: >-
+    {{
+      run_acmesh_certs
+      | ansible.builtin.selectattr('install', 'defined')
+      | ansible.builtin.map(attribute='install')
+      | ansible.builtin.selectattr('key_file', 'defined')
+      | ansible.builtin.list
+    }}
 
 
 - name: "Cert | Default | Install certificate(s)"

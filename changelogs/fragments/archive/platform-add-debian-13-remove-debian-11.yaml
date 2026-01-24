@@ -1,9 +1,16 @@
 ---
 
 minor_changes:
-  - "``foundata.acmesh.run``: Added Debian 13 (Trixie) as a supported platform."
-  - "Molecule: Added Debian 13 (Trixie) as a test target platform."
+  - >
+    ``foundata.acmesh.run``: Added Debian 13 (Trixie) as a supported platform.
+  - >
+    Molecule: Added Debian 13 (Trixie) as a test target platform.
 
 removed_features:
-  - "``foundata.acmesh.run``: Removed Debian 11 (Bullseye) from the list of supported platforms. The role will continue to work on Debian 11 but will display a warning. To avoid this, either remain on or pin the previous version of the collection. Bugs and issues related to Debian 11 will no longer be fixed."
-  - "Molecule: Removed Debian 11 (Bullseye) as a test target platform."
+  - >
+    ``foundata.acmesh.run``: Removed Debian 11 (Bullseye) from the list of supported
+    platforms. The role will continue to work on Debian 11 but will display a warning.
+    To avoid this, either remain on or pin the previous version of the collection. Bugs
+    and issues related to Debian 11 will no longer be fixed.
+  - >
+    Molecule: Removed Debian 11 (Bullseye) as a test target platform.

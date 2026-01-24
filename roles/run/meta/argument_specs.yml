@@ -301,7 +301,7 @@ argument_specs:
           upon renewal. See the following for more information:
           https://github.com/acmesh-official/acme.sh/issues/2350#issuecomment-1449235599
         type: "str"
-        default:  "/var/opt/acme.sh"
+        default: "/var/opt/acme.sh"
 
       run_acmesh_cfg_logfile:
         description: |

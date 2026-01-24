@@ -57,8 +57,7 @@ run_acmesh_autorenewal: true
 # - Type: dict
 # - Required: No
 # - Default: {}
-run_acmesh_environment:
-  {} # Remove the "{}" when adding values to this dict.
+run_acmesh_environment: {}
 
 # Defines certificates to be requested, their associated domains, challenge
 # methods, and installation details. Each item in the list is a dictionary with
@@ -119,8 +118,7 @@ run_acmesh_environment:
 # - Required: No
 # - Default: []
 # - List elements: dict
-run_acmesh_certs:
-  [] # Remove the "[]" when adding values to this list.
+run_acmesh_certs: []
 
 # Specifies the service user account that runs acme.sh and owns relevant files
 # and directories.

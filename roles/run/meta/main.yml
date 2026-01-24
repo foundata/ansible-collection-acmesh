@@ -12,5 +12,4 @@ galaxy_info:
   min_ansible_version: "2.16.0"
 
 # Roles that this role requires to be installed.
-dependencies:
-  [] # Remove the "[]" when adding values to this list.
+dependencies: []

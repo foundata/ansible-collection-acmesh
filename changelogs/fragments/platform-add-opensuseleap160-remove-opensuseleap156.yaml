@@ -1,9 +1,16 @@
 ---
 
 minor_changes:
-  - "``foundata.acmesh.run``: Added openSUSE Leap 16.0 as a supported platform."
-  - "Molecule: Added openSUSE Leap 16.0 as a test target platform."
+  - >
+    ``foundata.acmesh.run``: Added openSUSE Leap 16.0 as a supported platform.
+  - >
+    Molecule: Added openSUSE Leap 16.0 as a test target platform.
 
 removed_features:
-  - "``foundata.acmesh.run``: Removed openSUSE Leap 15.6 from the list of supported platforms. The role will continue to work on openSUSE Leap 15.6 but will display a warning. To avoid this, either remain on or pin the previous version of the collection. Bugs and issues related to openSUSE Leap 15.6 will no longer be fixed."
-  - "Molecule: Removed openSUSE Leap 15.6 as a test target platform."
+  - >
+    ``foundata.acmesh.run``: Removed openSUSE Leap 15.6 from the list of supported
+    platforms. The role will continue to work on openSUSE Leap 15.6 but will display
+    a warning. To avoid this, either remain on or pin the previous version of the
+    collection. Bugs and issues related to openSUSE Leap 15.6 will no longer be fixed.
+  - >
+    Molecule: Removed openSUSE Leap 15.6 as a test target platform.
