@@ -589,7 +589,8 @@
   when:
     - __run_acmesh_is_installed
     - ansible_verbosity > 3
-  changed_when: false
+  changed_when:
+    - false
   register: __run_acmesh_list_domains_result
 
 

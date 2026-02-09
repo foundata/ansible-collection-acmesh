@@ -106,7 +106,8 @@
   ansible.builtin.tempfile:
     state: "directory"
     suffix: "-acmesh"
-  changed_when: false
+  changed_when:
+    - false
   when:
     - not __run_acmesh_is_installed
   register: __run_acmesh_tempdir
@@ -275,7 +276,8 @@
       printf '%s' "${__run_acmesh_version_installed}"
       exit 0
     executable: "/bin/bash" # Support for other shells untested (so far)
-  changed_when: false
+  changed_when:
+    - false
   ignore_errors: true
   register: __run_acmesh_version_installed_result
 

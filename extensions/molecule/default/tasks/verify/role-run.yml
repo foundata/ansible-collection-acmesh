@@ -100,7 +100,8 @@
     cmd: >
       systemctl show acmesh-renewal.timer --property=Triggers,Unit,UnitFileState,LoadState,WantedBy
   register: __testing_acmesh_timer_show
-  changed_when: false
+  changed_when:
+    - false
 
 
 - name: "Molecule | Verify | Assert acmesh-renewal.timer configuration looks correct"
@@ -119,7 +120,8 @@
     cmd: >
       systemctl show acmesh-renewal.service --property=Type,User,Group,ExecStart,WorkingDirectory
   register: __testing_acmesh_service_show
-  changed_when: false
+  changed_when:
+    - false
 
 - name: "Molecule | Verify | Assert acmesh-renewal.service configuration looks correct"
   ansible.builtin.assert:

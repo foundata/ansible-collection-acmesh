@@ -165,7 +165,8 @@
     executable: "/bin/bash" # Support for other shells untested (so far)
   register: __run_acmesh_version_installed_result
   ignore_errors: true
-  changed_when: false
+  changed_when:
+    - false
 
 
 - name: "Init | Set installed version as facts"

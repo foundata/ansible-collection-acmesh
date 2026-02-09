@@ -6,7 +6,8 @@
     __testing_missing_envvars_dnschallenge: "{{ __testing_missing_envvars_dnschallenge | ansible.builtin.default([]) + [item] }}"
   when:
     - lookup('env', item, default='') == ''
-  changed_when: false # noqa: no-changed-when
+  changed_when:
+    - false # noqa: no-changed-when
   loop:
     - "TEST_ACMESH_ACCOUNTEMAIL"
     - "TEST_ACMESH_TESTDOMAIN1"
@@ -22,7 +23,8 @@
     msg: >
       Tests regarding certificate issuing via DNS challenge will be skipped,
       required environment variables are missing or invalid: {{ __testing_missing_envvars_dnschallenge | join(', ') }}.
-  changed_when: false # noqa: no-changed-when
+  changed_when:
+    - false # noqa: no-changed-when
   when:
     - __testing_missing_envvars_dnschallenge is ansible.builtin.defined
     - __testing_missing_envvars_dnschallenge | ansible.builtin.length > 0
