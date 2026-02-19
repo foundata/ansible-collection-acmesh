@@ -32,24 +32,52 @@
   loop: "{{ __run_acmesh_paths_removal }}"
 
 
-- name: "Setup | Install | Default | Get upstream release version data (GitHub API)"
-  ansible.builtin.uri:
-    url: "{{ __run_acmesh_githubapi_release_latest_url }}"
-    method: "GET"
-    body_format: "json"
-    return_content: true
+- name: "Setup | Install | Default | Get upstream version tags from git repository"
+  # The command module is used here. This approach is justified:
+  #
+  # - No built-in Ansible module provides a way to list remote git tags.
+  # - Using git ls-remote to query tags without cloning is lightweight
+  #   and works with any git remote (GitHub, GitLab, local mirrors),
+  #   making it suitable for air-gapped environments with internal
+  #   mirrors.
+  ansible.builtin.command:
+    argv:
+      - "git"
+      - "ls-remote"
+      - "--tags"
+      - "--refs"
+      - "{{ run_acmesh_git_url }}"
+  changed_when:
+    - false
   ignore_errors: true
-  register: __run_acmesh_github_response
+  register: __run_acmesh_git_tags_result
 
 
 - name: "Setup | Install | Default | Set latest upstream version as fact"
   ansible.builtin.set_fact:
     __run_acmesh_version_upstream: >-
-      {%- if __run_acmesh_github_response is ansible.builtin.success and
-             __run_acmesh_github_response.json is ansible.builtin.defined and
-             __run_acmesh_github_response.json.tag_name is ansible.builtin.defined -%}
-        {%- set version = __run_acmesh_github_response.json.tag_name | ansible.builtin.regex_replace('^v', '') -%}
-        {{- version if (version is match('^[0-9\.]*$')) else '' -}}
+      {%- set versions = [] -%}
+      {%- if __run_acmesh_git_tags_result is ansible.builtin.success -%}
+        {%- for line in (__run_acmesh_git_tags_result['stdout_lines']
+                         | ansible.builtin.default([])) -%}
+          {%- set tag = line.split('/')[-1]
+                        | ansible.builtin.regex_replace('^v', '') -%}
+          {%- if tag is ansible.builtin.match('^[0-9\.]*$') and
+                 (tag | ansible.builtin.length) > 0 -%}
+            {%- set _ = versions.append(tag) -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endif -%}
+      {%- set ns = namespace(latest='') -%}
+      {%- for v in versions -%}
+        {%- if (ns.latest | ansible.builtin.length) == 0 or
+               v is ansible.builtin.version(ns.latest, '>',
+                 version_type='semver') -%}
+          {%- set ns.latest = v -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {%- if (ns.latest | ansible.builtin.length) > 0 -%}
+        {{- ns.latest -}}
       {%- else -%}
         {{ false }}
       {%- endif -%}
@@ -121,11 +149,11 @@
     - not __run_acmesh_is_installed
 
 
-- name: "Setup | Install | Default | git clone {{ __run_acmesh_git_url }}"
+- name: "Setup | Install | Default | git clone {{ run_acmesh_git_url }}"
   ansible.builtin.git:
-    repo: "{{ __run_acmesh_git_url }}"
+    repo: "{{ run_acmesh_git_url }}"
     # on "master" branch as latest: https://github.com/acmesh-official/acme.sh/issues/1162
-    version: "{{ (__run_acmesh_version_upstream) | ansible.builtin.ternary(__run_acmesh_version_upstream, __run_acmesh_git_fallback_version_branch) }}"
+    version: "{{ (__run_acmesh_version_upstream) | ansible.builtin.ternary(__run_acmesh_version_upstream, run_acmesh_git_fallback_version_branch) }}"
     dest: "{{ __run_acmesh_tempdir['path'] }}"
     update: true
   when:

@@ -14,6 +14,8 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
   - [`run_acmesh_autoupgrade`](#variable-run_acmesh_autoupgrade)
   - [`run_acmesh_autorenewal`](#variable-run_acmesh_autorenewal)
   - [`run_acmesh_environment`](#variable-run_acmesh_environment)
+  - [`run_acmesh_git_url`](#variable-run_acmesh_git_url)
+  - [`run_acmesh_git_fallback_version_branch`](#variable-run_acmesh_git_fallback_version_branch)
   - [`run_acmesh_certs`](#variable-run_acmesh_certs)
     - [`run_acmesh_certs['domains']`](#variable-run_acmesh_certs-sub-domains)
       - [`run_acmesh_certs['domains']['name']`](#variable-run_acmesh_certs-sub-domains-sub-name)
@@ -108,6 +110,7 @@ Using only one domain per certificate an the webroot challenge:
             server: "letsencrypt_test" # optional, CA alias or URL, defaults to "letsencrypt" see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
 ```
 
+The role clones acme.sh from GitHub by default. Use the [`run_acmesh_git_url`](#variable-run_acmesh_git_url) parameter to point it at an internal Git mirror instead (e.g. for air-gapped environments).
 
 By default, other users and groups cannot read the certificate files managed by `acme.sh`. To allow access, add specific service users (e.g., `www-data` or `nginx`) to the group defined by `run_acmesh_group` (defaults to `acmesh`). [`ansible.builtin.user`](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/user_module.html) can help you with that:
 
@@ -257,6 +260,8 @@ The following variables can be configured for this role:
 | `run_acmesh_autoupgrade` | `bool` | No | `false` | If set to `true`, all managed packages will be upgraded during each Ansible run (e.g., when the package provider detects a newer version than the currently installed one). |
 | `run_acmesh_autorenewal` | `bool` | No | `true` | Enables daily automatic certificate renewal via systemd timer (this role is not using acme.sh's cronjob function). |
 | `run_acmesh_environment` | `dict` | No | `{}` | Defines environment variables required for ACME DNS challenges.<br><br>This is typically needed for DNS challenge plugins, such as those requiring DNS API credentials (e.g., `HETZNER_Token`, `INWX_User`, `INWX_Password`). Multiple variables can be […](#variable-run_acmesh_environment) |
+| `run_acmesh_git_url` | `str` | No | `"https://github.com/acmesh-official/acme.sh.git"` | The Git repository URL for acme.sh. The role uses this URL to clone the source code during installation or updates and to query available version tags via `git ls-remote`.<br><br>Can be set to an internal Git mirror for air-gapped environments or to […](#variable-run_acmesh_git_url) |
+| `run_acmesh_git_fallback_version_branch` | `str` | No | `"master"` | The Git branch to clone when no version tag could be determined from the remote repository (e.g. because `git ls-remote` failed or returned no matching tags).<br><br>See https://github.com/acmesh-official/acme.sh/issues/1162 for why acme.sh uses […](#variable-run_acmesh_git_fallback_version_branch) |
 | `run_acmesh_certs` | `list` | No | `[]` | Defines certificates to be requested, their associated domains, challenge methods, and installation details. Each item in the list is a dictionary with suboptions / keys.<br><br>Example:<br><br>``` run_acmesh_certs: # first certificate: "example.org" […](#variable-run_acmesh_certs) |
 | `run_acmesh_user` | `str` | No | `"acmesh"` | Specifies the service user account that runs acme.sh and owns relevant files and directories. |
 | `run_acmesh_group` | `str` | No | `"acmesh"` | Specifies the group associated with the service user for managing acme.sh and its file permissions. |
@@ -336,6 +341,40 @@ run_acmesh_environment:
 - **Type**: `dict`
 - **Required**: No
 - **Default**: `{}`
+
+
+
+### `run_acmesh_git_url`<a id="variable-run_acmesh_git_url"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+The Git repository URL for acme.sh. The role uses this URL to clone the
+source code during installation or updates and to query available version
+tags via `git ls-remote`.
+
+Can be set to an internal Git mirror for air-gapped environments or to
+avoid GitHub API rate limits.
+
+- **Type**: `str`
+- **Required**: No
+- **Default**: `"https://github.com/acmesh-official/acme.sh.git"`
+
+
+
+### `run_acmesh_git_fallback_version_branch`<a id="variable-run_acmesh_git_fallback_version_branch"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+The Git branch to clone when no version tag could be determined from the
+remote repository (e.g. because `git ls-remote` failed or returned no
+matching tags).
+
+See https://github.com/acmesh-official/acme.sh/issues/1162 for why
+acme.sh uses `master` as the branch for the latest release.
+
+- **Type**: `str`
+- **Required**: No
+- **Default**: `"master"`
 
 
 
@@ -806,7 +845,7 @@ See `min_ansible_version` in [`meta/main.yml`](./meta/main.yml) and `__run_acmes
 
 ## External requirements<a id="requirements"></a>
 
-* **GitHub API access:** The role needs to be able to connect to GitHub API endpoint to fetch the latest acme.sh release information for upgrades (see `__run_acmesh_githubapi_release_latest_url` in [`vars/main.yml`](./vars/main.yml) for details).
+* **Git repository access:** The role uses `git ls-remote` to query available version tags from the configured git repository. This works with any git remote (GitHub, GitLab, local mirrors), making it suitable for air-gapped environments with internal mirrors (see [`run_acmesh_git_url`](#variable-run_acmesh_git_url) parameter).
 * **SELinux**: This role does not handle SELinux configurations. Please add additional tasks before or after this role to accommodate these changes (e.g. `cert_t` might be needed as context). The following Ansible modules may help with SELinux configuration:
   - [`ansible.posix.selinux`](https://docs.ansible.com/ansible/latest/collections/ansible/posix/selinux_module.html)
   - [`community.general.sefcontext_module`](https://docs.ansible.com/ansible/latest/collections/community/general/sefcontext_module.html)

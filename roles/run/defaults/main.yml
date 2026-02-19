@@ -59,6 +59,31 @@ run_acmesh_autorenewal: true
 # - Default: {}
 run_acmesh_environment: {}
 
+# The Git repository URL for acme.sh. The role uses this URL to clone the source
+# code during installation or updates and to query available version tags via
+# `git ls-remote`.
+#
+# Can be set to an internal Git mirror for air-gapped environments or to avoid
+# GitHub API rate limits.
+#
+# - Type: str
+# - Required: No
+# - Default: https://github.com/acmesh-official/acme.sh.git
+run_acmesh_git_url: "https://github.com/acmesh-official/acme.sh.git"
+
+# The Git branch to clone when no version tag could be determined from the
+# remote repository (e.g. because `git ls-remote` failed or returned no matching
+# tags).
+#
+# See https://github.com/acmesh-official/acme.sh/issues/1162 for why acme.sh
+# uses `master` as the branch for the latest release.
+#
+# - Type: str
+# - Required: No
+# - Default: master
+run_acmesh_git_fallback_version_branch: "master"
+
+
 # Defines certificates to be requested, their associated domains, challenge
 # methods, and installation details. Each item in the list is a dictionary with
 # suboptions / keys.
@@ -142,7 +167,7 @@ run_acmesh_group: "acmesh"
 #
 # - Type: str
 # - Required: No
-# - Default:
+# - Default: 
 run_acmesh_cfg_accountemail: ""
 
 # Specifies the installation directory for the acme.sh software (relates to

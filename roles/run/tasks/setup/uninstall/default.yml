@@ -49,12 +49,14 @@
     force: true
 
 
-- name: "Setup | Uninstall | Disable acmesh-renewal.timer" # FIXME removal? Reload?
+- name: "Setup | Uninstall | Disable acmesh-renewal.timer (best-effort)"
   ansible.builtin.systemd_service:
     name: "acmesh-renewal.timer"
     enabled: false
   failed_when:
-    - false # FIXME best effort -> Maybe include task to check timer existence upfront?
+    - false
+  notify:
+    - "run_acmesh: systemd daemon-reload"
 
 
 - name: "Setup | Uninstall | Default | Delete files and directories (except certificates)"
@@ -68,5 +70,7 @@
     - "{{ __run_acmesh_profiled_envfile_path }}"
     - "{{ __run_acmesh_systemd_renewal_servicefile_path }}"
     - "{{ __run_acmesh_systemd_renewal_timerfile_path }}"
+  notify:
+    - "run_acmesh: systemd daemon-reload"
 
 # FIXME / TODO delete additional, non-primary group for service user if it is empty

@@ -62,6 +62,30 @@ argument_specs:
         type: "dict"
         default: {}
 
+      run_acmesh_git_url:
+        description: |
+          The Git repository URL for acme.sh. The role uses this URL to clone the
+          source code during installation or updates and to query available version
+          tags via `git ls-remote`.
+
+          Can be set to an internal Git mirror for air-gapped environments or to
+          avoid GitHub API rate limits.
+        type: "str"
+        default: "https://github.com/acmesh-official/acme.sh.git"
+        version_added: "1.4.0"
+
+      run_acmesh_git_fallback_version_branch:
+        description: |
+          The Git branch to clone when no version tag could be determined from the
+          remote repository (e.g. because `git ls-remote` failed or returned no
+          matching tags).
+
+          See https://github.com/acmesh-official/acme.sh/issues/1162 for why
+          acme.sh uses `master` as the branch for the latest release.
+        type: "str"
+        default: "master"
+        version_added: "1.4.0"
+
       run_acmesh_certs:
         description: |
           Defines certificates to be requested, their associated domains,

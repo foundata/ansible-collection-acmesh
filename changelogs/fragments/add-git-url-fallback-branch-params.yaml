@@ -1,0 +1,16 @@
+---
+
+minor_changes:
+  - >
+    ``foundata.acmesh.run`` - Added ``run_acmesh_git_url`` parameter to override the
+    Git repository URL used for cloning acme.sh and querying upstream version tags. This
+    allows pointing the role at an internal Git mirror, making it suitable for air-gapped
+    environments and avoiding GitHub API rate limits.
+  - >
+    ``foundata.acmesh.run`` - Added ``run_acmesh_git_fallback_version_branch`` parameter
+    to configure the Git branch used as a fallback when no version tag can be determined
+    from the remote repository.
+  - >
+    ``foundata.acmesh.run`` - Replaced the GitHub API-based version detection with
+    ``git ls-remote --tags --refs``. This approach works with any Git remote and no
+    longer requires access to the GitHub API.

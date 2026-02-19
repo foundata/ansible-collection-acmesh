@@ -412,8 +412,10 @@
       EXPECTED_POST_HOOK={{ item['post_hook'] | ansible.builtin.default('') | ansible.builtin.quote }}
       EXPECTED_RENEW_HOOK={{ item['renew_hook'] | ansible.builtin.default('') | ansible.builtin.quote }}
       EXPECTED_RELOAD_CMD={{
-                              ((item['install']['reloadcmd'] | ansible.builtin.default('')) if (item['install'] is ansible.builtin.defined) else '')
-                              | ansible.builtin.quote
+                              ( (item['install']['reloadcmd'] | ansible.builtin.default(''))
+                                if (item['install'] is ansible.builtin.defined)
+                                else ''
+                              ) | ansible.builtin.quote
                           }}
 
       # Function: Decode base64 value from config line
