@@ -1,4 +1,4 @@
-# Tasks for the Molecule verify stage: Check collection role "run" outcomes.
+# Check collection role "run" outcomes.
 
 - name: "Molecule | Verify | Initialize the foundata.acmesh.run role (without actually running it; get and expose variables)"
   ansible.builtin.include_role:
@@ -6,6 +6,12 @@
     tasks_from: "init"
     public: true
 
+
+## Preparation
+
+- name: "Molecule | Verify | Set / overwrite other expected configuration or testing data "
+  ansible.builtin.set_fact:
+    __testing_systemctl_exec_path: "/usr/bin/systemctl"
 
 - name: "Molecule | Verify | Gather stats for directory: {{ run_acmesh_cfg_home }}"
   ansible.builtin.stat:
@@ -96,9 +102,16 @@
 
 
 - name: "Molecule | Verify | Show acmesh-renewal.timer properties"
-  ansible.builtin.command:
-    cmd: >
-      systemctl show acmesh-renewal.timer --property=Triggers,Unit,UnitFileState,LoadState,WantedBy
+  # The command or shell module is used intentionally:
+  # There is no built-in way to retrieve `systemctl show` output. The systemd
+  # module cannot expose these properties, and Ansible facts do not include
+  # unit-level runtime settings.
+  ansible.builtin.command: # noqa: command-instead-of-module
+    argv:
+      - "{{ __testing_systemctl_exec_path }}"
+      - "show"
+      - "acmesh-renewal.timer"
+      - "--property=Triggers,Unit,UnitFileState,LoadState,WantedBy"
   register: __testing_acmesh_timer_show
   changed_when:
     - false
@@ -116,9 +129,16 @@
 
 
 - name: "Molecule | Verify | Show acmesh-renewal.service properties"
-  ansible.builtin.command:
-    cmd: >
-      systemctl show acmesh-renewal.service --property=Type,User,Group,ExecStart,WorkingDirectory
+  # The command or shell module is used intentionally:
+  # There is no built-in way to retrieve `systemctl show` output. The systemd
+  # module cannot expose these properties, and Ansible facts do not include
+  # unit-level runtime settings.
+  ansible.builtin.command: # noqa: command-instead-of-module
+    argv:
+      - "{{ __testing_systemctl_exec_path }}"
+      - "show"
+      - "acmesh-renewal.service"
+      - "--property=Type,User,Group,ExecStart,WorkingDirectory"
   register: __testing_acmesh_service_show
   changed_when:
     - false
