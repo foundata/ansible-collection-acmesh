@@ -21,12 +21,7 @@
     }}
 
 
-- name: "Molecule | Verify | Set other expected or needed facts"
-  ansible.builtin.set_fact:
-    __testing_systemctl_exec_path: "/usr/bin/systemctl"
-
-
-## FIXME
+## Files and directories
 
 - name: "Molecule | Verify | Gather stats for directory: {{ run_acmesh_cfg_home }}"
   ansible.builtin.stat:
@@ -116,56 +111,41 @@
     fail_msg: "acmesh-renewal.service is not existing as expected or wrong status"
 
 
-- name: "Molecule | Verify | Show acmesh-renewal.timer properties"
-  # The command or shell module is used intentionally:
-  # There is no built-in way to retrieve `systemctl show` output. The systemd
-  # module cannot expose these properties, and Ansible facts do not include
-  # unit-level runtime settings.
-  ansible.builtin.command: # noqa: command-instead-of-module
-    argv:
-      - "{{ __testing_systemctl_exec_path }}"
-      - "show"
-      - "acmesh-renewal.timer"
-      - "--property=Triggers,Unit,UnitFileState,LoadState,WantedBy"
-  register: __testing_acmesh_timer_show
-  changed_when:
+- name: "Molecule | Verify | Get acmesh-renewal.timer properties"
+  ansible.builtin.systemd:
+    name: "acmesh-renewal.timer"
+  failed_when:
     - false
+  register: __testing_acmesh_timer_result
 
 
 - name: "Molecule | Verify | Assert acmesh-renewal.timer configuration looks correct"
   ansible.builtin.assert:
     that:
-      - __testing_acmesh_timer_show['stdout'] is search('Triggers=acmesh-renewal.service')
-      - __testing_acmesh_timer_show['stdout'] is search('Unit=acmesh-renewal.service')
-      - __testing_acmesh_timer_show['stdout'] is search('UnitFileState=enabled')
-      - __testing_acmesh_timer_show['stdout'] is search('LoadState=loaded')
-      - __testing_acmesh_timer_show['stdout'] is search('WantedBy=timers.target')
-    fail_msg: "acmesh-renewal.timer does not have the expected configuration (OnCalendar / Unit / active state)"
+      - __testing_acmesh_timer_result['status']['LoadState'] == 'loaded'
+      - __testing_acmesh_timer_result['status']['UnitFileState'] == 'enabled'
+      - __testing_acmesh_timer_result['status']['Triggers'] == 'acmesh-renewal.service'
+      - __testing_acmesh_timer_result['status']['Unit'] == 'acmesh-renewal.service'
+      - "'timers.target' in __testing_acmesh_timer_result['status']['WantedBy']"
+    fail_msg: "acmesh-renewal.timer does not have the expected configuration"
 
 
-- name: "Molecule | Verify | Show acmesh-renewal.service properties"
-  # The command or shell module is used intentionally:
-  # There is no built-in way to retrieve `systemctl show` output. The systemd
-  # module cannot expose these properties, and Ansible facts do not include
-  # unit-level runtime settings.
-  ansible.builtin.command: # noqa: command-instead-of-module
-    argv:
-      - "{{ __testing_systemctl_exec_path }}"
-      - "show"
-      - "acmesh-renewal.service"
-      - "--property=Type,User,Group,ExecStart,WorkingDirectory"
-  register: __testing_acmesh_service_show
-  changed_when:
+- name: "Molecule | Verify | Get acmesh-renewal.service properties"
+  ansible.builtin.systemd:
+    name: "acmesh-renewal.service"
+  failed_when:
     - false
+  register: __testing_acmesh_service_result
+
 
 - name: "Molecule | Verify | Assert acmesh-renewal.service configuration looks correct"
   ansible.builtin.assert:
     that:
-      - __testing_acmesh_service_show['stdout'] is search('Type=oneshot')
-      - __testing_acmesh_service_show['stdout'] is search('User=' ~ run_acmesh_user)
-      - __testing_acmesh_service_show['stdout'] is search('Group=' ~ run_acmesh_group)
-      - __testing_acmesh_service_show['stdout'] is search('WorkingDirectory=' ~ run_acmesh_cfg_home)
-      - __testing_acmesh_service_show['stdout'] is search('ExecStart={ path=' ~ run_acmesh_cfg_home ~ '/acme.sh')
+      - __testing_acmesh_service_result['status']['Type'] == 'oneshot'
+      - __testing_acmesh_service_result['status']['User'] == run_acmesh_user
+      - __testing_acmesh_service_result['status']['Group'] == run_acmesh_group
+      - __testing_acmesh_service_result['status']['WorkingDirectory'] == run_acmesh_cfg_home
+      - (run_acmesh_cfg_home ~ '/acme.sh') in __testing_acmesh_service_result['status']['ExecStart']
     fail_msg: "acmesh-renewal.service does not have the expected configuration"
 
 
