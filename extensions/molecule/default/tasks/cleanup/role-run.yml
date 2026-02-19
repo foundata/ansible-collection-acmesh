@@ -4,4 +4,4 @@
   ansible.builtin.include_role:
     name: "foundata.acmesh.run"
   vars:
-    run_fail2ban_state: "absent"
+    run_acmesh_state: "absent"
