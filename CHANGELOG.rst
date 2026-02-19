@@ -4,6 +4,31 @@ foundata.acmesh Ansible collection Release Notes
 
 .. contents:: Topics
 
+v1.4.0
+======
+
+Release Summary
+---------------
+
+Release Date: 2026-02-20
+
+Feature release.
+
+Minor Changes
+-------------
+
+- Molecule: Added openSUSE Leap 16.0 as a test target platform.
+- ``foundata.acmesh.run`` - Added ``run_acmesh_git_fallback_version_branch`` parameter to configure the Git branch used as a fallback when no version tag can be determined from the remote repository.
+- ``foundata.acmesh.run`` - Added ``run_acmesh_git_url`` parameter to override the Git repository URL used for cloning acme.sh and querying upstream version tags. This allows pointing the role at an internal Git mirror, making it suitable for air-gapped environments and avoiding GitHub API rate limits.
+- ``foundata.acmesh.run`` - Replaced the GitHub API-based version detection with ``git ls-remote --tags --refs``. This approach works with any Git remote and no longer requires access to the GitHub API.
+- ``foundata.acmesh.run``: Added openSUSE Leap 16.0 as a supported platform.
+
+Removed Features (previously deprecated)
+----------------------------------------
+
+- Molecule: Removed openSUSE Leap 15.6 as a test target platform.
+- ``foundata.acmesh.run``: Removed openSUSE Leap 15.6 from the list of supported platforms. The role will continue to work on openSUSE Leap 15.6 but will display a warning. To avoid this, either remain on or pin the previous version of the collection. Bugs and issues related to openSUSE Leap 15.6 will no longer be fixed.
+
 v1.3.0
 ======
 

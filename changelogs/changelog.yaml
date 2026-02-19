@@ -1,6 +1,53 @@
 ---
 ancestor: null
 releases:
+  1.4.0:
+    changes:
+      minor_changes:
+        - 'Molecule: Added openSUSE Leap 16.0 as a test target platform.
+
+          '
+        - '``foundata.acmesh.run`` - Added ``run_acmesh_git_fallback_version_branch``
+          parameter to configure the Git branch used as a fallback when no version
+          tag can be determined from the remote repository.
+
+          '
+        - '``foundata.acmesh.run`` - Added ``run_acmesh_git_url`` parameter to override
+          the Git repository URL used for cloning acme.sh and querying upstream version
+          tags. This allows pointing the role at an internal Git mirror, making it
+          suitable for air-gapped environments and avoiding GitHub API rate limits.
+
+          '
+        - '``foundata.acmesh.run`` - Replaced the GitHub API-based version detection
+          with ``git ls-remote --tags --refs``. This approach works with any Git remote
+          and no longer requires access to the GitHub API.
+
+          '
+        - '``foundata.acmesh.run``: Added openSUSE Leap 16.0 as a supported platform.
+
+          '
+      release_summary: 'Release Date: 2026-02-20
+
+
+        Feature release.
+
+        '
+      removed_features:
+        - 'Molecule: Removed openSUSE Leap 15.6 as a test target platform.
+
+          '
+        - '``foundata.acmesh.run``: Removed openSUSE Leap 15.6 from the list of supported
+          platforms. The role will continue to work on openSUSE Leap 15.6 but will
+          display a warning. To avoid this, either remain on or pin the previous version
+          of the collection. Bugs and issues related to openSUSE Leap 15.6 will no
+          longer be fixed.
+
+          '
+    fragments:
+      - 1.4.0-release.yaml
+      - add-git-url-fallback-branch-params.yaml
+      - platform-add-opensuseleap160-remove-opensuseleap156.yaml
+    release_date: '2026-02-20'
   1.3.0:
     changes:
       minor_changes:
