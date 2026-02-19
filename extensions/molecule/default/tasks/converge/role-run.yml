@@ -95,21 +95,21 @@
       ((__testing_missing_envvars_dnschallenge | ansible.builtin.length) <= 0)
 
 
-- name: "Molecule | Converge | Set run_acme_* parameters as facts from __testing_state"
+- name: "Molecule | Converge | Set run_acmesh_* parameters as facts from __testing_state"
   ansible.builtin.set_fact:
     "{{ item['key'] }}": "{{ item['value'] }}"
   loop: >-
     {{
       (__testing_state | default({}, true))
       | ansible.builtin.dict2items
-      | ansible.builtin.selectattr('key', 'match', '^run_acme_')
+      | ansible.builtin.selectattr('key', 'match', '^run_acmesh_')
       | ansible.builtin.list
     }}
 
 - name: "Molecule | Converge | Include the foundata.acmesh.run role"
   ansible.builtin.include_role:
     name: "foundata.acmesh.run"
-  # vars: All run_acme_* variables are set as facts and passed this way to
+  # vars: All run_acmesh_* variables are set as facts and passed this way to
   #       the role. This enables persisting the values in __testing_state
   #       and restoring them in later stages (e.g. verify) without manually
   #       duplicating data across playbooks.

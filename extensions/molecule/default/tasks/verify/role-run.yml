@@ -9,14 +9,14 @@
 
 ## Preparation
 
-- name: "Molecule | Verify | Set run_acme_* parameters as facts from __testing_state"
+- name: "Molecule | Verify | Set run_acmesh_* parameters as facts from __testing_state"
   ansible.builtin.set_fact:
     "{{ item['key'] }}": "{{ item['value'] }}"
   loop: >-
     {{
       (__testing_state | default({}, true))
       | ansible.builtin.dict2items
-      | ansible.builtin.selectattr('key', 'match', '^run_acme_')
+      | ansible.builtin.selectattr('key', 'match', '^run_acmesh_')
       | ansible.builtin.list
     }}
 
