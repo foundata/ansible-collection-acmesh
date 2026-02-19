@@ -1,0 +1,7 @@
+# Execute the collection role "run" against all driver-created instances (cleanup / absent)
+
+- name: "Molecule | Cleanup | Include the foundata.acmesh.run role"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+  vars:
+    run_fail2ban_state: "absent"
