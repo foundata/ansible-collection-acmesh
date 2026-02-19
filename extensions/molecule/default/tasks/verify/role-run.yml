@@ -9,9 +9,24 @@
 
 ## Preparation
 
-- name: "Molecule | Verify | Set / overwrite other expected configuration or testing data "
+- name: "Molecule | Verify | Set run_acme_* parameters as facts from __testing_state"
+  ansible.builtin.set_fact:
+    "{{ item['key'] }}": "{{ item['value'] }}"
+  loop: >-
+    {{
+      (__testing_state | default({}, true))
+      | ansible.builtin.dict2items
+      | ansible.builtin.selectattr('key', 'match', '^run_acme_')
+      | ansible.builtin.list
+    }}
+
+
+- name: "Molecule | Verify | Set other expected or needed facts"
   ansible.builtin.set_fact:
     __testing_systemctl_exec_path: "/usr/bin/systemctl"
+
+
+## FIXME
 
 - name: "Molecule | Verify | Gather stats for directory: {{ run_acmesh_cfg_home }}"
   ansible.builtin.stat:
