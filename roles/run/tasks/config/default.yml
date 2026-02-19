@@ -85,7 +85,8 @@
     owner: "root"
     group: "root"
     mode: "u=rw,g=r,o=r" # 0644
-  notify: "run_acmesh: systemd daemon-reload"
+  notify:
+    - "run_acmesh: systemd daemon-reload"
 
 
 - name: "Config | Default | Create systemd unit file (acmesh-renewal.timer)"
@@ -106,7 +107,8 @@
     owner: "root"
     group: "root"
     mode: "u=rw,g=r,o=r" # 0644
-  notify: "run_acmesh: systemd daemon-reload"
+  notify:
+    - "run_acmesh: systemd daemon-reload"
 
 
 # debugging: systemctl list-timers --all; systemd-analyze verify acmesh-renewal.timer

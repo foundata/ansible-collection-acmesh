@@ -99,6 +99,8 @@
     fail_msg: "{{ run_acmesh_cfg_config_home }}/account.conf does not exist or has incorrect permissions/ownership"
 
 
+## systemd service / timer
+
 - name: "Molecule | Verify | Gather service facts"
   ansible.builtin.service_facts:
 
@@ -158,6 +160,8 @@
   when:
     - lookup('env', 'TEST_ACMESH_TESTDOMAIN1') | ansible.builtin.length > 0
 
+
+## Files and directories: certificates of test domains
 
 - name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir of first test domain"
   ansible.builtin.assert:
@@ -297,6 +301,8 @@
     - __testing_acmesh_domaincfg_stat['stat']['exists']
     - __testing_acmesh_domaincfg_content is ansible.builtin.defined
 
+
+## Test feature: Update reloadcmd and hooks of test domain config
 
 - name: "Molecule | Verify | Adapt second domain certificate config: Update reloadcmd and hooks"
   ansible.builtin.include_role:

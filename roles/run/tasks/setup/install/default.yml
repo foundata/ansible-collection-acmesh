@@ -222,7 +222,8 @@
     creates: "{{ run_acmesh_cfg_home }}/acme.sh"
   when:
     - not __run_acmesh_is_installed
-  notify: "run_acmesh: set ownership and permissions"
+  notify:
+    - "run_acmesh: set ownership and permissions"
 
 
 - name: "Setup | Install | Default | Upgrade acme.sh"
@@ -272,7 +273,8 @@
     - __run_acmesh_upgrade_result is ansible.builtin.success
     - ('Upgrade success') in __run_acmesh_upgrade_result['stdout']
   register: __run_acmesh_upgrade_result
-  notify: "run_acmesh: set ownership and permissions"
+  notify:
+    - "run_acmesh: set ownership and permissions"
 
 
 # update facts related to state of the local installation
