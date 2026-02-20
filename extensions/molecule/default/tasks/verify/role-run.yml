@@ -304,6 +304,10 @@
 
 ## Test feature: Update reloadcmd and hooks of test domain config
 
+- name: "Molecule | Verify | Flush handlers now"
+  meta: "flush_handlers"
+
+
 - name: "Molecule | Verify | Adapt second domain certificate config: Update reloadcmd and hooks"
   ansible.builtin.include_role:
     name: "foundata.acmesh.run"
@@ -389,3 +393,193 @@
     - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length > 0
     - __testing_acmesh_domaincfg_stat['stat']['exists']
     - __testing_acmesh_domaincfg_content is ansible.builtin.defined
+
+
+## Test uninstall: additional, non-primary group removal (no additional members)
+
+- name: "Molecule | Verify | Flush handlers now"
+  meta: "flush_handlers"
+
+
+- name: "Molecule | Verify | Include the foundata.acmesh.run role (with additional, non-primary group)"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+  vars:
+    run_acmesh_state: "present"
+    run_acmesh_group: "acmesh-foobar"
+
+
+- name: "Molecule | Verify | Query user existence after install: {{ run_acmesh_user }}"
+  ansible.builtin.getent:
+    database: "passwd"
+    key: "{{ run_acmesh_user }}"
+    fail_key: false
+
+
+- name: "Molecule | Verify | Query group existence after install: acmesh-foobar"
+  ansible.builtin.getent:
+    database: "group"
+    key: "acmesh-foobar"
+    fail_key: false
+
+
+- name: "Molecule | Verify | Assert user and group exist after install"
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['getent_passwd'][run_acmesh_user] is not none
+      - ansible_facts['getent_group']['acmesh-foobar'] is not none
+    fail_msg: "User {{ run_acmesh_user }} or group acmesh-foobar does not exist after install"
+
+
+- name: "Molecule | Verify | Include the foundata.acmesh.run role (uninstall with additional, non-primary group)"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+  vars:
+    run_acmesh_state: "absent"
+    run_acmesh_group: "acmesh-foobar"
+
+
+- name: "Molecule | Verify | Query user existence after uninstall: {{ run_acmesh_user }}"
+  ansible.builtin.getent:
+    database: "passwd"
+    key: "{{ run_acmesh_user }}"
+    fail_key: false
+
+
+- name: "Molecule | Verify | Query group existence after uninstall: acmesh-foobar"
+  ansible.builtin.getent:
+    database: "group"
+    key: "acmesh-foobar"
+    fail_key: false
+
+
+- name: "Molecule | Verify | Assert user and group (which was empty) do not exist after uninstall"
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['getent_passwd'][run_acmesh_user] is none
+      - ansible_facts['getent_group']['acmesh-foobar'] is none
+    fail_msg: "User {{ run_acmesh_user }} or group acmesh-foobar still exists after uninstall"
+
+
+## Test uninstall: additional, no non-primary group removal (additional members)
+
+- name: "Molecule | Verify | Flush handlers now"
+  meta: "flush_handlers"
+
+
+- name: "Molecule | Verify | Include the foundata.acmesh.run role (with additional, non-primary group)"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+  vars:
+    run_acmesh_state: "present"
+    run_acmesh_group: "acmesh-foobar"
+
+
+- name: "Molecule | Verify | Create dummy user for group membership test: acmesh-dummyuser"
+  ansible.builtin.user:
+    name: "acmesh-dummyuser"
+    state: "present"
+    system: true
+    create_home: false
+    shell: "/sbin/nologin"
+
+
+- name: "Molecule | Verify | Add acmesh-dummyuser to group: acmesh-foobar"
+  ansible.builtin.user:
+    name: "acmesh-dummyuser"
+    groups:
+      - "acmesh-foobar"
+    append: true
+
+
+- name: "Molecule | Verify | Add root to group: acmesh-foobar"
+  ansible.builtin.user:
+    name: "root"
+    groups:
+      - "acmesh-foobar"
+    append: true
+
+
+- name: "Molecule | Verify | Query group members before uninstall: acmesh-foobar"
+  ansible.builtin.getent:
+    database: "group"
+    key: "acmesh-foobar"
+    fail_key: false
+
+
+- name: "Molecule | Verify | Set group members fact before uninstall: acmesh-foobar"
+  ansible.builtin.set_fact:
+    __testing_acmesh_foobar_members: >-
+      {{
+        ansible_facts['getent_group']['acmesh-foobar'][2]
+        | ansible.builtin.default('', true)
+        | ansible.builtin.split(',')
+      }}
+
+
+- name: "Molecule | Verify | Assert all expected users are members of group: acmesh-foobar"
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['getent_group']['acmesh-foobar'] is not none
+      - run_acmesh_user in __testing_acmesh_foobar_members
+      - "'acmesh-dummyuser' in __testing_acmesh_foobar_members"
+      - "'root' in __testing_acmesh_foobar_members"
+    fail_msg: "Not all expected users are members of group acmesh-foobar"
+
+
+- name: "Molecule | Verify | Include the foundata.acmesh.run role (uninstall with additional, non-empty non-primary group)"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+  vars:
+    run_acmesh_state: "absent"
+    run_acmesh_group: "acmesh-foobar"
+
+
+- name: "Molecule | Verify | Query user existence after uninstall: {{ run_acmesh_user }}"
+  ansible.builtin.getent:
+    database: "passwd"
+    key: "{{ run_acmesh_user }}"
+    fail_key: false
+
+
+- name: "Molecule | Verify | Query group existence after uninstall: acmesh-foobar"
+  ansible.builtin.getent:
+    database: "group"
+    key: "acmesh-foobar"
+    fail_key: false
+
+
+- name: "Molecule | Verify | Set group members fact after uninstall: acmesh-foobar"
+  ansible.builtin.set_fact:
+    __testing_acmesh_foobar_members: >-
+      {{
+        ansible_facts['getent_group']['acmesh-foobar'][2]
+        | ansible.builtin.default('', true)
+        | ansible.builtin.split(',')
+        | ansible.builtin.reject('equalto', '')
+        | ansible.builtin.list
+      }}
+  when:
+    - ansible_facts['getent_group']['acmesh-foobar'] is not none
+
+
+- name: "Molecule | Verify | Assert user does not exist but group retained with other members"
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['getent_passwd'][run_acmesh_user] is none
+      - ansible_facts['getent_group']['acmesh-foobar'] is not none
+      - "'acmesh-dummyuser' in __testing_acmesh_foobar_members"
+      - "'root' in __testing_acmesh_foobar_members"
+    fail_msg: "Expected user {{ run_acmesh_user }} to be absent and group acmesh-foobar to be retained with acmesh-dummyuser and root as members"
+
+
+- name: "Molecule | Verify | Clean up dummy user: acmesh-dummyuser"
+  ansible.builtin.user:
+    name: "acmesh-dummyuser"
+    state: "absent"
+
+
+- name: "Molecule | Verify | Clean up dummy group: acmesh-dummyuser"
+  ansible.builtin.group:
+    name: "acmesh-foobar"
+    state: "absent"

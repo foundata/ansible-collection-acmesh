@@ -49,6 +49,46 @@
     force: true
 
 
+# The service user's supplementary group (run_acmesh_group) may differ from the
+# primary group (which shares the username). The following tasks query the group,
+# filter out the just-deleted service user (userdel does not clean supplementary
+# entries in /etc/group), and delete the group only if no other members remain.
+- name: "Setup | Uninstall | Default | Query group information: {{ run_acmesh_group }}"
+  ansible.builtin.getent:
+    database: "group"
+    key: "{{ run_acmesh_group }}"
+    fail_key: false
+  when:
+    - run_acmesh_group != run_acmesh_user
+
+
+- name: "Setup | Uninstall | Default | Determine remaining members of group: {{ run_acmesh_group }}"
+  ansible.builtin.set_fact:
+    __run_acmesh_group_remaining_members: >-
+      {{
+        ansible_facts['getent_group'][run_acmesh_group][2]
+        | ansible.builtin.default('', true)
+        | ansible.builtin.split(',')
+        | ansible.builtin.reject('equalto', run_acmesh_user)
+        | ansible.builtin.reject('equalto', '')
+        | ansible.builtin.list
+      }}
+  when:
+    - run_acmesh_group != run_acmesh_user
+    - ansible_facts['getent_group'] is ansible.builtin.defined
+    - ansible_facts['getent_group'][run_acmesh_group] is not none
+
+
+- name: "Setup | Uninstall | Default | Delete group if no other members: {{ run_acmesh_group }}"
+  ansible.builtin.group:
+    name: "{{ run_acmesh_group }}"
+    state: "absent"
+  when:
+    - run_acmesh_group != run_acmesh_user
+    - __run_acmesh_group_remaining_members is ansible.builtin.defined
+    - (__run_acmesh_group_remaining_members | ansible.builtin.length) == 0
+
+
 - name: "Setup | Uninstall | Disable acmesh-renewal.timer (best-effort)"
   ansible.builtin.systemd_service:
     name: "acmesh-renewal.timer"
@@ -72,5 +112,3 @@
     - "{{ __run_acmesh_systemd_renewal_timerfile_path }}"
   notify:
     - "run_acmesh: systemd daemon-reload"
-
-# FIXME / TODO delete additional, non-primary group for service user if it is empty

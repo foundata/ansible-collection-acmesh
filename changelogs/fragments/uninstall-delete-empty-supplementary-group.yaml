@@ -1,0 +1,6 @@
+---
+
+minor_changes:
+  - >
+    ``foundata.acmesh.run`` - The uninstall tasks now check ``run_acmesh_group``
+    membership and delete the supplementary group if no other members remain.
