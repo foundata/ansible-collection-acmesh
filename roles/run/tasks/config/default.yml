@@ -82,9 +82,9 @@
       StandardError=journal
       SyslogIdentifier=acme.sh
     force: true
-    owner: "root"
-    group: "root"
-    mode: "u=rw,g=r,o=r" # 0644
+    owner: "{{ __run_acmesh_systemd_renewal_servicefile_owner }}"
+    group: "{{ __run_acmesh_systemd_renewal_servicefile_group }}"
+    mode: "{{ __run_acmesh_systemd_renewal_servicefile_mode }}"
   notify:
     - "run_acmesh: systemd daemon-reload"
 
@@ -104,9 +104,9 @@
       [Install]
       WantedBy=timers.target
     force: true
-    owner: "root"
-    group: "root"
-    mode: "u=rw,g=r,o=r" # 0644
+    owner: "{{ __run_acmesh_systemd_renewal_timerfile_owner }}"
+    group: "{{ __run_acmesh_systemd_renewal_timerfile_group }}"
+    mode: "{{ __run_acmesh_systemd_renewal_timerfile_mode }}"
   notify:
     - "run_acmesh: systemd daemon-reload"
 

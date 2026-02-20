@@ -36,8 +36,8 @@
     dest: "{{ run_acmesh_cfg_cert_home }}"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
-    directory_mode: "u=rwx,g=rx,o=" # 0750
-    mode: "u=rw,g=rw,o=" # 0640
+    directory_mode: "{{ __run_acmesh_cfg_cert_home_dir_mode }}"
+    mode: "{{ __run_acmesh_cfg_cert_home_file_mode }}"
     remote_src: false
     decrypt: true
     force: false # do not overwrite anything if already existing on target
@@ -81,8 +81,8 @@
     dest: "{{ run_acmesh_cfg_cert_home }}"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
-    directory_mode: "u=rwx,g=rx,o=" # 0750
-    mode: "u=rw,g=r,o=" # 0640
+    directory_mode: "{{ __run_acmesh_cfg_cert_home_dir_mode }}"
+    mode: "{{ __run_acmesh_cfg_cert_home_file_mode }}"
     remote_src: false
     decrypt: true
     force: false # do not overwrite anything if already existing on target
@@ -222,7 +222,7 @@
     state: "directory"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
-    mode: "u=rwx,g=rx,o=" # 0750
+    mode: "{{ __run_acmesh_cfg_cert_install_dir_mode }}"
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
@@ -242,7 +242,7 @@
     state: "directory"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
-    mode: "u=rwx,g=rx,o=" # 0750
+    mode: "{{ __run_acmesh_cfg_cert_install_dir_mode }}"
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
@@ -262,7 +262,7 @@
     state: "directory"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
-    mode: "u=rwx,g=rx,o=" # 0750
+    mode: "{{ __run_acmesh_cfg_cert_install_dir_mode }}"
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
@@ -282,7 +282,7 @@
     state: "directory"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
-    mode: "u=rwx,g=rx,o=" # 0750
+    mode: "{{ __run_acmesh_cfg_cert_install_dir_mode }}"
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
@@ -368,7 +368,7 @@
     path: "{{ item }}"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
-    mode: "0640"
+    mode: "{{ __run_acmesh_cfg_cert_install_file_mode }}"
   loop: >-
     {{
       run_acmesh_certs | ansible.builtin.default([])

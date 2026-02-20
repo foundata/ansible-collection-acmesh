@@ -1,0 +1,10 @@
+---
+
+bugfixes:
+  - >
+    ``foundata.acmesh.run`` - Fixed incorrect group ownership on renewed
+    certificate files by setting the SGID bit (``2750``) on certificate
+    directories. Without it, files created by acme.sh during automatic renewal
+    via the systemd timer were owned by the service user's primary group instead
+    of ``run_acmesh_group``, which could not be corrected without an additional
+    Ansible run.

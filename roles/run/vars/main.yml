@@ -108,11 +108,30 @@ __run_acmesh_profiled_envfile_path: "/etc/profile.d/acme.sh.env.sh"
 # Path to the systemd service unit file for acme.sh certificate renewal. This
 # defines the command and execution environment for automated certificate renewal.
 __run_acmesh_systemd_renewal_servicefile_path: "/etc/systemd/system/acmesh-renewal.service"
+__run_acmesh_systemd_renewal_servicefile_owner: "root"
+__run_acmesh_systemd_renewal_servicefile_group: "root"
+__run_acmesh_systemd_renewal_servicefile_mode: "u=rw,g=r,o=r" # 0644
 
 
 # Path to the systemd timer unit file for acme.sh certificate renewal. This
 # timer schedules the execution of the renewal service at regular intervals.
 __run_acmesh_systemd_renewal_timerfile_path: "/etc/systemd/system/acmesh-renewal.timer"
+__run_acmesh_systemd_renewal_timerfile_owner: "root"
+__run_acmesh_systemd_renewal_timerfile_group: "root"
+__run_acmesh_systemd_renewal_timerfile_mode: "u=rw,g=r,o=r" # 0644
+
+
+# modes for differt acme.sh directories and files
+__run_acmesh_cfg_home_dir_mode: "u=rwx,g=rx,o=" # 0750; used for run_acmesh_cfg_home
+__run_acmesh_cfg_config_home_dir_mode: "u=rwx,g=rx,o=" # 0750; used for run_acmesh_cfg_config_home
+
+__run_acmesh_cfg_cert_home_dir_mode: "u=rwx,g=rx,o=,g+s" # 2750 (new files inherit directory group); used for run_acmesh_cfg_cert_home
+__run_acmesh_cfg_cert_home_file_mode: "u=rw,g=r,o=" # 0640; used for files in run_acmesh_cfg_cert_home
+
+__run_acmesh_cfg_cert_install_dir_mode: "{{ __run_acmesh_cfg_cert_home_dir_mode }}"
+__run_acmesh_cfg_cert_install_file_mode: "{{ __run_acmesh_cfg_cert_home_file_mode }}"
+
+__run_acmesh_cfg_logfile_file_mode: "u=rw,g=,o=" # 0600; used for run_acmesh_cfg_logfile
 
 
 # Paths of misc executables and resources.

@@ -162,27 +162,33 @@
 
 - name: "Setup | Install | Default | Ensure existence and permissions of main directories"
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ item['path'] }}"
     state: "directory"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
-    mode: "u=rwx,g=rx,o=" # 0750
+    mode: "{{ item['mode'] }}"
   loop:
-    - "{{ run_acmesh_cfg_home }}"
-    - "{{ run_acmesh_cfg_config_home }}"
-    - "{{ run_acmesh_cfg_cert_home }}"
+    - path: "{{ run_acmesh_cfg_home }}"
+      mode: "{{ __run_acmesh_cfg_home_dir_mode }}"
+    - path: "{{ run_acmesh_cfg_config_home }}"
+      mode: "{{ __run_acmesh_cfg_config_home_dir_mode }}"
+    - path: "{{ run_acmesh_cfg_cert_home }}"
+      mode: "{{ __run_acmesh_cfg_cert_home_dir_mode }}"
+  notify:
+    - "run_acmesh: set ownership and permissions"
 
 
 - name: "Setup | Install | Default | Ensure log file existence"
   ansible.builtin.copy:
-    dest: "{{ item }}"
+    dest: "{{ item['path'] }}"
     content: ""
     force: false # create file only if it is not already existing
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
-    mode: "u=rw,g=,o=" # 0600
+    mode: "{{ item['mode'] }}"
   loop:
-    - "{{ run_acmesh_cfg_logfile }}"
+    - path: "{{ run_acmesh_cfg_logfile }}"
+      mode: "{{ __run_acmesh_cfg_logfile_file_mode }}"
 
 
 - name: "Setup | Install | Default | Install acme.sh"
