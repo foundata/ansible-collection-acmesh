@@ -154,7 +154,7 @@ run_acmesh_certs: []
 run_acmesh_user: "acmesh"
 
 # Specifies the group associated with the service user for managing acme.sh and
-# its file permissions.
+# the corresponding file permissions.
 #
 # - Type: str
 # - Required: No

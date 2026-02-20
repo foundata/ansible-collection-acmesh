@@ -40,6 +40,7 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
     - [`run_acmesh_certs['post_hook']`](#variable-run_acmesh_certs-sub-post_hook)
     - [`run_acmesh_certs['renew_hook']`](#variable-run_acmesh_certs-sub-renew_hook)
     - [`run_acmesh_certs['extra_flags']`](#variable-run_acmesh_certs-sub-extra_flags)
+    - [`run_acmesh_certs['environment']`](#variable-run_acmesh_certs-sub-environment)
   - [`run_acmesh_user`](#variable-run_acmesh_user)
   - [`run_acmesh_group`](#variable-run_acmesh_group)
   - [`run_acmesh_cfg_accountemail`](#variable-run_acmesh_cfg_accountemail)
@@ -264,7 +265,7 @@ The following variables can be configured for this role:
 | `run_acmesh_git_fallback_version_branch` | `str` | No | `"master"` | The Git branch to clone when no version tag could be determined from the remote repository (e.g. because `git ls-remote` failed or returned no matching tags).<br><br>See https://github.com/acmesh-official/acme.sh/issues/1162 for why acme.sh uses […](#variable-run_acmesh_git_fallback_version_branch) |
 | `run_acmesh_certs` | `list` | No | `[]` | Defines certificates to be requested, their associated domains, challenge methods, and installation details. Each item in the list is a dictionary with suboptions / keys.<br><br>Example:<br><br>``` run_acmesh_certs: # first certificate: "example.org" […](#variable-run_acmesh_certs) |
 | `run_acmesh_user` | `str` | No | `"acmesh"` | Specifies the service user account that runs acme.sh and owns relevant files and directories. |
-| `run_acmesh_group` | `str` | No | `"acmesh"` | Specifies the group associated with the service user for managing acme.sh and its file permissions. |
+| `run_acmesh_group` | `str` | No | `"acmesh"` | Specifies the group associated with the service user for managing acme.sh and the corresponding file permissions. |
 | `run_acmesh_cfg_accountemail` | `str` | No | `""` | Specifies the email address to be associated with the ACME account. This email is used for expiration notices and recovery purposes. Some ACME providers might refuse to issue certificates if not set. |
 | `run_acmesh_cfg_home` | `str` | No | `"/opt/acme.sh"` | Specifies the installation directory for the acme.sh software (relates to acme.sh option --home). Will also be used as home directory of the service user defined (see `run_acmesh_user`). |
 | `run_acmesh_cfg_config_home` | `str` | No | `"/etc/acme.sh"` | Defines where configuration files are stored (relates to acme.sh option --config-home). |
@@ -493,7 +494,8 @@ Optional. Required for "dns" challenges. Specifies
 the DNS provider for API-based verification. See
 https://github.com/acmesh-official/acme.sh/wiki/dnsapi for supported
 providers and their name. You usually have to provide credentials for
-their APIs via the "run_acmesh_environment" variable.
+their APIs via the global `run_acmesh_environment` variable or the
+per-certificate `environment` key.
 
 - **Type**: `str`
 - **Required**: No
@@ -697,6 +699,26 @@ certificate issuance wich are not natively supported by this role, just pass the
 - **Type**: `str`
 - **Required**: No
 
+#### `run_acmesh_certs['environment']`<a id="variable-run_acmesh_certs-sub-environment"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Optional. Dictionary of environment variables specific to this certificate.
+Setting environment variables per certificate can improve readability, as
+it clearly shows which certificate  or domain is using which credentials
+in setups that involve multiple DNS provider credentials.
+
+These are merged with the  global`run_acmesh_environment`, with
+per-certificate values taking precedence on key conflicts.
+
+Please note that acme.sh DNS API plugins usually persist credentials per
+provider (not per certificate) in `account.conf`, so using different
+credentials for the same DNS provider across certificates will result in
+only the last-written set being saved for automatic renewals.
+
+- **Type**: `dict`
+- **Required**: No
+
 
 
 ### `run_acmesh_user`<a id="variable-run_acmesh_user"></a>
@@ -717,7 +739,7 @@ files and directories.
 [*⇑ Back to ToC ⇑*](#toc)
 
 Specifies the group associated with the service user for managing
-acme.sh and its file permissions.
+acme.sh and the corresponding file permissions.
 
 - **Type**: `str`
 - **Required**: No

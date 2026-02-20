@@ -181,7 +181,8 @@ argument_specs:
                       the DNS provider for API-based verification. See
                       https://github.com/acmesh-official/acme.sh/wiki/dnsapi for supported
                       providers and their name. You usually have to provide credentials for
-                      their APIs via the "run_acmesh_environment" variable.
+                      their APIs via the global `run_acmesh_environment` variable or the
+                      per-certificate `environment` key.
                     type: "str"
                   challenge_alias:
                     description: |
@@ -276,6 +277,22 @@ argument_specs:
               certificate issuance wich are not natively supported by this role, just pass them as
               "--foo --bar 'baz'".
             type: "str"
+          environment:
+            description: |
+              Optional. Dictionary of environment variables specific to this certificate.
+              Setting environment variables per certificate can improve readability, as
+              it clearly shows which certificate  or domain is using which credentials
+              in setups that involve multiple DNS provider credentials.
+
+              These are merged with the  global`run_acmesh_environment`, with
+              per-certificate values taking precedence on key conflicts.
+
+              Please note that acme.sh DNS API plugins usually persist credentials per
+              provider (not per certificate) in `account.conf`, so using different
+              credentials for the same DNS provider across certificates will result in
+              only the last-written set being saved for automatic renewals.
+            type: "dict"
+            version_added: "1.5.0"
 
       run_acmesh_user:
         description: |

@@ -151,6 +151,8 @@
     fail_msg: "acmesh-renewal.service does not have the expected configuration"
 
 
+## Files and directories: certificates of test domains
+
 - name: "Molecule | Verify | Gather stats for directory: certificate data dir of first test domain"
   ansible.builtin.stat:
     path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc/"
@@ -160,8 +162,6 @@
   when:
     - lookup('env', 'TEST_ACMESH_TESTDOMAIN1') | ansible.builtin.length > 0
 
-
-## Files and directories: certificates of test domains
 
 - name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir of first test domain"
   ansible.builtin.assert:
@@ -300,6 +300,52 @@
     - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length > 0
     - __testing_acmesh_domaincfg_stat['stat']['exists']
     - __testing_acmesh_domaincfg_content is ansible.builtin.defined
+
+
+## Environment verification
+#
+# The per-cert environment merge feature (run_acmesh_certs[].environment)
+# works at the Ansible level: per-cert values override global ones via
+# ansible.builtin.combine. However, acme.sh DNS API plugins persist
+# credentials per provider (not per certificate) in account.conf. Using
+# different credentials for the same provider across certificates will
+# result in only the last-written set being saved.
+#
+# The test below verifies that acme.sh has persisted the expected DNS API
+# credentials in account.conf after certificate issuance.
+
+- name: "Molecule | Verify | Read account.conf content"
+  ansible.builtin.slurp:
+    src: "{{ run_acmesh_cfg_config_home }}/account.conf"
+  register: __testing_acmesh_account_conf_content
+  when:
+    - __testing_acmesh_account_conf_stat['stat']['exists']
+
+
+- name: "Molecule | Verify | Display account.conf content"
+  ansible.builtin.debug:
+    msg: "{{ __testing_acmesh_account_conf_decoded.split('\n') }}"
+    verbosity: 1
+  vars:
+    __testing_acmesh_account_conf_decoded: "{{ __testing_acmesh_account_conf_content['content'] | ansible.builtin.b64decode }}"
+  when:
+    - __testing_acmesh_account_conf_stat['stat']['exists']
+    - __testing_acmesh_account_conf_content is ansible.builtin.defined
+
+
+- name: "Molecule | Verify | Assert account.conf contains expected INWX credentials"
+  ansible.builtin.assert:
+    that:
+      - __testing_acmesh_account_conf_decoded is search("SAVED_INWX_User='" ~ lookup('env', 'TEST_ACMESH_INWX_User') ~ "'")
+      - __testing_acmesh_account_conf_decoded is search("SAVED_INWX_Password='" ~ lookup('env', 'TEST_ACMESH_INWX_Password') ~ "'")
+    fail_msg: "account.conf does not contain the expected SAVED_INWX_User/Password values."
+    success_msg: "account.conf contains the expected INWX credentials."
+  vars:
+    __testing_acmesh_account_conf_decoded: "{{ __testing_acmesh_account_conf_content['content'] | ansible.builtin.b64decode }}"
+  when:
+    - lookup('env', 'TEST_ACMESH_INWX_User') | ansible.builtin.length > 0
+    - __testing_acmesh_account_conf_stat['stat']['exists']
+    - __testing_acmesh_account_conf_content is ansible.builtin.defined
 
 
 ## Test feature: Update reloadcmd and hooks of test domain config

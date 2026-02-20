@@ -199,7 +199,11 @@
             '' }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
-  environment: "{{ run_acmesh_environment | ansible.builtin.default(omit) }}"
+  environment: >-
+    {{
+      (run_acmesh_environment | ansible.builtin.default({}))
+      | ansible.builtin.combine(item['environment'] | ansible.builtin.default({}))
+    }}
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
@@ -337,7 +341,11 @@
             '' }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
-  environment: "{{ run_acmesh_environment | ansible.builtin.default(omit) }}"
+  environment: >-
+    {{
+      (run_acmesh_environment | ansible.builtin.default({}))
+      | ansible.builtin.combine(item['environment'] | ansible.builtin.default({}))
+    }}
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
