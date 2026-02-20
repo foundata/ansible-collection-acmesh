@@ -1,0 +1,7 @@
+---
+
+bugfixes:
+  - >
+    ``foundata.acmesh.run`` - Fixed handler failure during uninstall by skipping
+    the ownership and permissions handler when ``run_acmesh_cfg_home`` no longer
+    exists.

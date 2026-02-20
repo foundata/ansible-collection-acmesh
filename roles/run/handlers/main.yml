@@ -9,6 +9,14 @@
     - "run_acmesh: systemd daemon-reload"
 
 
+- name: "Handlers | Gather stats for directory: {{ run_acmesh_cfg_home }}"
+  ansible.builtin.stat:
+    path: "{{ run_acmesh_cfg_home }}"
+  register: __run_acmesh_home_stat
+  listen:
+    - "run_acmesh: set ownership and permissions"
+
+
 - name: "Handlers | Set ownership and permissions of files and directories (restrict to user and/or group)"
   # The command or shell module is used here. This approach is justified:
   #
@@ -83,6 +91,10 @@
     executable: "/bin/bash" # Support for other shells untested (so far)
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
+  when:
+    - __run_acmesh_home_stat['stat'] is ansible.builtin.defined
+    - __run_acmesh_home_stat['stat']['isdir'] is ansible.builtin.defined
+    - __run_acmesh_home_stat['stat']['isdir']
   changed_when:
     - __run_acmesh_permissions_result is ansible.builtin.success
     - __run_acmesh_permissions_result['stdout'] | ansible.builtin.trim | ansible.builtin.length > 0
