@@ -31,7 +31,12 @@
   register: __testing_run_acmesh_cfg_home_stat
 
 
-- name: "Molecule | Verify | Check existence, permissions and ownership: {{ run_acmesh_cfg_home }}, {{ run_acmesh_user }}:{{ run_acmesh_group }}"
+- name: >-
+    Molecule | Verify | Check existence, permissions and ownership:
+    {{ run_acmesh_cfg_home }},
+    {{ run_acmesh_user }}:{{ run_acmesh_group }},
+    0750 (u=rwx,g=rx,o=)
+  # noqa: name[template]
   ansible.builtin.assert:
     that:
       - __testing_run_acmesh_cfg_home_stat['stat']['exists']
@@ -50,7 +55,12 @@
   register: __testing_run_acmesh_cfg_config_home_stat
 
 
-- name: "Molecule | Verify | Check existence, permissions and ownership: {{ run_acmesh_cfg_config_home }}, {{ run_acmesh_user }}:{{ run_acmesh_group }}"
+- name: >-
+    Molecule | Verify | Check existence, permissions and ownership:
+    {{ run_acmesh_cfg_config_home }},
+    {{ run_acmesh_user }}:{{ run_acmesh_group }},
+    0750 (u=rwx,g=rx,o=)
+  # noqa: name[template]
   ansible.builtin.assert:
     that:
       - __testing_run_acmesh_cfg_config_home_stat['stat']['exists']
@@ -68,8 +78,12 @@
     get_mime: false
   register: __testing_run_acmesh_cfg_cert_home_stat
 
-
-- name: "Molecule | Verify | Check existence, permissions and ownership: {{ run_acmesh_cfg_cert_home }}, {{ run_acmesh_user }}:{{ run_acmesh_group }}"
+- name: >-
+    Molecule | Verify | Check existence, permissions and ownership:
+    {{ run_acmesh_cfg_cert_home }},
+    {{ run_acmesh_user }}:{{ run_acmesh_group }},
+    2750 (u=rwx,g=rx,o=,g+s)
+  # noqa: name[template]
   ansible.builtin.assert:
     that:
       - __testing_run_acmesh_cfg_cert_home_stat['stat']['exists']
@@ -88,7 +102,12 @@
   register: __testing_acmesh_account_conf_stat
 
 
-- name: "Molecule | Verify | Check existence, permissions and ownership: account.conf, {{ run_acmesh_user }}:{{ run_acmesh_group }}"
+- name: >-
+    Molecule | Verify | Check existence, permissions and ownership:
+    account.conf,
+    {{ run_acmesh_user }}:{{ run_acmesh_group }},
+    0600 (u=rw,g=,o=)
+  # noqa: name[template]
   ansible.builtin.assert:
     that:
       - __testing_acmesh_account_conf_stat['stat']['exists']
@@ -160,7 +179,7 @@
     get_mime: false
   register: __testing_acmesh_testdomain1_certdir_stat
   when:
-    - lookup('env', 'TEST_ACMESH_TESTDOMAIN1') | ansible.builtin.length > 0
+    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN1') | ansible.builtin.length) > 0
 
 
 - name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir of first test domain"
@@ -173,7 +192,7 @@
       - __testing_acmesh_testdomain1_certdir_stat['stat']['gr_name'] == run_acmesh_group
     fail_msg: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc/ does not exist or has incorrect permissions/ownership"
   when:
-    - lookup('env', 'TEST_ACMESH_TESTDOMAIN1') | ansible.builtin.length > 0
+    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN1') | ansible.builtin.length) > 0
 
 
 - name: "Molecule | Verify | Gather stats for directory: certificate data dir of second test domain"
@@ -183,7 +202,7 @@
     get_mime: false
   register: __testing_acmesh_testdomain2_certdir_stat
   when:
-    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length > 0
+    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
 
 
 - name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir of second test domain"
@@ -196,7 +215,7 @@
       - __testing_acmesh_testdomain2_certdir_stat['stat']['gr_name'] == run_acmesh_group
     fail_msg: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/ does not exist or has incorrect permissions/ownership"
   when:
-    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length > 0
+    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
 
 
 - name: "Molecule | Verify | Check certificate config file existence (second domain certificate)"
@@ -206,7 +225,7 @@
     get_mime: false
   register: __testing_acmesh_domaincfg_stat
   when:
-    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length > 0
+    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
 
 
 - name: "Molecule | Verify | Read certificate config file content (second domain certificate)"
@@ -214,7 +233,7 @@
     src: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}.conf"
   register: __testing_acmesh_domaincfg_content
   when:
-    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length > 0
+    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
     - __testing_acmesh_domaincfg_stat['stat']['exists']
 
 
@@ -225,7 +244,7 @@
   vars:
     __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | ansible.builtin.b64decode }}"
   when:
-    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length > 0
+    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
     - __testing_acmesh_domaincfg_stat['stat']['exists']
     - __testing_acmesh_domaincfg_content is ansible.builtin.defined
 
@@ -297,13 +316,13 @@
   vars:
     __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | ansible.builtin.b64decode }}"
   when:
-    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length > 0
+    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
     - __testing_acmesh_domaincfg_stat['stat']['exists']
     - __testing_acmesh_domaincfg_content is ansible.builtin.defined
 
 
 ## Environment verification
-#
+
 # The per-cert environment merge feature (run_acmesh_certs[].environment)
 # works at the Ansible level: per-cert values override global ones via
 # ansible.builtin.combine. However, acme.sh DNS API plugins persist
@@ -351,7 +370,7 @@
 ## Test feature: Update reloadcmd and hooks of test domain config
 
 - name: "Molecule | Verify | Flush handlers now"
-  meta: "flush_handlers"
+  ansible.builtin.meta: "flush_handlers"
 
 
 - name: "Molecule | Verify | Adapt second domain certificate config: Update reloadcmd and hooks"
@@ -398,7 +417,7 @@
       INWX_User: "{{ lookup('env', 'TEST_ACMESH_INWX_User') }}"
       INWX_Password: "{{ lookup('env', 'TEST_ACMESH_INWX_Password') }}"
   when:
-    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length > 0
+    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
   tags:
     - "run_acmesh_cert"
 
@@ -408,7 +427,7 @@
     src: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}.conf"
   register: __testing_acmesh_domaincfg_content
   when:
-    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length > 0
+    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
     - __testing_acmesh_domaincfg_stat['stat']['exists']
 
 
@@ -419,7 +438,7 @@
   vars:
     __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | ansible.builtin.b64decode }}"
   when:
-    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length > 0
+    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
     - __testing_acmesh_domaincfg_stat['stat']['exists']
     - __testing_acmesh_domaincfg_content is ansible.builtin.defined
 
@@ -436,7 +455,7 @@
   vars:
     __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | ansible.builtin.b64decode }}"
   when:
-    - lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length > 0
+    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
     - __testing_acmesh_domaincfg_stat['stat']['exists']
     - __testing_acmesh_domaincfg_content is ansible.builtin.defined
 
@@ -444,7 +463,7 @@
 ## Test uninstall: additional, non-primary group removal (no additional members)
 
 - name: "Molecule | Verify | Flush handlers now"
-  meta: "flush_handlers"
+  ansible.builtin.meta: "flush_handlers"
 
 
 - name: "Molecule | Verify | Include the foundata.acmesh.run role (with additional, non-primary group)"
@@ -510,7 +529,7 @@
 ## Test uninstall: additional, no non-primary group removal (additional members)
 
 - name: "Molecule | Verify | Flush handlers now"
-  meta: "flush_handlers"
+  ansible.builtin.meta: "flush_handlers"
 
 
 - name: "Molecule | Verify | Include the foundata.acmesh.run role (with additional, non-primary group)"
