@@ -1,6 +1,54 @@
 ---
 ancestor: null
 releases:
+  1.5.0:
+    changes:
+      bugfixes:
+        - '``foundata.acmesh.run`` - Fixed handler failure during uninstall by skipping
+          the ownership and permissions handler when ``run_acmesh_cfg_home`` no longer
+          exists.
+
+          '
+        - '``foundata.acmesh.run`` - Fixed incorrect group ownership on renewed certificate
+          files by setting the SGID bit (``2750``) on certificate directories. Without
+          it, files created by acme.sh during automatic renewal via the systemd timer
+          were owned by the service user''s primary group instead of ``run_acmesh_group``,
+          which could not be corrected without an additional Ansible run.
+
+          '
+      minor_changes:
+        - '``foundata.acmesh.run`` - Added optional per-certificate ``environment``
+          key in ``run_acmesh_certs`` items. Setting environment variables per certificate
+          can improve readability, as it clearly shows which certificate or domain
+          is using which credentials in setups that involve multiple DNS provider
+          credentials.
+
+          Per-certificate environment variables are merged with the global ``run_acmesh_environment``,
+          with per-certificate values taking precedence on key conflicts.
+
+          Please note that acme.sh DNS API plugins usually persist credentials per
+          provider (not per certificate) in ``account.conf``, so using different credentials
+          for the same DNS provider across certificates will result in only the last-written
+          set being saved for automatic renewals.
+
+          '
+        - '``foundata.acmesh.run`` - The uninstall tasks now check ``run_acmesh_group``
+          membership and delete the supplementary group if no other members remain.
+
+          '
+      release_summary: 'Release Date: 2026-02-21
+
+
+        Feature and bugfix release.
+
+        '
+    fragments:
+      - 1.5.0-release.yaml
+      - add-per-cert-environment.yaml
+      - fix-cert-dir-sgid-group-inheritance.yaml
+      - fix-handler-exec-on-uninstall.yaml
+      - uninstall-delete-empty-supplementary-group.yaml
+    release_date: '2026-02-21'
   1.4.0:
     changes:
       minor_changes:
