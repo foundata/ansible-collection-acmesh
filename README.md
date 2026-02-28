@@ -31,7 +31,7 @@ It provides resources to manage and use [acme.sh](https://acme.sh/), as shell-ba
 
 ### Role: `foundata.acmesh.run`
 
-The main resource of the collection to issue and manage certificates. See the [role's `README.md`](./roles/run/README.md) for more information and usage examples.
+The primary resource in this collection to issue and manage certificates. See the [role's `README.md`](./roles/run/README.md) for more information and usage examples.
 
 
 
