@@ -1,0 +1,19 @@
+---
+
+bugfixes:
+  - >
+    ``foundata.acmesh.run`` - The ``webroot`` challenge parameter was missing
+    from the role's argument spec (``meta/argument_specs.yml``), causing
+    validation failures when using ``type: webroot`` in
+    ``run_acmesh_certs[].domains[].challenge``. The ``domain_alias``
+    description was also corrected to accurately describe DNS alias mode
+    (see `#15 <https://github.com/foundata/ansible-collection-acmesh/issues/15>`__).
+
+minor_changes:
+  - >
+    Added Molecule tests for webroot (HTTP-01) challenge certificate issuance
+    using `pebble <https://github.com/letsencrypt/pebble>`__ (Let's Encrypt
+    test ACME server). The tests run unconditionally on all platforms (no
+    external credentials required) with a switchable web server backend
+    (nginx or apache, controlled via the ``TEST_ACMESH_WEBROOT_BACKEND``
+    environment variable, defaulting to nginx).
