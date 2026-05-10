@@ -32,6 +32,10 @@ platforms:
     image: "quay.io/foundata/debian12-itt:latest"
     systemd: true
 
+  # Ubuntu 26.04 LTS (Resolute Raccoon)
+  - name: "molecule-ubuntu2604"
+    image: "quay.io/foundata/ubuntu2604-itt:latest"
+    systemd: true
   # Ubuntu 24.04 LTS (Noble Numbat)
   - name: "molecule-ubuntu2404"
     image: "quay.io/foundata/ubuntu2404-itt:latest"

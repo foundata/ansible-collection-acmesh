@@ -1,0 +1,6 @@
+---
+
+minor_changes:
+  - >
+    Added Ubuntu 26.04 LTS (Resolute Raccoon) as supported platform for all
+    collection roles and Molecule test scenarios.

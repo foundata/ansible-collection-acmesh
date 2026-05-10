@@ -59,6 +59,7 @@ __run_acmesh_supported_platforms:
       - "10"
   - name: "Ubuntu"
     versions:
+      - "26.04"
       - "24.04"
       - "22.04"
 
