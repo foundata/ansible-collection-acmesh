@@ -48,8 +48,8 @@ __run_acmesh_supported_platforms:
       - "13"
   - name: "Fedora"
     versions:
+      - "44"
       - "43"
-      - "42"
   - name: "openSUSE Leap"
     versions:
       - "16.0"

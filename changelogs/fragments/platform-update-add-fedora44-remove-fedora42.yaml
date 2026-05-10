@@ -1,0 +1,12 @@
+---
+
+minor_changes:
+  - >
+    Added Fedora 44 as supported platform for all collection roles and Molecule test
+    scenarios.
+
+removed_features:
+  - >
+    Removed Fedora 42 support (End of Life, EOL) from collection roles and Molecule
+    scenarios. The collection may still work on Fedora 42, but no testing or bugfixes
+    will be provided. A warning will be displayed when used on unsupported platforms.
