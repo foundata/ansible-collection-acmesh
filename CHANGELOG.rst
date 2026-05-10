@@ -4,6 +4,26 @@ foundata.acmesh Ansible collection Release Notes
 
 .. contents:: Topics
 
+v1.5.1
+======
+
+Release Summary
+---------------
+
+Release Date: 2026-05-10
+
+Bugfix release.
+
+Minor Changes
+-------------
+
+- Added Molecule tests for webroot (HTTP-01) challenge certificate issuance using `pebble <https://github.com/letsencrypt/pebble>`__ (Let's Encrypt test ACME server). The tests run unconditionally on all platforms (no external credentials required) with a switchable web server backend (nginx or apache, controlled via the ``TEST_ACMESH_WEBROOT_BACKEND`` environment variable, defaulting to nginx).
+
+Bugfixes
+--------
+
+- ``foundata.acmesh.run`` - The ``webroot`` challenge parameter was missing from the role's argument spec (``meta/argument_specs.yml``), causing validation failures when using ``type: webroot`` in ``run_acmesh_certs[].domains[].challenge``. The ``domain_alias`` description was also corrected to accurately describe DNS alias mode (see `#15 <https://github.com/foundata/ansible-collection-acmesh/issues/15>`__).
+
 v1.5.0
 ======
 
@@ -18,9 +38,7 @@ Minor Changes
 -------------
 
 - ``foundata.acmesh.run`` - Added optional per-certificate ``environment`` key in ``run_acmesh_certs`` items. Setting environment variables per certificate can improve readability, as it clearly shows which certificate or domain is using which credentials in setups that involve multiple DNS provider credentials.
-
   Per-certificate environment variables are merged with the global ``run_acmesh_environment``, with per-certificate values taking precedence on key conflicts.
-
   Please note that acme.sh DNS API plugins usually persist credentials per provider (not per certificate) in ``account.conf``, so using different credentials for the same DNS provider across certificates will result in only the last-written set being saved for automatic renewals.
 - ``foundata.acmesh.run`` - The uninstall tasks now check ``run_acmesh_group`` membership and delete the supplementary group if no other members remain.
 
