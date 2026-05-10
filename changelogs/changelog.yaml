@@ -1,6 +1,35 @@
 ---
 ancestor: null
 releases:
+  1.6.0:
+    changes:
+      minor_changes:
+        - 'Added Fedora 44 as supported platform for all collection roles and Molecule
+          test scenarios.
+
+          '
+        - 'Added Ubuntu 26.04 LTS (Resolute Raccoon) as supported platform for all
+          collection roles and Molecule test scenarios.
+
+          '
+      release_summary: 'Release Date: 2026-05-11
+
+
+        Maintenance release.
+
+        '
+      removed_features:
+        - 'Removed Fedora 42 support (End of Life, EOL) from collection roles and
+          Molecule scenarios. The collection may still work on Fedora 42, but no testing
+          or bugfixes will be provided. A warning will be displayed when used on unsupported
+          platforms.
+
+          '
+    fragments:
+      - 1.6.0-release.yaml
+      - platform-update-add-fedora44-remove-fedora42.yaml
+      - platform-update-add-ubuntu2604.yaml
+    release_date: '2026-05-11'
   1.5.1:
     changes:
       bugfixes:
