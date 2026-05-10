@@ -58,6 +58,7 @@
           server: "letsencrypt_test"
           force: false # optional
           debug: false # optional
+
         # second certificate: main domain with an additional www. SAN
         - domains:
             - name: "{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}"
@@ -85,6 +86,7 @@
           post_hook: "true post" # optional; using a dummy command here to later check if value updating works
           renew_hook: "true renew" # optional; using a dummy command here to later check if value updating works
           extra_flags: "" # optional (workaround for edge cases, put --whatever here)
+
       # Environment variables needed for the DNS API authentication for
       # type: "dns" and dns_provider: "dns_inwx"
       run_acmesh_environment:
@@ -93,6 +95,61 @@
   when:
     - __testing_missing_envvars_dnschallenge is not ansible.builtin.defined or
       ((__testing_missing_envvars_dnschallenge | ansible.builtin.length) <= 0)
+
+
+## Webroot certificate via pebble (runs unconditionally when pebble is available)
+
+- name: "Molecule | Converge | Set default account email for pebble if not already configured"
+  ansible.builtin.include_tasks:
+    file: "../tasks/state_update.yml"
+  vars:
+    __testing_state_update:
+      run_acmesh_cfg_accountemail: "test@acmesh-webroot.test"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+    - __testing_state['run_acmesh_cfg_accountemail'] is not ansible.builtin.defined or
+      (__testing_state['run_acmesh_cfg_accountemail'] | ansible.builtin.length) <= 0
+
+
+- name: "Molecule | Converge | Append webroot (pebble) certificate config to run_acmesh_certs"
+  ansible.builtin.include_tasks:
+    file: "../tasks/state_update.yml"
+  vars:
+    __testing_state_update:
+      run_acmesh_certs: >-
+        {{
+          (__testing_state['run_acmesh_certs'] | ansible.builtin.default([], true))
+          +
+          [{
+            'domains': [{
+              'name': 'acmesh-webroot.test',
+              'challenge': {
+                'type': 'webroot',
+                'webroot': '/var/www/acmesh-test'
+              }
+            }],
+            'install': {
+              'ca_file': '/etc/pki/tls/certs/acmesh-webroot.test/ca.cer',
+              'cert_file': '/etc/pki/tls/certs/acmesh-webroot.test/cert.cer',
+              'fullcain_file': '/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer',
+              'key_file': '/etc/pki/tls/certs/acmesh-webroot.test/cert.key',
+              'reloadcmd': ''
+            },
+            'server': 'https://localhost:14000/dir',
+            'extra_flags': '--ca-bundle /etc/pebble/certs/pebble.minica.pem'
+          }]
+        }}
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+    - >-
+      'acmesh-webroot.test' not in
+      (
+        (__testing_state['run_acmesh_certs'] | ansible.builtin.default([]))
+        | map(attribute='domains', default=[])
+        | flatten
+        | map(attribute='name', default='')
+        | list
+      )
 
 
 - name: "Molecule | Converge | Set run_acmesh_* parameters as facts from __testing_state"

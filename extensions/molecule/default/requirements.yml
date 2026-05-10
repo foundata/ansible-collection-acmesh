@@ -6,3 +6,5 @@ roles: []
 
 collections:
   - "containers.podman"
+  - "foundata.nginx"
+  - "foundata.apache_httpd"

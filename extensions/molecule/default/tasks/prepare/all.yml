@@ -1,0 +1,298 @@
+# Tasks for the Molecule prepare stage: Add resources needed for later steps
+# (e.g. verify) on all driver-created instances.
+
+- name: "Molecule | Prepare | Install needed packages"
+  ansible.builtin.package:
+    name:
+      - "openssl" # read out certificate details during verify
+    state: "present"
+
+
+## Pepple (Let's Encrypt test ACME server, https://github.com/letsencrypt/pebble)
+#
+# Sets up pebble and a web server inside each container for webroot (HTTP-01)
+# challenge testing. Everything runs on localhost within each container so
+# no cross-container networking is needed.
+
+# Get pebble files
+# This extracts the needed files from the available OCI images (easier than
+# determining latest release from Github to get the binaries, the .tar.gz with
+# certificates etc. and check if all fits together)
+
+- name: "Molecule | Prepare | Set pebble staging directory path (localhost)"
+  delegate_to: "localhost"
+  run_once: true # noqa: run-once[task]
+  ansible.builtin.set_fact:
+    __testing_pebble_staging_dir: "{{ molecule_ephemeral_directory }}/pebble"
+
+
+- name: "Molecule | Prepare | Create pebble staging directory (localhost)"
+  delegate_to: "localhost"
+  run_once: true # noqa: run-once[task]
+  ansible.builtin.file:
+    path: "{{ __testing_pebble_staging_dir }}"
+    state: "directory"
+    mode: "u=rwx,g=rx,o=rw" # 0755
+
+
+- name: "Molecule | Prepare | Pull pebble OCI images (localhost)"
+  delegate_to: "localhost"
+  run_once: true # noqa: run-once[task]
+  containers.podman.podman_image:
+    name: "{{ item }}"
+    state: "present"
+  loop:
+    - "ghcr.io/letsencrypt/pebble:latest"
+    - "ghcr.io/letsencrypt/pebble-challtestsrv:latest"
+
+
+- name: "Molecule | Prepare | Extract pebble binary and test certs from OCI image (localhost)"
+  delegate_to: "localhost"
+  run_once: true # noqa: run-once[task]
+  # The command or shell module is used intentionally:
+  # Ansible provides no dedicated module to perform this operation.
+  ansible.builtin.shell:
+    cmd: |
+      set -u              # no uninitialized vars
+      set -e -o pipefail  # exit on (pipeline) errors
+      {{ __testing_podman_exec | default('podman') }} create --name molecule-pebble-extract ghcr.io/letsencrypt/pebble:latest > /dev/null 2>&1
+      {{ __testing_podman_exec | default('podman') }} cp "molecule-pebble-extract:/app" "{{ __testing_pebble_staging_dir }}/pebble"
+      {{ __testing_podman_exec | default('podman') }} cp "molecule-pebble-extract:/test/certs" "{{ __testing_pebble_staging_dir }}/certs"
+      {{ __testing_podman_exec | default('podman') }} rm "molecule-pebble-extract" > /dev/null
+      chmod 0755 "{{ __testing_pebble_staging_dir }}/pebble"
+    creates: "{{ __testing_pebble_staging_dir }}/pebble"
+
+
+- name: "Molecule | Prepare | Extract pebble-challtestsrv binary from OCI image (localhost)"
+  delegate_to: "localhost"
+  run_once: true # noqa: run-once[task]
+  # The command or shell module is used intentionally:
+  # Ansible provides no dedicated module to perform this operation.
+  ansible.builtin.shell:
+    cmd: |
+      set -u              # no uninitialized vars
+      set -e -o pipefail  # exit on (pipeline) errors
+      {{ __testing_podman_exec | default('podman') }} create --name molecule-challtestsrv-extract ghcr.io/letsencrypt/pebble-challtestsrv:latest > /dev/null 2>&1
+      {{ __testing_podman_exec | default('podman') }} cp "molecule-challtestsrv-extract:/app" "{{ __testing_pebble_staging_dir }}/pebble-challtestsrv"
+      {{ __testing_podman_exec | default('podman') }} rm "molecule-challtestsrv-extract" > /dev/null
+      chmod 0755 "{{ __testing_pebble_staging_dir }}/pebble-challtestsrv"
+    creates: "{{ __testing_pebble_staging_dir }}/pebble-challtestsrv"
+
+
+## Pebble infrastructure setup (on each molecule host)
+
+- name: "Molecule | Prepare | Create pebble directories"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: "directory"
+    mode: "u=rwx,g=rx,o=rw" # 0755
+  loop:
+    - "/etc/pebble"
+    - "/etc/pebble/certs"
+
+
+- name: "Molecule | Prepare | Copy pebble binaries to container"
+  ansible.builtin.copy:
+    src: "{{ __testing_pebble_staging_dir }}/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: "u=rwx,g=rx,o=rw" # 0755
+  loop:
+    - "pebble"
+    - "pebble-challtestsrv"
+
+
+- name: "Molecule | Prepare | Copy pebble test certificates to container"
+  ansible.builtin.copy:
+    src: "{{ __testing_pebble_staging_dir }}/certs/{{ item['src'] }}"
+    dest: "/etc/pebble/certs/{{ item['dest'] }}"
+    mode: "u=rw,g=r,o=r" # 0644
+  loop:
+    - src: "pebble.minica.pem"
+      dest: "pebble.minica.pem"
+    - src: "localhost/cert.pem"
+      dest: "cert.pem"
+    - src: "localhost/key.pem"
+      dest: "key.pem"
+
+
+- name: "Molecule | Prepare | Create pebble configuration file"
+  ansible.builtin.copy:
+    dest: "/etc/pebble/pebble-config.json"
+    mode: "u=rw,g=r,o=r" # 0644
+    content: |
+      {
+        "pebble": {
+          "listenAddress": "0.0.0.0:14000",
+          "managementListenAddress": "0.0.0.0:15000",
+          "certificate": "/etc/pebble/certs/cert.pem",
+          "privateKey": "/etc/pebble/certs/key.pem",
+          "httpPort": 80,
+          "tlsPort": 443,
+          "ocspResponderURL": "",
+          "externalAccountBindingRequired": false
+        }
+      }
+
+
+- name: "Molecule | Prepare | Create pebble-challtestsrv systemd service"
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/pebble-challtestsrv.service"
+    mode: "u=rw,g=r,o=r" # 0644
+    content: |
+      [Unit]
+      Description=Pebble ACME challenge test server (DNS resolver)
+      After=network.target
+
+      [Service]
+      Type=simple
+      ExecStart=/usr/local/bin/pebble-challtestsrv -dnsserver ":8053" -http01 "" -https01 "" -tlsalpn01 "" -doh "" -defaultIPv4 "127.0.0.1" -defaultIPv6 ""
+      Restart=on-failure
+      RestartSec=2
+
+      [Install]
+      WantedBy=multi-user.target
+
+
+- name: "Molecule | Prepare | Create pebble systemd service"
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/pebble.service"
+    mode: "u=rw,g=r,o=r" # 0644
+    content: |
+      [Unit]
+      Description=Pebble ACME test server
+      After=pebble-challtestsrv.service
+      Requires=pebble-challtestsrv.service
+
+      [Service]
+      Type=simple
+      Environment=PEBBLE_VA_NOSLEEP=1
+      ExecStart=/usr/local/bin/pebble -config /etc/pebble/pebble-config.json -dnsserver 127.0.0.1:8053
+      Restart=on-failure
+      RestartSec=2
+
+      [Install]
+      WantedBy=multi-user.target
+
+
+- name: "Molecule | Prepare | Reload systemd daemon"
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+
+- name: "Molecule | Prepare | Start pebble-challtestsrv service"
+  ansible.builtin.systemd:
+    name: "pebble-challtestsrv.service"
+    state: "started"
+    enabled: true
+
+
+- name: "Molecule | Prepare | Start pebble service"
+  ansible.builtin.systemd:
+    name: "pebble.service"
+    state: "started"
+    enabled: true
+
+
+- name: "Molecule | Prepare | Wait for pebble ACME directory to become available"
+  ansible.builtin.uri:
+    url: "https://localhost:14000/dir"
+    validate_certs: false
+    status_code: 200
+  register: __testing_pebble_health
+  retries: 15
+  delay: 2
+  until: __testing_pebble_health is ansible.builtin.success
+
+
+## Web server setup (switchable backend via TEST_ACMESH_WEBROOT_BACKEND)
+
+- name: "Molecule | Prepare | Determine backend for webroot testing"
+  ansible.builtin.set_fact:
+    __testing_webroot_backend: "{{ lookup('env', 'TEST_ACMESH_WEBROOT_BACKEND') | ansible.builtin.default('nginx', true) | ansible.builtin.lower }}"
+
+
+- name: "Molecule | Prepare | Show used webroot backend"
+  ansible.builtin.debug:
+    msg: >
+      Using "{{ __testing_webroot_backend }}" as webroot backend. Set the
+      TEST_ACMESH_WEBROOT_BACKEND environment variables to switch (available:
+      "nginx", "apache").
+
+
+- name: "Molecule | Prepare | Create webroot directory"
+  ansible.builtin.file:
+    path: "/var/www/acmesh-test"
+    state: "directory"
+    owner: "root"
+    group: "root"
+    mode: "u=rwx,g=rx,o=rw" # 0755
+
+
+- name: "Molecule | Prepare | Include foundata.nginx.run role for webroot serving"
+  ansible.builtin.include_role:
+    name: "foundata.nginx.run"
+  vars:
+    run_nginx_state: "present"
+    run_nginx_service_state: "enabled"
+    run_nginx_sites_config:
+      - name: "acmesh-webroot-test"
+        enabled: true
+        content: |
+          server {
+              listen 80;
+              listen [::]:80;
+              server_name acmesh-webroot.test;
+              root /var/www/acmesh-test;
+
+              location / {
+                  try_files $uri =404;
+              }
+          }
+  when:
+    - __testing_webroot_backend == 'nginx'
+
+
+- name: "Molecule | Prepare | Include foundata.apache_httpd.run role for webroot serving"
+  ansible.builtin.include_role:
+    name: "foundata.apache_httpd.run"
+  vars:
+    run_apache_httpd_state: "present"
+    run_apache_httpd_service_state: "enabled"
+    run_apache_httpd_vhosts_config:
+      - name: "acmesh-webroot-test"
+        enabled: true
+        content: |
+          <VirtualHost *:80>
+              ServerName acmesh-webroot.test
+              DocumentRoot /var/www/acmesh-test
+
+              <Directory /var/www/acmesh-test>
+                  Require all granted
+              </Directory>
+          </VirtualHost>
+  when:
+    - __testing_webroot_backend == 'apache'
+
+
+- name: "Molecule | Prepare | Verify web server responds on port 80"
+  ansible.builtin.uri:
+    url: "http://localhost:80/"
+    headers:
+      Host: "acmesh-webroot.test"
+    status_code:
+      - 200 # OK
+      - 403 # Forbidden
+      - 404 # Not found
+  register: __testing_webserver_health
+  retries: 10
+  delay: 2
+  until: __testing_webserver_health is ansible.builtin.success
+
+
+- name: "Molecule | Prepare | Store pebble and webroot settings in __testing_state"
+  ansible.builtin.include_tasks:
+    file: "../tasks/state_update.yml"
+  vars:
+    __testing_state_update:
+      __testing_webroot_backend: "{{ __testing_webroot_backend }}"
+      __testing_pebble_available: true

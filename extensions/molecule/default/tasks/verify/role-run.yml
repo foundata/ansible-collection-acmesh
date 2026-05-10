@@ -304,6 +304,88 @@
     - __testing_acmesh_cert_files_installed_stat['results'] | ansible.builtin.length > 0
 
 
+## Files and directories: webroot (pebble) certificate
+
+- name: "Molecule | Verify | Gather stats for directory: certificate data dir of webroot test domain"
+  ansible.builtin.stat:
+    path: "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc/"
+    get_checksum: false
+    get_mime: false
+  register: __testing_acmesh_webroot_certdir_stat
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+
+
+- name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir of webroot test domain"
+  ansible.builtin.assert:
+    that:
+      - __testing_acmesh_webroot_certdir_stat['stat']['exists']
+      - __testing_acmesh_webroot_certdir_stat['stat']['isdir']
+      - __testing_acmesh_webroot_certdir_stat['stat']['mode'] == '2750'
+      - __testing_acmesh_webroot_certdir_stat['stat']['pw_name'] == run_acmesh_user
+      - __testing_acmesh_webroot_certdir_stat['stat']['gr_name'] == run_acmesh_group
+    fail_msg: "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc/ does not exist or has incorrect permissions/ownership"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+
+
+- name: "Molecule | Verify | Gather stats for installed webroot certificate files"
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    get_checksum: false
+    get_mime: false
+  loop:
+    - "/etc/pki/tls/certs/acmesh-webroot.test/ca.cer"
+    - "/etc/pki/tls/certs/acmesh-webroot.test/cert.cer"
+    - "/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer"
+    - "/etc/pki/tls/certs/acmesh-webroot.test/cert.key"
+  register: __testing_acmesh_webroot_cert_files_stat
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+
+
+- name: "Molecule | Verify | Check existence, permissions and ownership: installed webroot certificate files"
+  ansible.builtin.assert:
+    that:
+      - item['stat']['exists']
+      - item['stat']['isreg']
+      - item['stat']['mode'] == '0640'
+      - item['stat']['pw_name'] == run_acmesh_user
+      - item['stat']['gr_name'] == run_acmesh_group
+    fail_msg: "{{ item['stat']['path'] }} does not exist or has incorrect permissions/ownership"
+  loop: "{{ __testing_acmesh_webroot_cert_files_stat['results'] | ansible.builtin.default([]) }}"
+  loop_control:
+    label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+    - __testing_acmesh_webroot_cert_files_stat['results'] is ansible.builtin.defined
+    - __testing_acmesh_webroot_cert_files_stat['results'] | ansible.builtin.length > 0
+
+
+- name: "Molecule | Verify | Read webroot certificate SAN (Subject Alternative Name)"
+  ansible.builtin.shell:
+    cmd: "openssl x509 -in /etc/pki/tls/certs/acmesh-webroot.test/cert.cer -noout -ext subjectAltName"
+  changed_when: false
+  register: __testing_acmesh_webroot_cert_san
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+
+
+- name: "Molecule | Verify | Assert webroot certificate SAN contains expected domain"
+  ansible.builtin.assert:
+    that:
+      - "'acmesh-webroot.test' in __testing_acmesh_webroot_cert_san['stdout']"
+    fail_msg: >-
+      Webroot certificate SAN does not contain 'acmesh-webroot.test'.
+      Got: {{ __testing_acmesh_webroot_cert_san['stdout'] }}
+    success_msg: "Webroot certificate SAN matches: {{ __testing_acmesh_webroot_cert_san['stdout'] }}"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+    - __testing_acmesh_webroot_cert_san is ansible.builtin.defined
+
+
+## Environment verification
+
 - name: "Molecule | Verify | Verify current reloadcmd and hook values in certificate config file (second domain certificate)"
   ansible.builtin.assert:
     that:
@@ -320,8 +402,6 @@
     - __testing_acmesh_domaincfg_stat['stat']['exists']
     - __testing_acmesh_domaincfg_content is ansible.builtin.defined
 
-
-## Environment verification
 
 # The per-cert environment merge feature (run_acmesh_certs[].environment)
 # works at the Ansible level: per-cert values override global ones via
