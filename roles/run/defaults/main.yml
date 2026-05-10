@@ -167,7 +167,7 @@ run_acmesh_group: "acmesh"
 #
 # - Type: str
 # - Required: No
-# - Default: 
+# - Default:
 run_acmesh_cfg_accountemail: ""
 
 # Specifies the installation directory for the acme.sh software (relates to

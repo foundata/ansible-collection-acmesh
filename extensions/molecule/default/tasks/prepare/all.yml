@@ -32,7 +32,7 @@
   ansible.builtin.file:
     path: "{{ __testing_pebble_staging_dir }}"
     state: "directory"
-    mode: "u=rwx,g=rx,o=rw" # 0755
+    mode: "u=rwx,g=rx,o=rx" # 0755
 
 
 - name: "Molecule | Prepare | Pull pebble OCI images (localhost)"
@@ -55,10 +55,24 @@
     cmd: |
       set -u              # no uninitialized vars
       set -e -o pipefail  # exit on (pipeline) errors
-      {{ __testing_podman_exec | default('podman') }} create --name molecule-pebble-extract ghcr.io/letsencrypt/pebble:latest > /dev/null 2>&1
-      {{ __testing_podman_exec | default('podman') }} cp "molecule-pebble-extract:/app" "{{ __testing_pebble_staging_dir }}/pebble"
-      {{ __testing_podman_exec | default('podman') }} cp "molecule-pebble-extract:/test/certs" "{{ __testing_pebble_staging_dir }}/certs"
-      {{ __testing_podman_exec | default('podman') }} rm "molecule-pebble-extract" > /dev/null
+
+      # create container
+      {{ __testing_podman_exec | default('podman') }} create \
+        --name molecule-pebble-extract \
+        ghcr.io/letsencrypt/pebble:latest > /dev/null 2>&1
+
+      # copy files to from container
+      {{ __testing_podman_exec | default('podman') }} cp \
+        "molecule-pebble-extract:/app" "{{ __testing_pebble_staging_dir }}/pebble"
+
+      {{ __testing_podman_exec | default('podman') }} cp \
+        "molecule-pebble-extract:/test/certs" "{{ __testing_pebble_staging_dir }}/certs"
+
+      # clean-up
+      {{ __testing_podman_exec | default('podman') }} rm \
+        "molecule-pebble-extract" > /dev/null
+
+      # allow reading for all on localhost
       chmod 0755 "{{ __testing_pebble_staging_dir }}/pebble"
     creates: "{{ __testing_pebble_staging_dir }}/pebble"
 
@@ -68,15 +82,30 @@
   run_once: true # noqa: run-once[task]
   # The command or shell module is used intentionally:
   # Ansible provides no dedicated module to perform this operation.
+  # noqa: yaml[line-length]
   ansible.builtin.shell:
     cmd: |
       set -u              # no uninitialized vars
       set -e -o pipefail  # exit on (pipeline) errors
-      {{ __testing_podman_exec | default('podman') }} create --name molecule-challtestsrv-extract ghcr.io/letsencrypt/pebble-challtestsrv:latest > /dev/null 2>&1
-      {{ __testing_podman_exec | default('podman') }} cp "molecule-challtestsrv-extract:/app" "{{ __testing_pebble_staging_dir }}/pebble-challtestsrv"
-      {{ __testing_podman_exec | default('podman') }} rm "molecule-challtestsrv-extract" > /dev/null
+
+      # create container
+      {{ __testing_podman_exec | default('podman') }} create \
+        --name molecule-acmesh-pebble-challtestsrv-extract \
+        ghcr.io/letsencrypt/pebble-challtestsrv:latest > /dev/null 2>&1
+
+      # copy files to from container
+      {{ __testing_podman_exec | default('podman') }} cp \
+        "molecule-acmesh-pebble-challtestsrv-extract:/app" \
+        "{{ __testing_pebble_staging_dir }}/pebble-challtestsrv"
+
+      # clean-up
+      {{ __testing_podman_exec | default('podman') }} rm \
+        "molecule-acmesh-pebble-challtestsrv-extract" > /dev/null
+
+      # allow reading for all on localhost
       chmod 0755 "{{ __testing_pebble_staging_dir }}/pebble-challtestsrv"
-    creates: "{{ __testing_pebble_staging_dir }}/pebble-challtestsrv"
+    creates:
+      - "{{ __testing_pebble_staging_dir }}/pebble-challtestsrv"
 
 
 ## Pebble infrastructure setup (on each molecule host)
@@ -85,7 +114,7 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: "directory"
-    mode: "u=rwx,g=rx,o=rw" # 0755
+    mode: "u=rwx,g=rx,o=rx" # 0755
   loop:
     - "/etc/pebble"
     - "/etc/pebble/certs"
@@ -95,7 +124,7 @@
   ansible.builtin.copy:
     src: "{{ __testing_pebble_staging_dir }}/{{ item }}"
     dest: "/usr/local/bin/{{ item }}"
-    mode: "u=rwx,g=rx,o=rw" # 0755
+    mode: "u=rwx,g=rx,o=rx" # 0755
   loop:
     - "pebble"
     - "pebble-challtestsrv"
@@ -225,7 +254,7 @@
     state: "directory"
     owner: "root"
     group: "root"
-    mode: "u=rwx,g=rx,o=rw" # 0755
+    mode: "u=rwx,g=rx,o=rx" # 0755
 
 
 - name: "Molecule | Prepare | Include foundata.nginx.run role for webroot serving"

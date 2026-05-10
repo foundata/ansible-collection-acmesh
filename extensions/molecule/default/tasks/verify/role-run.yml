@@ -363,8 +363,15 @@
 
 
 - name: "Molecule | Verify | Read webroot certificate SAN (Subject Alternative Name)"
-  ansible.builtin.shell:
-    cmd: "openssl x509 -in /etc/pki/tls/certs/acmesh-webroot.test/cert.cer -noout -ext subjectAltName"
+  ansible.builtin.command:
+    argv:
+      - "openssl"
+      - "x509"
+      - "-in"
+      - "/etc/pki/tls/certs/acmesh-webroot.test/cert.cer"
+      - "-noout"
+      - "-ext"
+      - "subjectAltName"
   changed_when: false
   register: __testing_acmesh_webroot_cert_san
   when:
