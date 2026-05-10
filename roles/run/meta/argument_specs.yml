@@ -194,8 +194,17 @@ argument_specs:
                     type: "str"
                   domain_alias:
                     description: |
+                      Optional. Used with "dns" challenges as an alternative to
+                      `challenge_alias`. Instead of CNAME delegation, the alias domain is
+                      set directly as the domain to use for the DNS challenge validation.
+                      See https://github.com/acmesh-official/acme.sh/wiki/DNS-alias-mode
+                      for details.
+                    type: "str"
+                  webroot:
+                    description: |
                       Optional. Required for "webroot" challenges. Specifies
-                      the directory where the ACME challenge response should be placed.
+                      the directory where the ACME challenge response should be placed
+                      (e.g. the document root of the web server serving the domain).
                       See https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
                       for details.
                     type: "str"
