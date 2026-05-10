@@ -24,6 +24,7 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
         - [`run_acmesh_certs['domains']['challenge']['dns_provider']`](#variable-run_acmesh_certs-sub-domains-sub-challenge-sub-dns_provider)
         - [`run_acmesh_certs['domains']['challenge']['challenge_alias']`](#variable-run_acmesh_certs-sub-domains-sub-challenge-sub-challenge_alias)
         - [`run_acmesh_certs['domains']['challenge']['domain_alias']`](#variable-run_acmesh_certs-sub-domains-sub-challenge-sub-domain_alias)
+        - [`run_acmesh_certs['domains']['challenge']['webroot']`](#variable-run_acmesh_certs-sub-domains-sub-challenge-sub-webroot)
         - [`run_acmesh_certs['domains']['challenge']['httpport']`](#variable-run_acmesh_certs-sub-domains-sub-challenge-sub-httpport)
         - [`run_acmesh_certs['domains']['challenge']['tlsport']`](#variable-run_acmesh_certs-sub-domains-sub-challenge-sub-tlsport)
     - [`run_acmesh_certs['install']`](#variable-run_acmesh_certs-sub-install)
@@ -517,8 +518,22 @@ details.
 
 [*⇑ Back to ToC ⇑*](#toc)
 
+Optional. Used with "dns" challenges as an alternative to
+`challenge_alias`. Instead of CNAME delegation, the alias domain is
+set directly as the domain to use for the DNS challenge validation.
+See https://github.com/acmesh-official/acme.sh/wiki/DNS-alias-mode
+for details.
+
+- **Type**: `str`
+- **Required**: No
+
+###### `run_acmesh_certs['domains']['challenge']['webroot']`<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-webroot"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
 Optional. Required for "webroot" challenges. Specifies
-the directory where the ACME challenge response should be placed.
+the directory where the ACME challenge response should be placed
+(e.g. the document root of the web server serving the domain).
 See https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
 for details.
 
