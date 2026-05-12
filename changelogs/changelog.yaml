@@ -1,6 +1,26 @@
 ---
 ancestor: null
 releases:
+  1.6.1:
+    changes:
+      bugfixes:
+        - '``foundata.acmesh.run`` - Fixed ``acmesh-renewal.timer`` not being started
+          after installation. The systemd timer was only enabled (scheduled for future
+          boots) but never started, so automatic certificate renewal would not begin
+          until the next reboot. The timer is now started immediately when enabled
+          and stopped when disabled or uninstalled (`#16 <https://github.com/foundata/ansible-collection-acmesh/issues/16>`__).
+
+          '
+      release_summary: 'Release Date: 2026-05-12
+
+
+        Bugfix release.
+
+        '
+    fragments:
+      - 1.6.1-release.yaml
+      - issue-16-fix-timer-not-started.yaml
+    release_date: '2026-05-12'
   1.6.0:
     changes:
       minor_changes:

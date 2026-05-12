@@ -4,6 +4,21 @@ foundata.acmesh Ansible collection Release Notes
 
 .. contents:: Topics
 
+v1.6.1
+======
+
+Release Summary
+---------------
+
+Release Date: 2026-05-12
+
+Bugfix release.
+
+Bugfixes
+--------
+
+- ``foundata.acmesh.run`` - Fixed ``acmesh-renewal.timer`` not being started after installation. The systemd timer was only enabled (scheduled for future boots) but never started, so automatic certificate renewal would not begin until the next reboot. The timer is now started immediately when enabled and stopped when disabled or uninstalled (`#16 <https://github.com/foundata/ansible-collection-acmesh/issues/16>`__).
+
 v1.6.0
 ======
 
