@@ -145,6 +145,7 @@
     that:
       - __testing_acmesh_timer_result['status']['LoadState'] == 'loaded'
       - __testing_acmesh_timer_result['status']['UnitFileState'] == 'enabled'
+      - __testing_acmesh_timer_result['status']['ActiveState'] == 'active'
       - __testing_acmesh_timer_result['status']['Triggers'] == 'acmesh-renewal.service'
       - __testing_acmesh_timer_result['status']['Unit'] == 'acmesh-renewal.service'
       - "'timers.target' in __testing_acmesh_timer_result['status']['WantedBy']"

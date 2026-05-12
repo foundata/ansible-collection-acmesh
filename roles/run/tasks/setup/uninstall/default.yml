@@ -93,6 +93,7 @@
   ansible.builtin.systemd_service:
     name: "acmesh-renewal.timer"
     enabled: false
+    state: "stopped"
   failed_when:
     - false
   notify:
