@@ -126,6 +126,8 @@ __run_acmesh_systemd_renewal_timerfile_mode: "u=rw,g=r,o=r" # 0644
 __run_acmesh_cfg_home_dir_mode: "u=rwx,g=rx,o=" # 0750; used for run_acmesh_cfg_home
 __run_acmesh_cfg_config_home_dir_mode: "u=rwx,g=rx,o=" # 0750; used for run_acmesh_cfg_config_home
 
+__run_acmesh_cfg_account_key_file_mode: "u=rw,g=,o=" # 0600; especially sensitiv when dns-persist-01 is used
+
 __run_acmesh_cfg_cert_home_dir_mode: "u=rwx,g=rx,o=,g+s" # 2750 (new files inherit directory group); used for run_acmesh_cfg_cert_home
 __run_acmesh_cfg_cert_home_file_mode: "u=rw,g=r,o=" # 0640; used for files in run_acmesh_cfg_cert_home
 

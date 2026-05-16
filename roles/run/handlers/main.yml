@@ -63,7 +63,7 @@
         -exec chmod -c 0750 {} \;
 
       # Set permissions of non-executables: 0640 / u=rw,g=r,o=
-      # The account.conf will be handled later
+      # The account.conf and ca/<ca-dir>/account.key files will be handled later
       find \
         {{ run_acmesh_cfg_home | ansible.builtin.quote }} \
         {{ run_acmesh_cfg_config_home | ansible.builtin.quote }} \
@@ -71,6 +71,7 @@
         -type f \
         -not -name '*\.sh' \
         -not -wholename {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }} \
+        -not -name 'account.key' \
         -exec chmod -c 0640 {} \;
 
       # Set permissions of executables: 0750 / u=rwx,g=rx,o=
@@ -83,9 +84,14 @@
         -name '*\.sh' \
         -exec chmod -c 0750 {} \;
 
-      # Set permissions of sensitive files directories: 0600 / u=rw,g=,o=
+      # Set permissions of sensitive files: 0600 / u=rw,g=,o=
       chmod -c 0600 {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }} # may contain credentials (e.g. DNS API or notify credentials)
       chmod -c 0600 {{ run_acmesh_cfg_logfile | ansible.builtin.quote }}
+      # handle ca/<ca-dir>/account.key files (especially sensitive with dns-persist-01, contains ACME private key)
+      find \
+        {{ (run_acmesh_cfg_config_home ~ '/ca') | ansible.builtin.quote }} \
+        -name 'account.key' \
+        -exec chmod -c 0600 {} \;
 
       exit 0
     executable: "/bin/bash" # Support for other shells untested (so far)

@@ -1,0 +1,16 @@
+---
+
+minor_changes:
+  - >
+    ``foundata.acmesh.run`` - Added support for the ``dns-persist-01`` ACME challenge type
+    (https://github.com/foundata/ansible-collection-acmesh/issues/17). This challenge uses a
+    static TXT record at ``_validation-persist.<domain>`` bound to the ACME account key,
+    eliminating the need for DNS API credentials during certificate issuance and renewal.
+    New challenge sub-options: ``dns_persist_wildcard``, ``dns_persist_ca_name``, and
+    ``dns_persist_days``. New parameters: ``run_acmesh_account_keys``, and
+    ``run_acmesh_dns_persist_pause``.
+  - >
+    ``foundata.acmesh.run`` - The role now automatically registers ACME accounts, generates
+    dns-persist TXT record values via ``acme.sh --make-dns-persist-value``, and displays
+    human-readable instructions for DNS record publication when certificates use the
+    ``dns_persist`` challenge type.

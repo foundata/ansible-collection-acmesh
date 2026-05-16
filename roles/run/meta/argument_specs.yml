@@ -173,6 +173,7 @@ argument_specs:
                     choices:
                       - "alpn" # Uses acme.sh's builtin standalone webserver which can listen at 443 port to issue the cert.
                       - "dns"
+                      - "dns_persist" # Uses a pre-published static TXT record at _validation-persist.<domain>. No DNS API needed at runtime.
                       - "standalone" # Uses acme.sh's builtin standalone webserver which can listen at 80 port to issue the cert.
                       - "webroot"
                   dns_provider:
@@ -220,6 +221,33 @@ argument_specs:
                       acme.sh's internal HTTPS webserver to listen, might be needed behind a
                       reverse proxy or load balancer.
                     type: "int"
+                  dns_persist_wildcard:
+                    description: |
+                      Optional. Used with "dns_persist" challenges. If true, the persistent
+                      TXT record will also authorize wildcard certificates and matching
+                      subdomains for this domain. Corresponds to acme.sh --dns-persist-wildcard.
+                      See https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode
+                      for details.
+                    type: "bool"
+                    version_added: "1.7.0"
+                  dns_persist_ca_name:
+                    description: |
+                      Optional. Used with "dns_persist" challenges. Specifies a custom CA
+                      identity domain name for the TXT record value (instead of deriving it
+                      from the server URL). Corresponds to acme.sh --dns-persist-ca-name.
+                      See https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode
+                      for details.
+                    type: "str"
+                    version_added: "1.7.0"
+                  dns_persist_days:
+                    description: |
+                      Optional. Used with "dns_persist" challenges. Specifies the number of
+                      days the TXT record should be considered valid (adds a persistUntil
+                      field to the record). Corresponds to acme.sh --dns-persist-days.
+                      See https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode
+                      for details.
+                    type: "int"
+                    version_added: "1.7.0"
           install:
             description: |
               Dictionary defining where to install the issued certificates.
@@ -382,3 +410,60 @@ argument_specs:
           - 3
           - 6
           - 7
+
+      run_acmesh_account_keys:
+        description: |
+          List of ACME account keys to pre-seed. This is useful for `dns-persist-01`
+          challenges where the TXT record is bound to a specific account key, and
+          you want to reuse the same key across multiple servers or after
+          re-installations.
+
+          Each item must specify a `server` (CA alias or URL, same value used in
+          `run_acmesh_certs[].server`) and `account_key` (PEM-encoded private key
+          content). Optionally, `account_json` (the JSON registration metadata) can
+          be provided to avoid re-registration.
+
+          Example:
+
+          ```
+          run_acmesh_account_keys:
+            - server: "letsencrypt"
+              account_key: "\{\{ lookup('ansible.builtin.unvault', 'files/acmesh_account_key_letsencrypt.pem') \}\}"
+              account_json: "\{\{ lookup('ansible.builtin.unvault', 'files/acmesh_account_json_letsencrypt.json') \}\}"
+          ```
+        type: "list"
+        elements: "dict"
+        default: []
+        version_added: "1.7.0"
+        options:
+          server:
+            description: |
+              The CA alias or full ACME directory URL. Must match the value used in
+              `run_acmesh_certs[].server` (e.g., "letsencrypt", "zerossl", or a URL).
+            type: "str"
+            required: true
+          account_key:
+            description: |
+              PEM-encoded ACME account private key content. Sensitive - use
+              `ansible.builtin.unvault` or similar secret management to supply this
+              value.
+            type: "str"
+            required: true
+          account_json:
+            description: |
+              Optional. The JSON registration metadata file content (account.json).
+              If not provided, the role will re-register with the CA after seeding
+              the key, which is safe but generates a new registration.
+            type: "str"
+
+      run_acmesh_dns_persist_pause:
+        description: |
+          Controls the pause duration (in seconds) after displaying dns-persist-01
+          TXT record instructions. Set to `0` to disable the pause (useful for
+          CI/CD pipelines or environments where TXT records are guaranteed to
+          already be published).
+
+          If the pause expires without user confirmation, the play continues.
+        type: "int"
+        default: 600
+        version_added: "1.7.0"

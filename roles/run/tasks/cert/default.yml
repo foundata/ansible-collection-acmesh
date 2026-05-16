@@ -95,6 +95,291 @@
   loop: "{{ __run_acmesh_local_preseed_ecc_result['results'] }}"
 
 
+- name: "Cert | Default | Pre-seed ACME account keys"
+  # The command or shell module is used here. This approach is justified:
+  #
+  # - No built-in Ansible module provides a direct way to manage acme.sh's
+  #   internal account key files, which live in CA-specific subdirectories
+  #   whose paths are only known after running --register-account.
+  # - The script follows the pattern of the hook config update task below.
+  ansible.builtin.shell:
+    cmd: |
+      set -u # Fail on unset vars
+      set -o pipefail # Fail if any pipe cmd fails
+      set -e # Exit on errors
+
+      # Input parameters
+      CONFIG_HOME={{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
+      ACMESH_HOME={{ run_acmesh_cfg_home | ansible.builtin.quote }}
+      SERVER={{ item['server'] | ansible.builtin.quote }}
+      ACCOUNT_KEY_CONTENT={{ item['account_key'] | ansible.builtin.quote }}
+      ACCOUNT_JSON_CONTENT={{ item['account_json'] | ansible.builtin.default('') | ansible.builtin.quote }}
+
+      CHANGES_MADE=0
+
+      # Run register-account to ensure the CA directory structure exists.
+      # This is idempotent - if already registered, it just confirms.
+      "${ACMESH_HOME}/acme.sh" \
+        --register-account \
+        --config-home "${CONFIG_HOME}" \
+        --server "${SERVER}" \
+        {{ '--accountemail ' ~ (run_acmesh_cfg_accountemail | ansible.builtin.quote)
+            if ((run_acmesh_cfg_accountemail is ansible.builtin.defined) and
+                (run_acmesh_cfg_accountemail))
+            else
+            '' }} > /dev/null 2>&1 || true
+
+      # Find the account.key file in the CA directory.
+      # acme.sh stores account keys in: <config_home>/ca/<ca-dir>/account.key
+      ACCOUNT_KEY_FILE=""
+      for keyfile in "${CONFIG_HOME}"/ca/*/account.key
+      do
+          if [ -f "${keyfile}" ]
+          then
+              # Check if this key belongs to the correct server by examining
+              # the ca.conf file in the same directory
+              keydir=$(dirname "${keyfile}")
+              if [ -f "${keydir}/ca.conf" ]
+              then
+                  if {{ __run_acmesh_grep_exec_path }} -qi "${SERVER}" "${keydir}/ca.conf" 2>/dev/null
+                  then
+                      ACCOUNT_KEY_FILE="${keyfile}"
+                      break
+                  fi
+              fi
+          fi
+      done
+
+      # If we did not find it via ca.conf, use the most recently modified one
+      if [ -z "${ACCOUNT_KEY_FILE}" ]
+      then
+          ACCOUNT_KEY_FILE=$(find "${CONFIG_HOME}/ca" -name 'account.key' -printf '%T@ %p\n' 2>/dev/null \
+            | sort -rn | head -1 | cut -d' ' -f2-)
+      fi
+
+      if [ -z "${ACCOUNT_KEY_FILE}" ]
+      then
+          printf "error: Could not find account.key path for server: %s\n" "${SERVER}" 1>&2
+          exit 1
+      fi
+
+      ACCOUNT_KEY_DIR=$(dirname "${ACCOUNT_KEY_FILE}")
+
+      # Compare current key with expected key
+      CURRENT_KEY=""
+      if [ -f "${ACCOUNT_KEY_FILE}" ]
+      then
+          CURRENT_KEY=$(cat "${ACCOUNT_KEY_FILE}")
+      fi
+
+      if [ "${CURRENT_KEY}" != "${ACCOUNT_KEY_CONTENT}" ]
+      then
+          printf "Updating account key for server %s\n" "${SERVER}"
+          printf '%s\n' "${ACCOUNT_KEY_CONTENT}" > "${ACCOUNT_KEY_FILE}"
+          chmod 0600 "${ACCOUNT_KEY_FILE}"
+          chown {{ run_acmesh_user | ansible.builtin.quote }}:{{ run_acmesh_group | ansible.builtin.quote }} "${ACCOUNT_KEY_FILE}"
+          CHANGES_MADE=1
+      fi
+
+      # Handle account.json if provided
+      if [ -n "${ACCOUNT_JSON_CONTENT}" ]
+      then
+          ACCOUNT_JSON_FILE="${ACCOUNT_KEY_DIR}/account.json"
+          CURRENT_JSON=""
+          if [ -f "${ACCOUNT_JSON_FILE}" ]
+          then
+              CURRENT_JSON=$(cat "${ACCOUNT_JSON_FILE}")
+          fi
+
+          if [ "${CURRENT_JSON}" != "${ACCOUNT_JSON_CONTENT}" ]
+          then
+              printf "Updating account.json for server %s\n" "${SERVER}"
+              printf '%s\n' "${ACCOUNT_JSON_CONTENT}" > "${ACCOUNT_JSON_FILE}"
+              chmod 0600 "${ACCOUNT_JSON_FILE}"
+              chown {{ run_acmesh_user | ansible.builtin.quote }}:{{ run_acmesh_group | ansible.builtin.quote }} "${ACCOUNT_JSON_FILE}"
+              CHANGES_MADE=1
+          fi
+      fi
+
+      # Re-register if key was changed (to confirm with CA)
+      if [ "${CHANGES_MADE}" = "1" ]
+      then
+          "${ACMESH_HOME}/acme.sh" \
+            --register-account \
+            --config-home "${CONFIG_HOME}" \
+            --server "${SERVER}" \
+            {{ '--accountemail ' ~ (run_acmesh_cfg_accountemail | ansible.builtin.quote)
+                if ((run_acmesh_cfg_accountemail is ansible.builtin.defined) and
+                    (run_acmesh_cfg_accountemail))
+                else
+                '' }} > /dev/null 2>&1 || true
+          printf "Changed: Re-registered account for server %s after key update." "${SERVER}"
+      fi
+
+      exit 0
+    executable: "/bin/bash" # Support for other shells untested (so far)
+  args:
+    chdir: "{{ run_acmesh_cfg_home }}"
+  when:
+    - __run_acmesh_is_installed
+    - run_acmesh_account_keys is ansible.builtin.defined
+    - (run_acmesh_account_keys | ansible.builtin.length) > 0
+  changed_when:
+    - __run_acmesh_account_preseed_result is ansible.builtin.success
+    - ('Changed') in __run_acmesh_account_preseed_result['stdout']
+  failed_when:
+    - __run_acmesh_account_preseed_result is ansible.builtin.failed
+  loop: "{{ run_acmesh_account_keys | ansible.builtin.default([]) }}"
+  register: __run_acmesh_account_preseed_result
+  no_log: true
+  notify:
+    - "run_acmesh: set ownership and permissions"
+
+
+- name: "Cert | Default | Register ACME accounts for dns-persist-01 domains"
+  # The command or shell module is used here. This approach is justified:
+  #
+  # - No built-in Ansible module provides a direct way to interact with the
+  #   used command.
+  ansible.builtin.command:
+    cmd: >
+      ./acme.sh
+        --register-account
+        --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
+        --server {{ item | ansible.builtin.quote }}
+        {{ '--accountemail ' ~ (run_acmesh_cfg_accountemail | ansible.builtin.quote)
+            if ((run_acmesh_cfg_accountemail is ansible.builtin.defined) and
+                (run_acmesh_cfg_accountemail))
+            else
+            '' }}
+  args:
+    chdir: "{{ run_acmesh_cfg_home }}"
+  when:
+    - __run_acmesh_is_installed
+    - run_acmesh_certs is ansible.builtin.defined
+    - (__run_acmesh_dns_persist_servers | ansible.builtin.length) > 0
+  changed_when:
+    - __run_acmesh_register_result is ansible.builtin.success
+    - ('Registered') in __run_acmesh_register_result['stdout']
+  failed_when:
+    - __run_acmesh_register_result is ansible.builtin.failed
+    - ('Already registered') not in __run_acmesh_register_result['stdout'] | ansible.builtin.default('')
+  loop: "{{ __run_acmesh_dns_persist_servers }}"
+  vars:
+    __run_acmesh_dns_persist_servers: >-
+      {%- set servers = [] -%}
+      {%- for cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+        {%- for domain in (cert['domains'] | ansible.builtin.default([])) -%}
+          {%- if (domain['challenge'] is ansible.builtin.defined) and
+                 (domain['challenge']['type'] is ansible.builtin.defined) and
+                 (domain['challenge']['type'] == 'dns_persist') -%}
+            {%- set _ = servers.append(cert['server'] | ansible.builtin.default('letsencrypt')) -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ servers | ansible.builtin.unique | ansible.builtin.list }}
+  register: __run_acmesh_register_result
+
+
+- name: "Cert | Default | Generate dns-persist-01 TXT record values"
+  # The command or shell module is used here. This approach is justified:
+  #
+  # - No built-in Ansible module provides a direct way to interact with the
+  #   used command.
+  ansible.builtin.command:
+    cmd: >
+      ./acme.sh
+        --make-dns-persist-value
+        --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
+        --domain {{ item['domain'] | ansible.builtin.quote }}
+        --server {{ item['server'] | ansible.builtin.quote }}
+        {{ '--dns-persist-wildcard'
+            if ((item['dns_persist_wildcard'] is ansible.builtin.defined) and
+                (item['dns_persist_wildcard']))
+            else
+            '' }}
+        {{ '--dns-persist-ca-name ' ~ (item['dns_persist_ca_name'] | ansible.builtin.quote)
+            if ((item['dns_persist_ca_name'] is ansible.builtin.defined) and
+                (item['dns_persist_ca_name']))
+            else
+            '' }}
+        {{ '--dns-persist-days ' ~ (item['dns_persist_days'] | ansible.builtin.quote)
+            if ((item['dns_persist_days'] is ansible.builtin.defined) and
+                (item['dns_persist_days']))
+            else
+            '' }}
+  args:
+    chdir: "{{ run_acmesh_cfg_home }}"
+  when:
+    - __run_acmesh_is_installed
+    - run_acmesh_certs is ansible.builtin.defined
+    - (__run_acmesh_dns_persist_domains | ansible.builtin.length) > 0
+  changed_when:
+    - false
+  loop: "{{ __run_acmesh_dns_persist_domains }}"
+  vars:
+    __run_acmesh_dns_persist_domains: >-
+      {%- set domains = [] -%}
+      {%- for cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+        {%- for domain in (cert['domains'] | ansible.builtin.default([])) -%}
+          {%- if (domain['challenge'] is ansible.builtin.defined) and
+                 (domain['challenge']['type'] is ansible.builtin.defined) and
+                 (domain['challenge']['type'] == 'dns_persist') -%}
+            {%- set _ = domains.append({
+              'domain': domain['name'],
+              'server': cert['server'] | ansible.builtin.default('letsencrypt'),
+              'dns_persist_wildcard': domain['challenge']['dns_persist_wildcard'] | ansible.builtin.default(false),
+              'dns_persist_ca_name': domain['challenge']['dns_persist_ca_name'] | ansible.builtin.default(''),
+              'dns_persist_days': domain['challenge']['dns_persist_days'] | ansible.builtin.default('')
+            }) -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ domains }}
+  register: __run_acmesh_dns_persist_values_result
+
+
+- name: "Cert | Default | Display dns-persist-01 TXT record instructions"
+  ansible.builtin.debug:
+    msg: |-
+      dns-persist-01: DNS TXT Resource Record (RR) Instructions
+
+      If not already done, publish the following TXT RR(s) in your DNS:
+      {% for result in __run_acmesh_dns_persist_values_result['results'] | ansible.builtin.default([]) %}
+      {% if result['stdout'] is ansible.builtin.defined %}
+
+        Domain: {{ result['item']['domain'] }}
+        Record name: _validation-persist.{{ result['item']['domain'] }}
+        Record type: TXT
+        Record value: {{ result['stdout'] | ansible.builtin.trim }}
+      {% endif %}
+      {% endfor %}
+
+      Multiple TXT records at the same name are valid (one per ACME account/CA).
+      The record is tied to your ACME account key - do not lose the account key
+      (if the account key is lost, delete the old DNS RR, create a new ACME
+      account, and publish new DNS RR(s)).
+  when:
+    - __run_acmesh_is_installed
+    - __run_acmesh_dns_persist_values_result is ansible.builtin.defined
+    - (__run_acmesh_dns_persist_values_result['results'] | ansible.builtin.default([]) | ansible.builtin.length) > 0
+
+
+- name: "Cert | Default | Pause for dns-persist-01 TXT record publication"
+  ansible.builtin.pause:
+    seconds: "{{ run_acmesh_dns_persist_pause | ansible.builtin.int }}"
+    prompt: >-
+      Waiting for dns-persist-01 TXT records to be published (see instructions
+      above). Press ENTER to continue immediately if records are already in place,
+      or wait for the timeout ({{ run_acmesh_dns_persist_pause }}s) to expire.
+  when:
+    - __run_acmesh_is_installed
+    - run_acmesh_dns_persist_pause is ansible.builtin.defined
+    - (run_acmesh_dns_persist_pause | ansible.builtin.int) > 0
+    - __run_acmesh_dns_persist_values_result is ansible.builtin.defined
+    - (__run_acmesh_dns_persist_values_result['results'] | ansible.builtin.default([]) | ansible.builtin.length) > 0
+
+
 - name: "Cert | Default | Issue certificate(s)"
   # The command or shell module is used here. This approach is justified:
   #
@@ -156,6 +441,36 @@
           {{ '--tlsport ' ~ (item_domain['challenge']['tlsport'] | ansible.builtin.quote)
               if ((item_domain['challenge']['tlsport'] is ansible.builtin.defined) and
                   (item_domain['challenge']['tlsport']))
+              else
+              '' }}
+          {{ '--dns-persist'
+              if ((item_domain['challenge'] is ansible.builtin.defined) and
+                  (item_domain['challenge']['type'] is ansible.builtin.defined) and
+                  (item_domain['challenge']['type'] == 'dns_persist'))
+              else
+              '' }}
+          {{ '--dns-persist-wildcard'
+              if ((item_domain['challenge'] is ansible.builtin.defined) and
+                  (item_domain['challenge']['type'] is ansible.builtin.defined) and
+                  (item_domain['challenge']['type'] == 'dns_persist') and
+                  (item_domain['challenge']['dns_persist_wildcard'] is ansible.builtin.defined) and
+                  (item_domain['challenge']['dns_persist_wildcard']))
+              else
+              '' }}
+          {{ '--dns-persist-ca-name ' ~ (item_domain['challenge']['dns_persist_ca_name'] | ansible.builtin.quote)
+              if ((item_domain['challenge'] is ansible.builtin.defined) and
+                  (item_domain['challenge']['type'] is ansible.builtin.defined) and
+                  (item_domain['challenge']['type'] == 'dns_persist') and
+                  (item_domain['challenge']['dns_persist_ca_name'] is ansible.builtin.defined) and
+                  (item_domain['challenge']['dns_persist_ca_name']))
+              else
+              '' }}
+          {{ '--dns-persist-days ' ~ (item_domain['challenge']['dns_persist_days'] | ansible.builtin.quote)
+              if ((item_domain['challenge'] is ansible.builtin.defined) and
+                  (item_domain['challenge']['type'] is ansible.builtin.defined) and
+                  (item_domain['challenge']['type'] == 'dns_persist') and
+                  (item_domain['challenge']['dns_persist_days'] is ansible.builtin.defined) and
+                  (item_domain['challenge']['dns_persist_days']))
               else
               '' }}
         {% endfor %}
