@@ -86,6 +86,24 @@ argument_specs:
         default: "master"
         version_added: "1.4.0"
 
+      run_acmesh_git_version:
+        description: |
+          Overrides the automatically detected acme.sh version with a specific
+          Git ref (tag, branch, or commit hash). When set (non-empty string),
+          the role skips the upstream version tag detection via ``git ls-remote``
+          and uses this value directly for the ``git clone`` operation.
+
+          This is useful when the latest tagged release does not yet include a
+          feature you need (setting to `master` is usually safe as acme.sh aims
+          for a production-ready `master` branch by default), or when you want
+          to pin a specific version for reproducibility.
+
+          When set, the upgrade task also respects this value and skips the
+          normal semver comparison that gates upgrades.
+        type: "str"
+        default: ""
+        version_added: "2.0.0"
+
       run_acmesh_certs:
         description: |
           Defines certificates to be requested, their associated domains,

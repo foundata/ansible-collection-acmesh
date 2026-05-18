@@ -47,6 +47,8 @@
       - "--tags"
       - "--refs"
       - "{{ run_acmesh_git_url }}"
+  when:
+    - (run_acmesh_git_version | ansible.builtin.default('', true) | ansible.builtin.trim | ansible.builtin.length) == 0
   changed_when:
     - false
   ignore_errors: true
@@ -81,6 +83,15 @@
       {%- else -%}
         {{ false }}
       {%- endif -%}
+  when:
+    - (run_acmesh_git_version | ansible.builtin.default('', true) | ansible.builtin.trim | ansible.builtin.length) == 0
+
+
+- name: "Setup | Install | Default | Use user-specified version override as upstream version"
+  ansible.builtin.set_fact:
+    __run_acmesh_version_upstream: "{{ run_acmesh_git_version | ansible.builtin.trim }}"
+  when:
+    - (run_acmesh_git_version | ansible.builtin.default('', true) | ansible.builtin.trim | ansible.builtin.length) > 0
 
 
 - name: "Setup | Install | Default | Display latest upstream version (if any, empty string means \"nothing detected\")"
@@ -274,7 +285,8 @@
     - __run_acmesh_version_upstream is ansible.builtin.defined
     - run_acmesh_autoupgrade is ansible.builtin.defined
     - run_acmesh_autoupgrade
-    - __run_acmesh_version_installed is ansible.builtin.version(__run_acmesh_version_upstream, 'lt', version_type='semver')
+    - (run_acmesh_git_version | ansible.builtin.default('', true) | ansible.builtin.trim | ansible.builtin.length) > 0 or
+      __run_acmesh_version_installed is ansible.builtin.version(__run_acmesh_version_upstream, 'lt', version_type='semver')
   changed_when:
     - __run_acmesh_upgrade_result is ansible.builtin.success
     - ('Upgrade success') in __run_acmesh_upgrade_result['stdout']
