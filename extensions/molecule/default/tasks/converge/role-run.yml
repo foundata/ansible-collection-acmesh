@@ -97,6 +97,88 @@
       ((__testing_missing_envvars_dnschallenge | ansible.builtin.length) <= 0)
 
 
+## dns-persist-01 certificate (requires permanent TXT records + pre-seeded account key)
+#
+# Prerequisites (one-time, manual setup):
+#
+# 1. Generate an ACME account key and register it with the staging CA:
+#    ./acme.sh --register-account -m "${TEST_ACMESH_ACCOUNTEMAIL}" --server letsencrypt_test
+#
+# 2. Generate the dns-persist TXT record value for each test domain:
+#    ./acme.sh --make-dns-persist-value -d "${TEST_ACMESH_TESTDOMAIN3}" --server letsencrypt_test
+#
+# 3. Publish permanent TXT records in DNS:
+#    _validation-persist.${TEST_ACMESH_TESTDOMAIN3} -> <value from step 2>
+#
+# 4. Export the account key content as TEST_ACMESH_ACCOUNT_KEY environment
+#    variable (PEM-encoded, including BEGIN/END markers):
+#      export TEST_ACMESH_ACCOUNT_KEY="$(< ~/.acme.sh/ca/acme-staging-v02.api.letsencrypt.org/directory/account.key)"
+#    Optionally also export TEST_ACMESH_ACCOUNT_JSON with the account.json
+#    content:
+#      export TEST_ACMESH_ACCOUNT_JSON="$(< ~/.acme.sh/ca/acme-staging-v02.api.letsencrypt.org/directory/account.json)"
+#
+# These records are permanent and only need to be re-published if the account
+# key changes. Multiple TXT RRs at the same name are valid DNS.
+
+- name: "Molecule | Converge | Check for environment variables needed for dns-persist-01 challenge"
+  ansible.builtin.set_fact:
+    __testing_missing_envvars_dnspersist: "{{ __testing_missing_envvars_dnspersist | ansible.builtin.default([]) + [item] }}"
+  when:
+    - lookup('env', item, default='') == ''
+  loop:
+    - "TEST_ACMESH_ACCOUNTEMAIL"
+    - "TEST_ACMESH_TESTDOMAIN3"
+    - "TEST_ACMESH_ACCOUNT_KEY"
+
+
+- name: "Molecule | Converge | Show missing environment variables (if any) needed for dns-persist-01 challenge"
+  ansible.builtin.debug:
+    msg: >
+      Tests regarding certificate issuing via dns-persist-01 challenge will be
+      skipped, required environment variables are missing or invalid: {{ __testing_missing_envvars_dnspersist | join(', ') }}.
+  when:
+    - __testing_missing_envvars_dnspersist is ansible.builtin.defined
+    - __testing_missing_envvars_dnspersist | ansible.builtin.length > 0
+
+
+- name: "Molecule | Converge | Append dns-persist-01 certificate config and account key to __testing_state"
+  ansible.builtin.include_tasks:
+    file: "../tasks/state_update.yml"
+  vars:
+    __testing_state_update:
+      run_acmesh_dns_persist_pause: 0
+      run_acmesh_account_keys:
+        - server: "letsencrypt_test"
+          account_key: "{{ lookup('env', 'TEST_ACMESH_ACCOUNT_KEY') }}"
+          account_json: "{{ lookup('env', 'TEST_ACMESH_ACCOUNT_JSON') | ansible.builtin.default('', true) }}"
+      run_acmesh_certs: >-
+        {{
+          (__testing_state['run_acmesh_certs'] | ansible.builtin.default([], true))
+          +
+          [{
+            'domains': [{
+              'name': lookup('env', 'TEST_ACMESH_TESTDOMAIN3'),
+              'challenge': {
+                'type': 'dns_persist'
+              }
+            }],
+            'install': {
+              'ca_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '.dns-persist/ca.cer',
+              'cert_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '.dns-persist/cert.cer',
+              'fullcain_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '.dns-persist/fullchain.cer',
+              'key_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '.dns-persist/cert.key',
+              'reloadcmd': ''
+            },
+            'server': 'letsencrypt_test',
+            'force': false,
+            'debug': false
+          }]
+        }}
+  when:
+    - __testing_missing_envvars_dnspersist is not ansible.builtin.defined or
+      ((__testing_missing_envvars_dnspersist | ansible.builtin.length) <= 0)
+
+
 ## Webroot certificate via pebble (runs unconditionally when pebble is available)
 
 - name: "Molecule | Converge | Set default account email for pebble if not already configured"
