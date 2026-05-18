@@ -193,3 +193,27 @@
   ansible.builtin.debug:
     var: __run_acmesh_version_installed
     verbosity: 1
+
+
+# This task may be removed in a future version, once several releases have passed and most users are likely to have upgraded.
+- name: "Init | Fail if deprecated 'fullcain_file' key is found in run_acmesh_certs"
+  ansible.builtin.fail:
+    msg: |
+      foundata.acmesh.run: The run_acmesh_certs[]['install'] sub-key "fullcain_file"
+      has been renamed to "fullchain_file" in version 2.0.0 of this role (typo fix,
+      "cain" instead of "chain"). Update your playbooks and inventory accordingly
+      by replacing all occurrences of "fullcain_file" with "fullchain_file":
+
+      run_acmesh_certs:
+        - [...]
+          install:
+          [...]
+            fullcain_file: # rename to fullchain_file:
+  when:
+    - run_acmesh_certs is ansible.builtin.defined
+    - (run_acmesh_certs | ansible.builtin.default([])
+       | ansible.builtin.selectattr('install', 'defined')
+       | ansible.builtin.map(attribute='install')
+       | ansible.builtin.selectattr('fullcain_file', 'defined')
+       | ansible.builtin.list
+       | ansible.builtin.length) > 0

@@ -595,7 +595,7 @@
         install:
           ca_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/ca.cer"
           cert_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/cert.cer"
-          fullcain_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/fullchain.cer"
+          fullchain_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/fullchain.cer"
           key_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/cert.key"
           reloadcmd: "true reload_update"
         # "{letsencrypt,buypass,google}_test" for staging, see

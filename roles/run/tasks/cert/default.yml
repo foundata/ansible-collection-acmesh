@@ -575,9 +575,9 @@
     }}
 
 
-- name: "Cert | Default | Create target directories for certificate installation(s) (based on data for --fullcain-file, if any)"
+- name: "Cert | Default | Create target directories for certificate installation(s) (based on data for --fullchain-file, if any)"
   ansible.builtin.file:
-    path: "{{ item['fullcain_file'] | ansible.builtin.dirname }}"
+    path: "{{ item['fullchain_file'] | ansible.builtin.dirname }}"
     state: "directory"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
@@ -590,7 +590,7 @@
       run_acmesh_certs
       | ansible.builtin.selectattr('install', 'defined')
       | ansible.builtin.map(attribute='install')
-      | ansible.builtin.selectattr('fullcain_file', 'defined')
+      | ansible.builtin.selectattr('fullchain_file', 'defined')
       | ansible.builtin.list
     }}
 
@@ -639,9 +639,9 @@
                 (item['install']['cert_file']))
             else
             '' }}
-        {{ '--fullchain-file ' ~ (item['install']['fullcain_file'] | ansible.builtin.quote)
-            if ((item['install']['fullcain_file'] is ansible.builtin.defined) and
-                (item['install']['fullcain_file']))
+        {{ '--fullchain-file ' ~ (item['install']['fullchain_file'] | ansible.builtin.quote)
+            if ((item['install']['fullchain_file'] is ansible.builtin.defined) and
+                (item['install']['fullchain_file']))
             else
             '' }}
         {{ '--key-file ' ~ (item['install']['key_file'] | ansible.builtin.quote)
@@ -699,7 +699,7 @@
       | ansible.builtin.map('dict2items')
       | ansible.builtin.list
       | ansible.builtin.flatten
-      | ansible.builtin.selectattr('key', 'in', ['ca_file', 'cert_file', 'fullcain_file', 'key_file'])
+      | ansible.builtin.selectattr('key', 'in', ['ca_file', 'cert_file', 'fullchain_file', 'key_file'])
       | ansible.builtin.map(attribute='value')
       | ansible.builtin.reject('equalto', '')
       | ansible.builtin.list

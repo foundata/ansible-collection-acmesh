@@ -50,7 +50,7 @@
           install:
             ca_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}/ca.cer"
             cert_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}/cert.cer"
-            fullcain_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}/fullchain.cer"
+            fullchain_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}/fullchain.cer"
             key_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}/cert.key"
             reloadcmd: ""
           # "{letsencrypt,buypass,google}_test" for staging, see
@@ -74,7 +74,7 @@
           install:
             ca_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/ca.cer"
             cert_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/cert.cer"
-            fullcain_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/fullchain.cer"
+            fullchain_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/fullchain.cer"
             key_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/cert.key"
             reloadcmd: "true reload"
           # "{letsencrypt,buypass,google}_test" for staging, see
@@ -165,7 +165,7 @@
             'install': {
               'ca_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '.dns-persist/ca.cer',
               'cert_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '.dns-persist/cert.cer',
-              'fullcain_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '.dns-persist/fullchain.cer',
+              'fullchain_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '.dns-persist/fullchain.cer',
               'key_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '.dns-persist/cert.key',
               'reloadcmd': ''
             },
@@ -213,7 +213,7 @@
             'install': {
               'ca_file': '/etc/pki/tls/certs/acmesh-webroot.test/ca.cer',
               'cert_file': '/etc/pki/tls/certs/acmesh-webroot.test/cert.cer',
-              'fullcain_file': '/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer',
+              'fullchain_file': '/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer',
               'key_file': '/etc/pki/tls/certs/acmesh-webroot.test/cert.key',
               'reloadcmd': ''
             },

@@ -30,7 +30,7 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
     - [`run_acmesh_certs['install']`](#variable-run_acmesh_certs-sub-install)
       - [`run_acmesh_certs['install']['ca_file']`](#variable-run_acmesh_certs-sub-install-sub-ca_file)
       - [`run_acmesh_certs['install']['cert_file']`](#variable-run_acmesh_certs-sub-install-sub-cert_file)
-      - [`run_acmesh_certs['install']['fullcain_file']`](#variable-run_acmesh_certs-sub-install-sub-fullcain_file)
+      - [`run_acmesh_certs['install']['fullchain_file']`](#variable-run_acmesh_certs-sub-install-sub-fullchain_file)
       - [`run_acmesh_certs['install']['key_file']`](#variable-run_acmesh_certs-sub-install-sub-key_file)
       - [`run_acmesh_certs['install']['reloadcmd']`](#variable-run_acmesh_certs-sub-install-sub-reloadcmd)
     - [`run_acmesh_certs['server']`](#variable-run_acmesh_certs-sub-server)
@@ -106,7 +106,7 @@ Using only one domain per certificate an the webroot challenge:
             install:
               ca_file: "/etc/pki/tls/certs/example.org/ca.cer"
               cert_file: "/etc/pki/tls/certs/example.org/cert.cer"
-              fullcain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
+              fullchain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
               key_file: "/etc/pki/tls/certs/example.org/cert.key"
               reloadcmd: "/bin/systemctl reload apache2.service"
             server: "letsencrypt_test" # optional, CA alias or URL, defaults to "letsencrypt" see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
@@ -167,7 +167,7 @@ Multiple domains per certificate with DNS challenge and challenge alias:
             install:
               ca_file: "/etc/pki/tls/certs/example.org/ca.cer"
               cert_file: "/etc/pki/tls/certs/example.org/cert.cer"
-              fullcain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
+              fullchain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
               key_file: "/etc/pki/tls/certs/example.org/cert.key"
               reloadcmd: "systemctl reload apache2.service;"
             # optional, CA alias or URL, defaults to "letsencrypt" see
@@ -191,7 +191,7 @@ Multiple domains per certificate with DNS challenge and challenge alias:
             install:
               ca_file: "/etc/pki/tls/certs/foo.example.com/ca.cer"
               cert_file: "/etc/pki/tls/certs/foo.example.com/cert.cer"
-              fullcain_file: "/etc/pki/tls/certs/foo.example.com/fullchain.cer"
+              fullchain_file: "/etc/pki/tls/certs/foo.example.com/fullchain.cer"
               key_file: "/etc/pki/tls/certs/foo.example.com/cert.key"
               reloadcmd: "systemctl reload nginx.service; systemctl restart postfix.service"
             # "{letsencrypt,buypass,google}_test" for staging, see
@@ -401,7 +401,7 @@ run_acmesh_certs:
     install:
       ca_file: "/etc/pki/tls/certs/example.org/ca.cer"
       cert_file: "/etc/pki/tls/certs/example.org/cert.cer"
-      fullcain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
+      fullchain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
       key_file: "/etc/pki/tls/certs/example.org/cert.key"
       reloadcmd: "systemctl reload apache2.service;"
   # second certificate: "foo.example.com" with an additional "bar.example.com" SAN
@@ -419,7 +419,7 @@ run_acmesh_certs:
     install:
       ca_file: "/etc/pki/tls/certs/foo.example.com/ca.cer"
       cert_file: "/etc/pki/tls/certs/foo.example.com/cert.cer"
-      fullcain_file: "/etc/pki/tls/certs/foo.example.com/fullchain.cer"
+      fullchain_file: "/etc/pki/tls/certs/foo.example.com/fullchain.cer"
       key_file: "/etc/pki/tls/certs/foo.example.com/cert.key"
       reloadcmd: "systemctl reload nginx.service; systemctl restart postfix.service"
     # optional, CA alias or URL, defaults to "letsencrypt". "{letsencrypt,buypass,google}_test"
@@ -598,7 +598,7 @@ The following keys specify file paths and a reload command:
 - **Type**: `str`
 - **Required**: No
 
-##### `run_acmesh_certs['install']['fullcain_file']`<a id="variable-run_acmesh_certs-sub-install-sub-fullcain_file"></a>
+##### `run_acmesh_certs['install']['fullchain_file']`<a id="variable-run_acmesh_certs-sub-install-sub-fullchain_file"></a>
 
 [*⇑ Back to ToC ⇑*](#toc)
 

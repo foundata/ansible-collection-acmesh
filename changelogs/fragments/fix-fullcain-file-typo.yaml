@@ -1,0 +1,9 @@
+---
+
+breaking_changes:
+  - >
+    ``foundata.acmesh.run`` - Renamed the install sub-key ``fullcain_file`` to
+    ``fullchain_file`` (typo fix). Update your playbooks and inventory
+    accordingly:
+    ``run_acmesh_certs[]['install']['fullcain_file']`` →
+    ``run_acmesh_certs[]['install']['fullchain_file']``.
