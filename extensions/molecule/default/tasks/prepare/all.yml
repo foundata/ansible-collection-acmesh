@@ -144,6 +144,36 @@
       dest: "key.pem"
 
 
+- name: "Molecule | Prepare | Add pebble CA to system trust store (Debian/Ubuntu)"
+  ansible.builtin.shell:
+    cmd: |
+      cp /etc/pebble/certs/pebble.minica.pem /usr/local/share/ca-certificates/pebble-minica.crt
+      update-ca-certificates
+    executable: "/bin/bash"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+
+- name: "Molecule | Prepare | Add pebble CA to system trust store (RedHat)"
+  ansible.builtin.shell:
+    cmd: |
+      cp /etc/pebble/certs/pebble.minica.pem /etc/pki/ca-trust/source/anchors/pebble-minica.pem
+      update-ca-trust
+    executable: "/bin/bash"
+  when:
+    - ansible_facts['os_family'] == 'RedHat'
+
+
+- name: "Molecule | Prepare | Add pebble CA to system trust store (Suse)"
+  ansible.builtin.shell:
+    cmd: |
+      cp /etc/pebble/certs/pebble.minica.pem /etc/pki/trust/anchors/pebble-minica.pem
+      update-ca-certificates
+    executable: "/bin/bash"
+  when:
+    - ansible_facts['os_family'] == 'Suse'
+
+
 - name: "Molecule | Prepare | Create pebble configuration file"
   ansible.builtin.copy:
     dest: "/etc/pebble/pebble-config.json"

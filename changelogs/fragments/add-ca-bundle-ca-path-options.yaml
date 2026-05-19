@@ -1,0 +1,12 @@
+---
+
+minor_changes:
+  - >
+    ``foundata.acmesh.run`` - Added ``run_acmesh_cfg_ca_bundle`` and
+    ``run_acmesh_cfg_ca_path`` parameters to specify a custom CA certificate
+    bundle or directory for all acme.sh HTTPS requests (issue, register-account).
+    This is needed when the ACME server uses a non-standard CA. These are global
+    acme.sh settings, matching the upstream behavior where ``CA_BUNDLE`` /
+    ``CA_PATH`` are persisted to ``account.conf``. Until now, one had to use
+    ``run_acmesh_certs['extra_flags']`` for this. As these settings are quite
+    common,	role level variables make sense.

@@ -98,7 +98,7 @@ run_acmesh_git_fallback_version_branch: "master"
 #
 # - Type: str
 # - Required: No
-# - Default: 
+# - Default:
 run_acmesh_git_version: ""
 
 # Defines certificates to be requested, their associated domains, challenge
@@ -184,7 +184,7 @@ run_acmesh_group: "acmesh"
 #
 # - Type: str
 # - Required: No
-# - Default: 
+# - Default:
 run_acmesh_cfg_accountemail: ""
 
 # Specifies the installation directory for the acme.sh software (relates to
@@ -242,6 +242,32 @@ run_acmesh_cfg_log_level: 1
 # - Default: 3
 # - Choices: 0, 3, 6, 7
 run_acmesh_cfg_syslog: 3
+
+# Path to a custom CA certificate bundle file on the remote host. Passed as
+# `--ca-bundle` to all acme.sh commands that make HTTPS requests (issue,
+# register-account). Needed when the ACME server uses a certificate signed by a
+# private or non-standard CA (e.g., a local pebble test server).
+#
+# This is a global acme.sh setting -- acme.sh persists it to its `account.conf`
+# and applies it to all operations including cron renewals.
+#
+# - Type: str
+# - Required: No
+# - Default:
+run_acmesh_cfg_ca_bundle: ""
+
+# Path to a directory of CA certificates in PEM format on the remote host.
+# Passed as `--ca-path` to all acme.sh commands that make HTTPS requests.
+# Alternative to `run_acmesh_cfg_ca_bundle` when the HTTP client (curl/wget)
+# requires a directory of individual CA certificate files.
+#
+# This is a global acme.sh setting -- acme.sh persists it to its `account.conf`
+# and applies it to all operations including cron renewals.
+#
+# - Type: str
+# - Required: No
+# - Default:
+run_acmesh_cfg_ca_path: ""
 
 # List of ACME account keys to pre-seed. This is useful for `dns-persist-01`
 # challenges where the TXT record is bound to a specific account key, and you

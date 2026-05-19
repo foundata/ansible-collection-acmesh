@@ -217,8 +217,7 @@
               'key_file': '/etc/pki/tls/certs/acmesh-webroot.test/cert.key',
               'reloadcmd': ''
             },
-            'server': 'https://localhost:14000/dir',
-            'extra_flags': '--ca-bundle /etc/pebble/certs/pebble.minica.pem'
+            'server': 'https://localhost:14000/dir'
           }]
         }}
   when:

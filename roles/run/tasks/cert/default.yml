@@ -208,6 +208,16 @@
                 if ((run_acmesh_cfg_accountemail is ansible.builtin.defined) and
                     (run_acmesh_cfg_accountemail))
                 else
+                '' }} \
+            {{ '--ca-bundle ' ~ (run_acmesh_cfg_ca_bundle | ansible.builtin.quote)
+                if ((run_acmesh_cfg_ca_bundle is ansible.builtin.defined) and
+                    (run_acmesh_cfg_ca_bundle))
+                else
+                '' }} \
+            {{ '--ca-path ' ~ (run_acmesh_cfg_ca_path | ansible.builtin.quote)
+                if ((run_acmesh_cfg_ca_path is ansible.builtin.defined) and
+                    (run_acmesh_cfg_ca_path))
+                else
                 '' }} > /dev/null 2>&1 || true
           printf "Changed: Registered account for server %s." "${SERVER}"
       fi
@@ -251,6 +261,16 @@
         {{ '--accountemail ' ~ (run_acmesh_cfg_accountemail | ansible.builtin.quote)
             if ((run_acmesh_cfg_accountemail is ansible.builtin.defined) and
                 (run_acmesh_cfg_accountemail))
+            else
+            '' }}
+        {{ '--ca-bundle ' ~ (run_acmesh_cfg_ca_bundle | ansible.builtin.quote)
+            if ((run_acmesh_cfg_ca_bundle is ansible.builtin.defined) and
+                (run_acmesh_cfg_ca_bundle))
+            else
+            '' }}
+        {{ '--ca-path ' ~ (run_acmesh_cfg_ca_path | ansible.builtin.quote)
+            if ((run_acmesh_cfg_ca_path is ansible.builtin.defined) and
+                (run_acmesh_cfg_ca_path))
             else
             '' }}
   args:
@@ -509,6 +529,16 @@
                 (item['server']))
             else
             '--server letsencrypt' }}
+        {{ '--ca-bundle ' ~ (run_acmesh_cfg_ca_bundle | ansible.builtin.quote)
+            if ((run_acmesh_cfg_ca_bundle is ansible.builtin.defined) and
+                (run_acmesh_cfg_ca_bundle))
+            else
+            '' }}
+        {{ '--ca-path ' ~ (run_acmesh_cfg_ca_path | ansible.builtin.quote)
+            if ((run_acmesh_cfg_ca_path is ansible.builtin.defined) and
+                (run_acmesh_cfg_ca_path))
+            else
+            '' }}
         {{  item['extra_flags']
             if (item['extra_flags'] is ansible.builtin.defined)
             else
