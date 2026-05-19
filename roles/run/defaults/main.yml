@@ -83,6 +83,22 @@ run_acmesh_git_url: "https://github.com/acmesh-official/acme.sh.git"
 # - Default: master
 run_acmesh_git_fallback_version_branch: "master"
 
+# Overrides the automatically detected acme.sh version with a specific Git ref
+# (tag, branch, or commit hash). When set (non-empty string), the role skips the
+# upstream version tag detection via `git ls-remote` and uses this value
+# directly for the `git clone` operation.
+#
+# This is useful when the latest tagged release does not yet include a feature
+# you need (setting to `master` is usually safe as acme.sh aims for a
+# production-ready `master` branch by default), or when you want to pin a
+# specific version for reproducibility.
+#
+# When set, the upgrade task also respects this value and skips the normal
+# semver comparison that gates upgrades.
+#
+# - Type: str
+# - Required: No
+# - Default: 
 run_acmesh_git_version: ""
 
 # Defines certificates to be requested, their associated domains, challenge
@@ -168,7 +184,7 @@ run_acmesh_group: "acmesh"
 #
 # - Type: str
 # - Required: No
-# - Default:
+# - Default: 
 run_acmesh_cfg_accountemail: ""
 
 # Specifies the installation directory for the acme.sh software (relates to
@@ -227,6 +243,39 @@ run_acmesh_cfg_log_level: 1
 # - Choices: 0, 3, 6, 7
 run_acmesh_cfg_syslog: 3
 
+# List of ACME account keys to pre-seed. This is useful for `dns-persist-01`
+# challenges where the TXT record is bound to a specific account key, and you
+# want to reuse the same key across multiple servers or after re-installations.
+#
+# Each item must specify a `server` (CA alias or URL, same value used in
+# `run_acmesh_certs[].server`) and `account_key` (PEM-encoded private key
+# content). The role seeds the key and then runs `acme.sh --register-account`
+# which confirms the account with the CA and may generate the `account.json`
+# metadata automatically if needed (per RFC 8555 section 7.3.1, the CA
+# identifies accounts by their public key).
+#
+# Example:
+#
+# ```
+# run_acmesh_account_keys:
+#   - server: "letsencrypt"
+#     account_key: "\{\{ lookup('ansible.builtin.unvault', 'files/acmesh_account_key_letsencrypt.pem') \}\}"
+# ```
+#
+# - Type: list
+# - Required: No
+# - Default: []
+# - List elements: dict
 run_acmesh_account_keys: []
 
+# Controls the pause duration (in seconds) after displaying dns-persist-01 TXT
+# record instructions. Set to `0` to disable the pause (useful for CI/CD
+# pipelines or environments where TXT records are guaranteed to already be
+# published).
+#
+# If the pause expires without user confirmation, the play continues.
+#
+# - Type: int
+# - Required: No
+# - Default: 600
 run_acmesh_dns_persist_pause: 600

@@ -16,6 +16,7 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
   - [`run_acmesh_environment`](#variable-run_acmesh_environment)
   - [`run_acmesh_git_url`](#variable-run_acmesh_git_url)
   - [`run_acmesh_git_fallback_version_branch`](#variable-run_acmesh_git_fallback_version_branch)
+  - [`run_acmesh_git_version`](#variable-run_acmesh_git_version)
   - [`run_acmesh_certs`](#variable-run_acmesh_certs)
     - [`run_acmesh_certs['domains']`](#variable-run_acmesh_certs-sub-domains)
       - [`run_acmesh_certs['domains']['name']`](#variable-run_acmesh_certs-sub-domains-sub-name)
@@ -27,6 +28,9 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
         - [`run_acmesh_certs['domains']['challenge']['webroot']`](#variable-run_acmesh_certs-sub-domains-sub-challenge-sub-webroot)
         - [`run_acmesh_certs['domains']['challenge']['httpport']`](#variable-run_acmesh_certs-sub-domains-sub-challenge-sub-httpport)
         - [`run_acmesh_certs['domains']['challenge']['tlsport']`](#variable-run_acmesh_certs-sub-domains-sub-challenge-sub-tlsport)
+        - [`run_acmesh_certs['domains']['challenge']['dns_persist_wildcard']`](#variable-run_acmesh_certs-sub-domains-sub-challenge-sub-dns_persist_wildcard)
+        - [`run_acmesh_certs['domains']['challenge']['dns_persist_ca_name']`](#variable-run_acmesh_certs-sub-domains-sub-challenge-sub-dns_persist_ca_name)
+        - [`run_acmesh_certs['domains']['challenge']['dns_persist_days']`](#variable-run_acmesh_certs-sub-domains-sub-challenge-sub-dns_persist_days)
     - [`run_acmesh_certs['install']`](#variable-run_acmesh_certs-sub-install)
       - [`run_acmesh_certs['install']['ca_file']`](#variable-run_acmesh_certs-sub-install-sub-ca_file)
       - [`run_acmesh_certs['install']['cert_file']`](#variable-run_acmesh_certs-sub-install-sub-cert_file)
@@ -51,6 +55,10 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
   - [`run_acmesh_cfg_logfile`](#variable-run_acmesh_cfg_logfile)
   - [`run_acmesh_cfg_log_level`](#variable-run_acmesh_cfg_log_level)
   - [`run_acmesh_cfg_syslog`](#variable-run_acmesh_cfg_syslog)
+  - [`run_acmesh_account_keys`](#variable-run_acmesh_account_keys)
+    - [`run_acmesh_account_keys['server']`](#variable-run_acmesh_account_keys-sub-server)
+    - [`run_acmesh_account_keys['account_key']`](#variable-run_acmesh_account_keys-sub-account_key)
+  - [`run_acmesh_dns_persist_pause`](#variable-run_acmesh_dns_persist_pause)
 <!-- ANSIBLE DOCSMITH TOC END -->
 - [Dependencies](#dependencies)
 - [Compatibility](#compatibility)
@@ -264,6 +272,7 @@ The following variables can be configured for this role:
 | `run_acmesh_environment` | `dict` | No | `{}` | Defines environment variables required for ACME DNS challenges.<br><br>This is typically needed for DNS challenge plugins, such as those requiring DNS API credentials (e.g., `HETZNER_Token`, `INWX_User`, `INWX_Password`). Multiple variables can be […](#variable-run_acmesh_environment) |
 | `run_acmesh_git_url` | `str` | No | `"https://github.com/acmesh-official/acme.sh.git"` | The Git repository URL for acme.sh. The role uses this URL to clone the source code during installation or updates and to query available version tags via `git ls-remote`.<br><br>Can be set to an internal Git mirror for air-gapped environments or to […](#variable-run_acmesh_git_url) |
 | `run_acmesh_git_fallback_version_branch` | `str` | No | `"master"` | The Git branch to clone when no version tag could be determined from the remote repository (e.g. because `git ls-remote` failed or returned no matching tags).<br><br>See https://github.com/acmesh-official/acme.sh/issues/1162 for why acme.sh uses […](#variable-run_acmesh_git_fallback_version_branch) |
+| `run_acmesh_git_version` | `str` | No | `""` | Overrides the automatically detected acme.sh version with a specific Git ref (tag, branch, or commit hash). When set (non-empty string), the role skips the upstream version tag detection via `git ls-remote` and uses this value directly for the `git […](#variable-run_acmesh_git_version) |
 | `run_acmesh_certs` | `list` | No | `[]` | Defines certificates to be requested, their associated domains, challenge methods, and installation details. Each item in the list is a dictionary with suboptions / keys.<br><br>Example:<br><br>``` run_acmesh_certs: # first certificate: "example.org" […](#variable-run_acmesh_certs) |
 | `run_acmesh_user` | `str` | No | `"acmesh"` | Specifies the service user account that runs acme.sh and owns relevant files and directories. |
 | `run_acmesh_group` | `str` | No | `"acmesh"` | Specifies the group associated with the service user for managing acme.sh and the corresponding file permissions. |
@@ -274,6 +283,8 @@ The following variables can be configured for this role:
 | `run_acmesh_cfg_logfile` | `str` | No | `"/var/log/acme.sh.log"` | Path to the log file where acme.sh logs its operations (relates to acme.sh option --log). |
 | `run_acmesh_cfg_log_level` | `int` | No | `1` | Specifies the log level (relates to acme.sh option --log-level). Possible values are 1 (less logging) and 2 (more logging). |
 | `run_acmesh_cfg_syslog` | `int` | No | `3` | Specifies what to log (relates to acme.sh option --syslog). Possible values are 0 (disable syslog), 3 (errors), 6 (info) and 7 (debug) |
+| `run_acmesh_account_keys` | `list` | No | `[]` | List of ACME account keys to pre-seed. This is useful for `dns-persist-01` challenges where the TXT record is bound to a specific account key, and you want to reuse the same key across multiple servers or after re-installations.<br><br>Each item must […](#variable-run_acmesh_account_keys) |
+| `run_acmesh_dns_persist_pause` | `int` | No | `600` | Controls the pause duration (in seconds) after displaying dns-persist-01 TXT record instructions. Set to `0` to disable the pause (useful for CI/CD pipelines or environments where TXT records are guaranteed to already be published).<br><br>If the […](#variable-run_acmesh_dns_persist_pause) |
 
 ### `run_acmesh_state`<a id="variable-run_acmesh_state"></a>
 
@@ -377,6 +388,29 @@ acme.sh uses `master` as the branch for the latest release.
 - **Type**: `str`
 - **Required**: No
 - **Default**: `"master"`
+
+
+
+### `run_acmesh_git_version`<a id="variable-run_acmesh_git_version"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Overrides the automatically detected acme.sh version with a specific
+Git ref (tag, branch, or commit hash). When set (non-empty string),
+the role skips the upstream version tag detection via `git ls-remote`
+and uses this value directly for the `git clone` operation.
+
+This is useful when the latest tagged release does not yet include a
+feature you need (setting to `master` is usually safe as acme.sh aims
+for a production-ready `master` branch by default), or when you want
+to pin a specific version for reproducibility.
+
+When set, the upgrade task also respects this value and skips the
+normal semver comparison that gates upgrades.
+
+- **Type**: `str`
+- **Required**: No
+- **Default**: `""`
 
 
 
@@ -485,7 +519,7 @@ for details.
 
 - **Type**: `str`
 - **Required**: No
-- **Choices**: `alpn`, `dns`, `standalone`, `webroot`
+- **Choices**: `alpn`, `dns`, `dns_persist`, `standalone`, `webroot`
 
 ###### `run_acmesh_certs['domains']['challenge']['dns_provider']`<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-dns_provider"></a>
 
@@ -558,6 +592,45 @@ might be needed behind a reverse proxy or load balancer.
 Optional. Used with "alpn" challenges. Specifies a non-standard port for
 acme.sh's internal HTTPS webserver to listen, might be needed behind a
 reverse proxy or load balancer.
+
+- **Type**: `int`
+- **Required**: No
+
+###### `run_acmesh_certs['domains']['challenge']['dns_persist_wildcard']`<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-dns_persist_wildcard"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Optional. Used with "dns_persist" challenges. If true, the persistent
+TXT record will also authorize wildcard certificates and matching
+subdomains for this domain. Corresponds to acme.sh --dns-persist-wildcard.
+See https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode
+for details.
+
+- **Type**: `bool`
+- **Required**: No
+
+###### `run_acmesh_certs['domains']['challenge']['dns_persist_ca_name']`<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-dns_persist_ca_name"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Optional. Used with "dns_persist" challenges. Specifies a custom CA
+identity domain name for the TXT record value (instead of deriving it
+from the server URL). Corresponds to acme.sh --dns-persist-ca-name.
+See https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode
+for details.
+
+- **Type**: `str`
+- **Required**: No
+
+###### `run_acmesh_certs['domains']['challenge']['dns_persist_days']`<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-dns_persist_days"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Optional. Used with "dns_persist" challenges. Specifies the number of
+days the TXT record should be considered valid (adds a persistUntil
+field to the record). Corresponds to acme.sh --dns-persist-days.
+See https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode
+for details.
 
 - **Type**: `int`
 - **Required**: No
@@ -861,6 +934,75 @@ Possible values are 0 (disable syslog), 3 (errors), 6 (info) and 7
 - **Required**: No
 - **Default**: `3`
 - **Choices**: `0`, `3`, `6`, `7`
+
+
+
+### `run_acmesh_account_keys`<a id="variable-run_acmesh_account_keys"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+List of ACME account keys to pre-seed. This is useful for `dns-persist-01`
+challenges where the TXT record is bound to a specific account key, and
+you want to reuse the same key across multiple servers or after
+re-installations.
+
+Each item must specify a `server` (CA alias or URL, same value used in
+`run_acmesh_certs[].server`) and `account_key` (PEM-encoded private key
+content). The role seeds the key and then runs `acme.sh --register-account`
+which confirms the account with the CA and may generate the `account.json`
+metadata automatically if needed (per RFC 8555 section 7.3.1, the CA
+identifies accounts by their public key).
+
+Example:
+
+```
+run_acmesh_account_keys:
+  - server: "letsencrypt"
+    account_key: "\{\{ lookup('ansible.builtin.unvault', 'files/acmesh_account_key_letsencrypt.pem') \}\}"
+```
+
+- **Type**: `list`
+- **Required**: No
+- **Default**: `[]`
+- **List Elements**: `dict`
+
+#### `run_acmesh_account_keys['server']`<a id="variable-run_acmesh_account_keys-sub-server"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+The CA alias or full ACME directory URL. Must match the value used in
+`run_acmesh_certs[].server` (e.g., "letsencrypt", "zerossl", or a URL).
+
+- **Type**: `str`
+- **Required**: Yes
+
+#### `run_acmesh_account_keys['account_key']`<a id="variable-run_acmesh_account_keys-sub-account_key"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+PEM-encoded ACME account private key content. Sensitive - use
+`ansible.builtin.unvault` or similar secret management to supply this
+value.
+
+- **Type**: `str`
+- **Required**: Yes
+
+
+
+### `run_acmesh_dns_persist_pause`<a id="variable-run_acmesh_dns_persist_pause"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Controls the pause duration (in seconds) after displaying dns-persist-01
+TXT record instructions. Set to `0` to disable the pause (useful for
+CI/CD pipelines or environments where TXT records are guaranteed to
+already be published).
+
+If the pause expires without user confirmation, the play continues.
+
+- **Type**: `int`
+- **Required**: No
+- **Default**: `600`
 
 
 
