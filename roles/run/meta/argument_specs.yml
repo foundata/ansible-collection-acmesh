@@ -90,8 +90,8 @@ argument_specs:
         description: |
           Overrides the automatically detected acme.sh version with a specific
           Git ref (tag, branch, or commit hash). When set (non-empty string),
-          the role skips the upstream version tag detection via ``git ls-remote``
-          and uses this value directly for the ``git clone`` operation.
+          the role skips the upstream version tag detection via `git ls-remote`
+          and uses this value directly for the `git clone` operation.
 
           This is useful when the latest tagged release does not yet include a
           feature you need (setting to `master` is usually safe as acme.sh aims
@@ -247,7 +247,7 @@ argument_specs:
                       See https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode
                       for details.
                     type: "bool"
-                    version_added: "1.7.0"
+                    version_added: "2.0.0"
                   dns_persist_ca_name:
                     description: |
                       Optional. Used with "dns_persist" challenges. Specifies a custom CA
@@ -256,7 +256,7 @@ argument_specs:
                       See https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode
                       for details.
                     type: "str"
-                    version_added: "1.7.0"
+                    version_added: "2.0.0"
                   dns_persist_days:
                     description: |
                       Optional. Used with "dns_persist" challenges. Specifies the number of
@@ -265,7 +265,7 @@ argument_specs:
                       See https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode
                       for details.
                     type: "int"
-                    version_added: "1.7.0"
+                    version_added: "2.0.0"
           install:
             description: |
               Dictionary defining where to install the issued certificates.
@@ -439,8 +439,10 @@ argument_specs:
 
           Each item must specify a `server` (CA alias or URL, same value used in
           `run_acmesh_certs[].server`) and `account_key` (PEM-encoded private key
-          content). Optionally, `account_json` (the JSON registration metadata) can
-          be provided to avoid re-registration.
+          content). The role seeds the key and then runs `acme.sh --register-account`
+          which confirms the account with the CA and may generate the `account.json`
+          metadata automatically if needed (per RFC 8555 section 7.3.1, the CA
+          identifies accounts by their public key).
 
           Example:
 
@@ -448,12 +450,11 @@ argument_specs:
           run_acmesh_account_keys:
             - server: "letsencrypt"
               account_key: "\{\{ lookup('ansible.builtin.unvault', 'files/acmesh_account_key_letsencrypt.pem') \}\}"
-              account_json: "\{\{ lookup('ansible.builtin.unvault', 'files/acmesh_account_json_letsencrypt.json') \}\}"
           ```
         type: "list"
         elements: "dict"
         default: []
-        version_added: "1.7.0"
+        version_added: "2.0.0"
         options:
           server:
             description: |
@@ -468,13 +469,6 @@ argument_specs:
               value.
             type: "str"
             required: true
-          account_json:
-            description: |
-              Optional. The JSON registration metadata file content (account.json).
-              If not provided, the role will re-register with the CA after seeding
-              the key, which is safe but generates a new registration.
-            type: "str"
-
       run_acmesh_dns_persist_pause:
         description: |
           Controls the pause duration (in seconds) after displaying dns-persist-01
@@ -485,4 +479,4 @@ argument_specs:
           If the pause expires without user confirmation, the play continues.
         type: "int"
         default: 600
-        version_added: "1.7.0"
+        version_added: "2.0.0"

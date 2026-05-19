@@ -95,12 +95,16 @@
   loop: "{{ __run_acmesh_local_preseed_ecc_result['results'] }}"
 
 
-- name: "Cert | Default | Pre-seed ACME account keys"
+- name: "Cert | Default | Pre-seed ACME account.key files, re-register ACME account"
   # The command or shell module is used here. This approach is justified:
   #
   # - No built-in Ansible module provides a direct way to manage acme.sh's
   #   internal account key files, which live in CA-specific subdirectories
-  #   whose paths are only known after running --register-account.
+  #   whose paths depend on the ACME directory URL.
+  # - The script computes the CA directory path by replicating acme.sh's
+  #   _initpath logic (server alias to URL resolution, then URL to directory
+  #   mapping). This avoids running --register-account before seeding, which
+  #   would create an orphaned ACME account with a throwaway key.
   # - The script follows the pattern of the hook config update task below.
   ansible.builtin.shell:
     cmd: |
@@ -113,63 +117,65 @@
       ACMESH_HOME={{ run_acmesh_cfg_home | ansible.builtin.quote }}
       SERVER={{ item['server'] | ansible.builtin.quote }}
       ACCOUNT_KEY_CONTENT={{ item['account_key'] | ansible.builtin.quote }}
-      ACCOUNT_JSON_CONTENT={{ item['account_json'] | ansible.builtin.default('') | ansible.builtin.quote }}
+      ACCOUNT_KEY_CONTENT="$(printf '%s' "${ACCOUNT_KEY_CONTENT}" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')" # trim
 
       CHANGES_MADE=0
 
-      # Run register-account to ensure the CA directory structure exists.
-      # This is idempotent - if already registered, it just confirms.
-      "${ACMESH_HOME}/acme.sh" \
-        --register-account \
-        --config-home "${CONFIG_HOME}" \
-        --server "${SERVER}" \
-        {{ '--accountemail ' ~ (run_acmesh_cfg_accountemail | ansible.builtin.quote)
-            if ((run_acmesh_cfg_accountemail is ansible.builtin.defined) and
-                (run_acmesh_cfg_accountemail))
-            else
-            '' }} > /dev/null 2>&1 || true
+      # Resolve server alias to ACME directory URL.
+      # Mirrors acme.sh's built-in CA alias mapping (see CA_NAMES variable).
+      ACME_DIRECTORY=""
+      case "${SERVER}" in
+        ZeroSSL.com|zerossl)
+          ACME_DIRECTORY="https://acme.zerossl.com/v2/DV90" ;;
 
-      # Find the account.key file in the CA directory.
-      # acme.sh stores account keys in: <config_home>/ca/<ca-dir>/account.key
-      ACCOUNT_KEY_FILE=""
-      for keyfile in "${CONFIG_HOME}"/ca/*/account.key
-      do
-          if [ -f "${keyfile}" ]
-          then
-              # Check if this key belongs to the correct server by examining
-              # the ca.conf file in the same directory
-              keydir=$(dirname "${keyfile}")
-              if [ -f "${keydir}/ca.conf" ]
-              then
-                  if {{ __run_acmesh_grep_exec_path }} -qi "${SERVER}" "${keydir}/ca.conf" 2>/dev/null
-                  then
-                      ACCOUNT_KEY_FILE="${keyfile}"
-                      break
-                  fi
-              fi
-          fi
-      done
+        LetsEncrypt.org|letsencrypt)
+          ACME_DIRECTORY="https://acme-v02.api.letsencrypt.org/directory" ;;
 
-      # If we did not find it via ca.conf, use the most recently modified one
-      if [ -z "${ACCOUNT_KEY_FILE}" ]
-      then
-          ACCOUNT_KEY_FILE=$(find "${CONFIG_HOME}/ca" -name 'account.key' -printf '%T@ %p\n' 2>/dev/null \
-            | sort -rn | head -1 | cut -d' ' -f2-)
-      fi
+        LetsEncrypt.org_test|letsencrypt_test|letsencrypttest)
+          ACME_DIRECTORY="https://acme-staging-v02.api.letsencrypt.org/directory" ;;
 
-      if [ -z "${ACCOUNT_KEY_FILE}" ]
-      then
-          printf "error: Could not find account.key path for server: %s\n" "${SERVER}" 1>&2
+        SSL.com|sslcom)
+          ACME_DIRECTORY="https://acme.ssl.com/sslcom-dv-rsa" ;;
+
+        Google.com|google)
+          ACME_DIRECTORY="https://dv.acme-v02.api.pki.goog/directory" ;;
+
+        Google.com_test|googletest|google_test)
+          ACME_DIRECTORY="https://dv.acme-v02.test-api.pki.goog/directory" ;;
+
+        Actalis.com|actalis.com|actalis)
+          ACME_DIRECTORY="https://acme-api.actalis.com/acme/directory" ;;
+
+        https://*|http://*)
+          ACME_DIRECTORY="${SERVER}" ;;
+
+        *)
+          printf "error: Unknown server alias '%s'. Use a known alias " "${SERVER}" 1>&2
+          printf "(letsencrypt, letsencrypt_test, zerossl, sslcom, google, " 1>&2
+          printf "google_test, actalis) or a full ACME directory URL.\n" 1>&2
           exit 1
-      fi
+          ;;
+      esac
 
-      ACCOUNT_KEY_DIR=$(dirname "${ACCOUNT_KEY_FILE}")
+      # Compute CA directory path (mirrors acme.sh _initpath logic, see _ACME_SERVER_HOST,
+      # _ACME_SERVER_PATH and CA_DIR).
+      # acme.sh stores account keys in: <config_home>/ca/<host>/<path>/account.key
+      ACME_HOST=$(printf '%s' "${ACME_DIRECTORY}" | cut -d : -f 2 | tr -s / | cut -d / -f 2)
+      ACME_PATH=$(printf '%s' "${ACME_DIRECTORY}" | cut -d : -f 2- | tr -s / | cut -d / -f 3-)
+      CA_DIR="${CONFIG_HOME}/ca/${ACME_HOST}/${ACME_PATH}"
+      ACCOUNT_KEY_FILE="${CA_DIR}/account.key"
+
+      # Create the CA directory and seed the account key before running
+      # --register-account. acme.sh checks for an existing account.key
+      # and uses it instead of generating a new one.
+      mkdir -p "${CA_DIR}"
 
       # Compare current key with expected key
       CURRENT_KEY=""
       if [ -f "${ACCOUNT_KEY_FILE}" ]
       then
           CURRENT_KEY=$(cat "${ACCOUNT_KEY_FILE}")
+          CURRENT_KEY="$(printf '%s' "${CURRENT_KEY}" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')" # trim
       fi
 
       if [ "${CURRENT_KEY}" != "${ACCOUNT_KEY_CONTENT}" ]
@@ -181,27 +187,17 @@
           CHANGES_MADE=1
       fi
 
-      # Handle account.json if provided
-      if [ -n "${ACCOUNT_JSON_CONTENT}" ]
-      then
-          ACCOUNT_JSON_FILE="${ACCOUNT_KEY_DIR}/account.json"
-          CURRENT_JSON=""
-          if [ -f "${ACCOUNT_JSON_FILE}" ]
-          then
-              CURRENT_JSON=$(cat "${ACCOUNT_JSON_FILE}")
-          fi
+      # account.json (the ACME registration response cache) is not pre-seeded.
+      # Per RFC 8555 section 7.3.1, the CA identifies accounts by their public
+      # key. When --register-account runs below with the seeded account.key,
+      # the CA recognizes the existing account and returns its metadata
+      # (account URL, contact info), which acme.sh can save as account.json
+      # automatically if needed. Pre-seeding it would save one network
+      # round-trip but adds interface complexity for no practical benefit.
 
-          if [ "${CURRENT_JSON}" != "${ACCOUNT_JSON_CONTENT}" ]
-          then
-              printf "Updating account.json for server %s\n" "${SERVER}"
-              printf '%s\n' "${ACCOUNT_JSON_CONTENT}" > "${ACCOUNT_JSON_FILE}"
-              chmod 0600 "${ACCOUNT_JSON_FILE}"
-              chown {{ run_acmesh_user | ansible.builtin.quote }}:{{ run_acmesh_group | ansible.builtin.quote }} "${ACCOUNT_JSON_FILE}"
-              CHANGES_MADE=1
-          fi
-      fi
-
-      # Re-register if key was changed (to confirm with CA)
+      # Register with CA using the seeded key (no orphaned account).
+      # On first run, this registers the seeded key with the CA.
+      # On subsequent runs with no changes, this is a no-op.
       if [ "${CHANGES_MADE}" = "1" ]
       then
           "${ACMESH_HOME}/acme.sh" \
@@ -213,7 +209,7 @@
                     (run_acmesh_cfg_accountemail))
                 else
                 '' }} > /dev/null 2>&1 || true
-          printf "Changed: Re-registered account for server %s after key update." "${SERVER}"
+          printf "Changed: Registered account for server %s." "${SERVER}"
       fi
 
       exit 0
@@ -242,6 +238,11 @@
   # - No built-in Ansible module provides a direct way to interact with the
   #   used command.
   ansible.builtin.command:
+    # Per RFC 8555 section 7.3.1, the CA identifies accounts by their public
+    # key. When --register-account runs below with an already existing
+    # account.key, the CA recognizes the existing account and returns its
+    # metadata (account URL, contact info), so on subsequent runs with no
+    # key changes, this is a no-op.
     cmd: >
       ./acme.sh
         --register-account

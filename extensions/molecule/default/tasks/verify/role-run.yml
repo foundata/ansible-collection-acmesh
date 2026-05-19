@@ -427,10 +427,10 @@
     get_checksum: false
     get_mime: false
   loop:
-    - "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}.dns-persist/ca.cer"
-    - "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}.dns-persist/cert.cer"
-    - "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}.dns-persist/fullchain.cer"
-    - "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}.dns-persist/cert.key"
+    - "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}/ca.cer"
+    - "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}/cert.cer"
+    - "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}/fullchain.cer"
+    - "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}/cert.key"
   register: __testing_acmesh_dnspersist_cert_files_stat
   when:
     - (lookup('env', 'TEST_ACMESH_TESTDOMAIN3') | ansible.builtin.length) > 0

@@ -38,6 +38,7 @@
     file: "../tasks/state_update.yml"
   vars:
     __testing_state_update:
+      run_acmesh_git_version: "master" # test against the latest upstream
       run_acmesh_cfg_accountemail: "{{ lookup('env', 'TEST_ACMESH_ACCOUNTEMAIL') }}"
       run_acmesh_certs:
         # first certificate: main domain only
@@ -150,7 +151,6 @@
       run_acmesh_account_keys:
         - server: "letsencrypt_test"
           account_key: "{{ lookup('env', 'TEST_ACMESH_ACCOUNT_KEY') }}"
-          account_json: "{{ lookup('env', 'TEST_ACMESH_ACCOUNT_JSON') | ansible.builtin.default('', true) }}"
       run_acmesh_certs: >-
         {{
           (__testing_state['run_acmesh_certs'] | ansible.builtin.default([], true))
@@ -163,10 +163,10 @@
               }
             }],
             'install': {
-              'ca_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '.dns-persist/ca.cer',
-              'cert_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '.dns-persist/cert.cer',
-              'fullchain_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '.dns-persist/fullchain.cer',
-              'key_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '.dns-persist/cert.key',
+              'ca_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '/ca.cer',
+              'cert_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '/cert.cer',
+              'fullchain_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '/fullchain.cer',
+              'key_file': '/etc/pki/tls/certs/' ~ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') ~ '/cert.key',
               'reloadcmd': ''
             },
             'server': 'letsencrypt_test',
@@ -252,3 +252,6 @@
   #       the role. This enables persisting the values in __testing_state
   #       and restoring them in later stages (e.g. verify) without manually
   #       duplicating data across playbooks.
+
+
+- ansible.builtin.pause:
