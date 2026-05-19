@@ -456,7 +456,7 @@ argument_specs:
         default: ""
         version_added: "2.0.0"
 
-      run_acmesh_account_keys:
+      run_acmesh_cfg_account_keys:
         description: |
           List of ACME account keys to pre-seed. This is useful for `dns-persist-01`
           challenges where the TXT record is bound to a specific account key, and
@@ -473,7 +473,7 @@ argument_specs:
           Example:
 
           ```
-          run_acmesh_account_keys:
+          run_acmesh_cfg_account_keys:
             - server: "letsencrypt"
               account_key: "\{\{ lookup('ansible.builtin.unvault', 'files/acmesh_account_key_letsencrypt.pem') \}\}"
           ```

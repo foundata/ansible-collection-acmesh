@@ -148,7 +148,7 @@
   vars:
     __testing_state_update:
       run_acmesh_dns_persist_pause: 0
-      run_acmesh_account_keys:
+      run_acmesh_cfg_account_keys:
         - server: "letsencrypt_test"
           account_key: "{{ lookup('env', 'TEST_ACMESH_ACCOUNT_KEY') }}"
       run_acmesh_certs: >-

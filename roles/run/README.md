@@ -57,9 +57,9 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
   - [`run_acmesh_cfg_syslog`](#variable-run_acmesh_cfg_syslog)
   - [`run_acmesh_cfg_ca_bundle`](#variable-run_acmesh_cfg_ca_bundle)
   - [`run_acmesh_cfg_ca_path`](#variable-run_acmesh_cfg_ca_path)
-  - [`run_acmesh_account_keys`](#variable-run_acmesh_account_keys)
-    - [`run_acmesh_account_keys['server']`](#variable-run_acmesh_account_keys-sub-server)
-    - [`run_acmesh_account_keys['account_key']`](#variable-run_acmesh_account_keys-sub-account_key)
+  - [`run_acmesh_cfg_account_keys`](#variable-run_acmesh_cfg_account_keys)
+    - [`run_acmesh_cfg_account_keys['server']`](#variable-run_acmesh_cfg_account_keys-sub-server)
+    - [`run_acmesh_cfg_account_keys['account_key']`](#variable-run_acmesh_cfg_account_keys-sub-account_key)
   - [`run_acmesh_dns_persist_pause`](#variable-run_acmesh_dns_persist_pause)
 <!-- ANSIBLE DOCSMITH TOC END -->
 - [Dependencies](#dependencies)
@@ -287,7 +287,7 @@ The following variables can be configured for this role:
 | `run_acmesh_cfg_syslog` | `int` | No | `3` | Specifies what to log (relates to acme.sh option --syslog). Possible values are 0 (disable syslog), 3 (errors), 6 (info) and 7 (debug) |
 | `run_acmesh_cfg_ca_bundle` | `str` | No | `""` | Path to a custom CA certificate bundle file on the remote host. Passed as `--ca-bundle` to all acme.sh commands that make HTTPS requests (issue, register-account). Needed when the ACME server uses a certificate signed by a private or non-standard CA […](#variable-run_acmesh_cfg_ca_bundle) |
 | `run_acmesh_cfg_ca_path` | `str` | No | `""` | Path to a directory of CA certificates in PEM format on the remote host. Passed as `--ca-path` to all acme.sh commands that make HTTPS requests. Alternative to `run_acmesh_cfg_ca_bundle` when the HTTP client (curl/wget) requires a directory of […](#variable-run_acmesh_cfg_ca_path) |
-| `run_acmesh_account_keys` | `list` | No | `[]` | List of ACME account keys to pre-seed. This is useful for `dns-persist-01` challenges where the TXT record is bound to a specific account key, and you want to reuse the same key across multiple servers or after re-installations.<br><br>Each item must […](#variable-run_acmesh_account_keys) |
+| `run_acmesh_cfg_account_keys` | `list` | No | `[]` | List of ACME account keys to pre-seed. This is useful for `dns-persist-01` challenges where the TXT record is bound to a specific account key, and you want to reuse the same key across multiple servers or after re-installations.<br><br>Each item must […](#variable-run_acmesh_cfg_account_keys) |
 | `run_acmesh_dns_persist_pause` | `int` | No | `600` | Controls the pause duration (in seconds) after displaying dns-persist-01 TXT record instructions. Set to `0` to disable the pause (useful for CI/CD pipelines or environments where TXT records are guaranteed to already be published).<br><br>If the […](#variable-run_acmesh_dns_persist_pause) |
 
 ### `run_acmesh_state`<a id="variable-run_acmesh_state"></a>
@@ -977,7 +977,7 @@ This is a global acme.sh setting -- acme.sh persists it to its
 
 
 
-### `run_acmesh_account_keys`<a id="variable-run_acmesh_account_keys"></a>
+### `run_acmesh_cfg_account_keys`<a id="variable-run_acmesh_cfg_account_keys"></a>
 
 [*⇑ Back to ToC ⇑*](#toc)
 
@@ -996,7 +996,7 @@ identifies accounts by their public key).
 Example:
 
 ```
-run_acmesh_account_keys:
+run_acmesh_cfg_account_keys:
   - server: "letsencrypt"
     account_key: "\{\{ lookup('ansible.builtin.unvault', 'files/acmesh_account_key_letsencrypt.pem') \}\}"
 ```
@@ -1006,7 +1006,7 @@ run_acmesh_account_keys:
 - **Default**: `[]`
 - **List Elements**: `dict`
 
-#### `run_acmesh_account_keys['server']`<a id="variable-run_acmesh_account_keys-sub-server"></a>
+#### `run_acmesh_cfg_account_keys['server']`<a id="variable-run_acmesh_cfg_account_keys-sub-server"></a>
 
 [*⇑ Back to ToC ⇑*](#toc)
 
@@ -1016,7 +1016,7 @@ The CA alias or full ACME directory URL. Must match the value used in
 - **Type**: `str`
 - **Required**: Yes
 
-#### `run_acmesh_account_keys['account_key']`<a id="variable-run_acmesh_account_keys-sub-account_key"></a>
+#### `run_acmesh_cfg_account_keys['account_key']`<a id="variable-run_acmesh_cfg_account_keys-sub-account_key"></a>
 
 [*⇑ Back to ToC ⇑*](#toc)
 

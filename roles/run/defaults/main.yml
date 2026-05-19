@@ -283,7 +283,7 @@ run_acmesh_cfg_ca_path: ""
 # Example:
 #
 # ```
-# run_acmesh_account_keys:
+# run_acmesh_cfg_account_keys:
 #   - server: "letsencrypt"
 #     account_key: "\{\{ lookup('ansible.builtin.unvault', 'files/acmesh_account_key_letsencrypt.pem') \}\}"
 # ```
@@ -292,7 +292,7 @@ run_acmesh_cfg_ca_path: ""
 # - Required: No
 # - Default: []
 # - List elements: dict
-run_acmesh_account_keys: []
+run_acmesh_cfg_account_keys: []
 
 # Controls the pause duration (in seconds) after displaying dns-persist-01 TXT
 # record instructions. Set to `0` to disable the pause (useful for CI/CD

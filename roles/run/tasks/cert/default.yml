@@ -228,14 +228,14 @@
     chdir: "{{ run_acmesh_cfg_home }}"
   when:
     - __run_acmesh_is_installed
-    - run_acmesh_account_keys is ansible.builtin.defined
-    - (run_acmesh_account_keys | ansible.builtin.length) > 0
+    - run_acmesh_cfg_account_keys is ansible.builtin.defined
+    - (run_acmesh_cfg_account_keys | ansible.builtin.length) > 0
   changed_when:
     - __run_acmesh_account_preseed_result is ansible.builtin.success
     - ('Changed') in __run_acmesh_account_preseed_result['stdout']
   failed_when:
     - __run_acmesh_account_preseed_result is ansible.builtin.failed
-  loop: "{{ run_acmesh_account_keys | ansible.builtin.default([]) }}"
+  loop: "{{ run_acmesh_cfg_account_keys | ansible.builtin.default([]) }}"
   register: __run_acmesh_account_preseed_result
   no_log: true
   notify:
