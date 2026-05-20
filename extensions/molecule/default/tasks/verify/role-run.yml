@@ -548,6 +548,34 @@
     - __testing_acmesh_account_conf_content is ansible.builtin.defined
 
 
+# When both dns-01 (TEST_ACMESH_TESTDOMAIN1/2 via INWX) and dns-persist-01
+# (TEST_ACMESH_TESTDOMAIN3 via TEST_ACMESH_ACCOUNT_KEY) tests are active
+# simultaneously, the SAVED_INWX_* credential check must be skipped.
+#
+# Root cause: run_acmesh_cfg_account_keys pre-seeds a fixed ACME account key
+# for the letsencrypt_test CA server. Both dns-01 and dns-persist certificates
+# share this CA. After the first successful molecule run, the CA caches domain
+# authorizations (~30 days) for that account key. On subsequent runs (fresh
+# containers, same key), acme.sh finds valid cached authorizations and skips
+# the DNS challenge entirely (acme.sh issue(), authorization "status":"valid"
+# -> keyauthorization="$STATE_VERIFIED" -> continue). Since the dns_inwx plugin
+# never executes, _saveaccountconf_mutable is never called and SAVED_INWX_*
+# entries are never written to the fresh container's account.conf.
+#
+# This is a test-only limitation, not a production issue: in production,
+# account.conf persists between runs, so credentials from the first successful
+# issuance remain available for cron-based renewals.
+- name: "Molecule | Verify | Warn: INWX credential check skipped (dns-persist active)"
+  ansible.builtin.debug:
+    msg: >-
+      Skipping SAVED_INWX_User/Password assertion: dns-persist-01 account key
+      pre-seeding is active (TEST_ACMESH_ACCOUNT_KEY is set) as the pre-seeded
+      key shares the letsencrypt_test CA with dns-01 certificates
+  when:
+    - (lookup('env', 'TEST_ACMESH_INWX_User') | ansible.builtin.length) > 0
+    - (lookup('env', 'TEST_ACMESH_ACCOUNT_KEY') | ansible.builtin.length) > 0
+
+
 - name: "Molecule | Verify | Assert account.conf contains expected INWX credentials"
   ansible.builtin.assert:
     that:
@@ -558,7 +586,8 @@
   vars:
     __testing_acmesh_account_conf_decoded: "{{ __testing_acmesh_account_conf_content['content'] | ansible.builtin.b64decode }}"
   when:
-    - lookup('env', 'TEST_ACMESH_INWX_User') | ansible.builtin.length > 0
+    - (lookup('env', 'TEST_ACMESH_INWX_User') | ansible.builtin.length) > 0
+    - (lookup('env', 'TEST_ACMESH_ACCOUNT_KEY') | ansible.builtin.length) <= 0
     - __testing_acmesh_account_conf_stat['stat']['exists']
     - __testing_acmesh_account_conf_content is ansible.builtin.defined
 

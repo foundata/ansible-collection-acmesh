@@ -251,6 +251,3 @@
   #       the role. This enables persisting the values in __testing_state
   #       and restoring them in later stages (e.g. verify) without manually
   #       duplicating data across playbooks.
-
-
-- ansible.builtin.pause:
