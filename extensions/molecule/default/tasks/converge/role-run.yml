@@ -154,7 +154,13 @@
     file: "../tasks/state_update.yml"
   vars:
     __testing_state_update:
-      run_acmesh_git_version: "master" # test against the latest upstream at least until 3.1.5 is released
+      # Test against latest upstream:
+      # 1. This helps catch incompatibilities early since the dns-01 patches use
+      #    the latest tagged release and dns-01/dns-persist tests are mutually
+      #    exclusive here.
+      # 2. 3.1.4 is not yet released as of 2026-05-21 and earlier versions lack
+      #    support for dns-persist-01.
+      run_acmesh_git_version: "master"
       run_acmesh_dns_persist_pause: 0
       run_acmesh_cfg_account_keys:
         - server: "letsencrypt_test"
