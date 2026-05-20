@@ -246,9 +246,9 @@ run_acmesh_cfg_syslog: 3
 # Path to a custom CA certificate bundle file on the remote host. Passed as
 # `--ca-bundle` to all acme.sh commands that make HTTPS requests (issue,
 # register-account). Needed when the ACME server uses a certificate signed by a
-# private or non-standard CA (e.g., a local pebble test server).
+# private or non-standard CA.
 #
-# This is a global acme.sh setting -- acme.sh persists it to its `account.conf`
+# This is a global acme.sh setting, acme.sh persists it to its `account.conf`
 # and applies it to all operations including cron renewals.
 #
 # - Type: str
@@ -261,7 +261,7 @@ run_acmesh_cfg_ca_bundle: ""
 # Alternative to `run_acmesh_cfg_ca_bundle` when the HTTP client (curl/wget)
 # requires a directory of individual CA certificate files.
 #
-# This is a global acme.sh setting -- acme.sh persists it to its `account.conf`
+# This is a global acme.sh setting, acme.sh persists it to its `account.conf`
 # and applies it to all operations including cron renewals.
 #
 # - Type: str
