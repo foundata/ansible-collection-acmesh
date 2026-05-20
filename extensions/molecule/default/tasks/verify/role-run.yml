@@ -21,6 +21,18 @@
     }}
 
 
+- name: "Molecule | Verify | Set other __testing_* variables as facts from __testing_state"
+  ansible.builtin.set_fact:
+    "{{ item['key'] }}": "{{ item['value'] }}"
+  loop: >-
+    {{
+      (__testing_state | default({}, true))
+      | ansible.builtin.dict2items
+      | ansible.builtin.selectattr('key', 'match', '^__testing_')
+      | ansible.builtin.list
+    }}
+
+
 ## Files and directories
 
 - name: "Molecule | Verify | Gather stats for directory: {{ run_acmesh_cfg_home }}"
@@ -171,360 +183,388 @@
     fail_msg: "acmesh-renewal.service does not have the expected configuration"
 
 
-## Files and directories: certificates of test domains (DNS-01 challenge)
+## Files and directories: certificates of test domains (dns-01 challenge)
 
-- name: "Molecule | Verify | Gather stats for directory: certificate data dir of first test domain"
-  ansible.builtin.stat:
-    path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc/"
-    get_checksum: false
-    get_mime: false
-  register: __testing_acmesh_testdomain1_certdir_stat
+- name: "Molecule | Verify | Certificates (dns-01 challenge, first test domain)"
   when:
+    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or
+      ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
     - (lookup('env', 'TEST_ACMESH_TESTDOMAIN1') | ansible.builtin.length) > 0
+  block:
+
+    - name: "Molecule | Verify | Gather stats for directory: certificate data dir (dns-01 challenge, first test domain)"
+      ansible.builtin.stat:
+        path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc/"
+        get_checksum: false
+        get_mime: false
+      register: __testing_acmesh_testdomain1_certdir_stat
 
 
-- name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir of first test domain"
-  ansible.builtin.assert:
-    that:
-      - __testing_acmesh_testdomain1_certdir_stat['stat']['exists']
-      - __testing_acmesh_testdomain1_certdir_stat['stat']['isdir']
-      - __testing_acmesh_testdomain1_certdir_stat['stat']['mode'] == '2750'
-      - __testing_acmesh_testdomain1_certdir_stat['stat']['pw_name'] == run_acmesh_user
-      - __testing_acmesh_testdomain1_certdir_stat['stat']['gr_name'] == run_acmesh_group
-    fail_msg: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc/ does not exist or has incorrect permissions/ownership"
+    - name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir (dns-01 challenge, first test domain)"
+      ansible.builtin.assert:
+        that:
+          - __testing_acmesh_testdomain1_certdir_stat['stat']['exists']
+          - __testing_acmesh_testdomain1_certdir_stat['stat']['isdir']
+          - __testing_acmesh_testdomain1_certdir_stat['stat']['mode'] == '2750'
+          - __testing_acmesh_testdomain1_certdir_stat['stat']['pw_name'] == run_acmesh_user
+          - __testing_acmesh_testdomain1_certdir_stat['stat']['gr_name'] == run_acmesh_group
+        fail_msg: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc/ does not exist or has incorrect permissions/ownership"
+
+
+    - name: "Molecule | Verify | Check certificate config file existence (dns-01 challenge, first test domain)"
+      ansible.builtin.stat:
+        path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}.conf"
+        get_checksum: false
+        get_mime: false
+      register: __testing_acmesh_domaincfg_stat_domain1
+
+
+    - name: "Molecule | Verify | Read certificate config file content (dns-01 challenge, first test domain)"
+      ansible.builtin.slurp:
+        src: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN1') }}.conf"
+      register: __testing_acmesh_domaincfg_content_domain1
+      when:
+        - __testing_acmesh_domaincfg_stat_domain1 is ansible.builtin.defined
+        - __testing_acmesh_domaincfg_stat_domain1['stat']['exists']
+
+
+    - name: "Molecule | Verify | Display certificate config file content (dns-01 challenge, first test domain)"
+      ansible.builtin.debug:
+        msg: "{{ __testing_acmesh_domaincfg_content_domain1_decoded.split('\n') }}"
+        verbosity: 1
+      vars:
+        __testing_acmesh_domaincfg_content_domain1_decoded: "{{ __testing_acmesh_domaincfg_content_domain1['content'] | ansible.builtin.b64decode }}"
+      when:
+        - __testing_acmesh_domaincfg_stat_domain1 is ansible.builtin.defined
+        - __testing_acmesh_domaincfg_stat_domain1['stat']['exists']
+        - __testing_acmesh_domaincfg_content_domain1 is ansible.builtin.defined
+
+
+- name: "Molecule | Verify | Certificates (dns-01 challenge, second test domain)"
   when:
-    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN1') | ansible.builtin.length) > 0
-
-
-- name: "Molecule | Verify | Gather stats for directory: certificate data dir of second test domain"
-  ansible.builtin.stat:
-    path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/"
-    get_checksum: false
-    get_mime: false
-  register: __testing_acmesh_testdomain2_certdir_stat
-  when:
+    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or
+      ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
     - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
+  block:
+
+    - name: "Molecule | Verify | Gather stats for directory: certificate data dir (dns-01 challenge, second test domain)"
+      ansible.builtin.stat:
+        path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/"
+        get_checksum: false
+        get_mime: false
+      register: __testing_acmesh_testdomain2_certdir_stat
 
 
-- name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir of second test domain"
-  ansible.builtin.assert:
-    that:
-      - __testing_acmesh_testdomain2_certdir_stat['stat']['exists']
-      - __testing_acmesh_testdomain2_certdir_stat['stat']['isdir']
-      - __testing_acmesh_testdomain2_certdir_stat['stat']['mode'] == '2750'
-      - __testing_acmesh_testdomain2_certdir_stat['stat']['pw_name'] == run_acmesh_user
-      - __testing_acmesh_testdomain2_certdir_stat['stat']['gr_name'] == run_acmesh_group
-    fail_msg: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/ does not exist or has incorrect permissions/ownership"
+    - name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir (dns-01 challenge, second test domain)"
+      ansible.builtin.assert:
+        that:
+          - __testing_acmesh_testdomain2_certdir_stat['stat']['exists']
+          - __testing_acmesh_testdomain2_certdir_stat['stat']['isdir']
+          - __testing_acmesh_testdomain2_certdir_stat['stat']['mode'] == '2750'
+          - __testing_acmesh_testdomain2_certdir_stat['stat']['pw_name'] == run_acmesh_user
+          - __testing_acmesh_testdomain2_certdir_stat['stat']['gr_name'] == run_acmesh_group
+        fail_msg: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/ does not exist or has incorrect permissions/ownership"
+
+
+    - name: "Molecule | Verify | Check certificate config file existence (dns-01 challenge, second test domain)"
+      ansible.builtin.stat:
+        path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}.conf"
+        get_checksum: false
+        get_mime: false
+      register: __testing_acmesh_domaincfg_stat_domain2
+
+
+    - name: "Molecule | Verify | Read certificate config file content (dns-01 challenge, second test domain)"
+      ansible.builtin.slurp:
+        src: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}.conf"
+      register: __testing_acmesh_domaincfg_content_domain2
+      when:
+        - __testing_acmesh_domaincfg_stat_domain2 is ansible.builtin.defined
+        - __testing_acmesh_domaincfg_stat_domain2['stat']['exists']
+
+
+    - name: "Molecule | Verify | Display certificate config file content (dns-01 challenge, second test domain)"
+      ansible.builtin.debug:
+        msg: "{{ __testing_acmesh_domaincfg_content_domain2_decoded.split('\n') }}"
+        verbosity: 1
+      vars:
+        __testing_acmesh_domaincfg_content_domain2_decoded: "{{ __testing_acmesh_domaincfg_content_domain2['content'] | ansible.builtin.b64decode }}"
+      when:
+        - __testing_acmesh_domaincfg_stat_domain2 is ansible.builtin.defined
+        - __testing_acmesh_domaincfg_stat_domain2['stat']['exists']
+        - __testing_acmesh_domaincfg_content_domain2 is ansible.builtin.defined
+
+
+- name: "Molecule | Verify | Permissions of test domain certificates (dns-01 challenge)"
   when:
-    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
+    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or
+      ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
+    - ((lookup('env', 'TEST_ACMESH_TESTDOMAIN1') | ansible.builtin.length) > 0) or
+      ((lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0)
+  block:
+
+    - name: "Molecule | Verify | Build list of installed certificate files (dns-01 challenge)"
+      ansible.builtin.set_fact:
+        __testing_acmesh_cert_files_installed: |
+          {%- set _files = [] -%}
+
+          {%- set _d1 = lookup('env', 'TEST_ACMESH_TESTDOMAIN1') -%}
+          {%- if _d1 | ansible.builtin.length > 0 -%}
+            {%- for _fname in ['ca.cer', 'cert.cer', 'fullchain.cer', 'cert.key'] -%}
+              {%- set _ = _files.append('/etc/pki/tls/certs/' ~ _d1 ~ '/' ~ _fname) -%}
+            {%- endfor -%}
+          {%- endif -%}
+
+          {%- set _d2 = lookup('env', 'TEST_ACMESH_TESTDOMAIN2') -%}
+          {%- if _d2 | ansible.builtin.length > 0 -%}
+            {%- for _fname in ['ca.cer', 'cert.cer', 'fullchain.cer', 'cert.key'] -%}
+              {%- set _ = _files.append('/etc/pki/tls/certs/' ~ _d2 ~ '/' ~ _fname) -%}
+            {%- endfor -%}
+          {%- endif -%}
+
+          {{ _files }}
 
 
-- name: "Molecule | Verify | Check certificate config file existence (second domain certificate)"
-  ansible.builtin.stat:
-    path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}.conf"
-    get_checksum: false
-    get_mime: false
-  register: __testing_acmesh_domaincfg_stat
-  when:
-    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
+    - name: "Molecule | Verify | Gather stats for installed certificate files (dns-01 challenge)"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        get_checksum: false
+        get_mime: false
+      loop: "{{ __testing_acmesh_cert_files_installed | ansible.builtin.default([]) }}"
+      register: __testing_acmesh_cert_files_installed_stat
 
 
-- name: "Molecule | Verify | Read certificate config file content (second domain certificate)"
-  ansible.builtin.slurp:
-    src: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}.conf"
-  register: __testing_acmesh_domaincfg_content
-  when:
-    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
-    - __testing_acmesh_domaincfg_stat['stat']['exists']
-
-
-- name: "Molecule | Verify | Display certificate config file content (second domain certificate)"
-  ansible.builtin.debug:
-    msg: "{{ __testing_acmesh_domaincfg_content_decoded.split('\n') }}"
-    verbosity: 1
-  vars:
-    __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | ansible.builtin.b64decode }}"
-  when:
-    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
-    - __testing_acmesh_domaincfg_stat['stat']['exists']
-    - __testing_acmesh_domaincfg_content is ansible.builtin.defined
-
-
-- name: "Molecule | Verify | Build list of installed certificate files"
-  ansible.builtin.set_fact:
-    __testing_acmesh_cert_files_installed: |
-      {%- set _files = [] -%}
-
-      {%- set _d1 = lookup('env', 'TEST_ACMESH_TESTDOMAIN1') -%}
-      {%- if _d1 | ansible.builtin.length > 0 -%}
-        {%- for _fname in ['ca.cer', 'cert.cer', 'fullchain.cer', 'cert.key'] -%}
-          {%- set _ = _files.append('/etc/pki/tls/certs/' ~ _d1 ~ '/' ~ _fname) -%}
-        {%- endfor -%}
-      {%- endif -%}
-
-      {%- set _d2 = lookup('env', 'TEST_ACMESH_TESTDOMAIN2') -%}
-      {%- if _d2 | ansible.builtin.length > 0 -%}
-        {%- for _fname in ['ca.cer', 'cert.cer', 'fullchain.cer', 'cert.key'] -%}
-          {%- set _ = _files.append('/etc/pki/tls/certs/' ~ _d2 ~ '/' ~ _fname) -%}
-        {%- endfor -%}
-      {%- endif -%}
-
-      {{ _files }}
-  when:
-    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN1') | ansible.builtin.length > 0) or
-      (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length > 0)
-
-
-- name: "Molecule | Verify | Gather stats for installed certificate files"
-  ansible.builtin.stat:
-    path: "{{ item }}"
-    get_checksum: false
-    get_mime: false
-  loop: "{{ __testing_acmesh_cert_files_installed | ansible.builtin.default([]) }}"
-  register: __testing_acmesh_cert_files_installed_stat
-  when:
-    - __testing_acmesh_cert_files_installed is ansible.builtin.defined
-    - __testing_acmesh_cert_files_installed | ansible.builtin.length > 0
-
-
-- name: "Molecule | Verify | Check existence, permissions and ownership: installed certificate files"
-  ansible.builtin.assert:
-    that:
-      - item['stat']['exists']
-      - item['stat']['isreg']
-      - item['stat']['mode'] == '0640'
-      - item['stat']['pw_name'] == run_acmesh_user
-      - item['stat']['gr_name'] == run_acmesh_group
-    fail_msg: "{{ item['stat']['path'] }} does not exist or has incorrect permissions/ownership"
-  loop: "{{ __testing_acmesh_cert_files_installed_stat['results'] | ansible.builtin.default([]) }}"
-  loop_control:
-    label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
-  when:
-    - __testing_acmesh_cert_files_installed_stat is ansible.builtin.defined
-    - __testing_acmesh_cert_files_installed_stat['results'] is ansible.builtin.defined
-    - __testing_acmesh_cert_files_installed_stat['results'] | ansible.builtin.length > 0
+    - name: "Molecule | Verify | Check existence, permissions and ownership: installed certificate files (dns-01 challenge)"
+      ansible.builtin.assert:
+        that:
+          - item['stat']['exists']
+          - item['stat']['isreg']
+          - item['stat']['mode'] == '0640'
+          - item['stat']['pw_name'] == run_acmesh_user
+          - item['stat']['gr_name'] == run_acmesh_group
+        fail_msg: "{{ item['stat']['path'] }} does not exist or has incorrect permissions/ownership"
+      loop: "{{ __testing_acmesh_cert_files_installed_stat['results'] | ansible.builtin.default([]) }}"
+      loop_control:
+        label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
+      when:
+        - __testing_acmesh_cert_files_installed_stat is ansible.builtin.defined
+        - __testing_acmesh_cert_files_installed_stat['results'] is ansible.builtin.defined
+        - __testing_acmesh_cert_files_installed_stat['results'] | ansible.builtin.length > 0
 
 
 ## Files and directories: webroot (pebble) certificate
 
-- name: "Molecule | Verify | Gather stats for directory: certificate data dir of webroot test domain"
-  ansible.builtin.stat:
-    path: "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc/"
-    get_checksum: false
-    get_mime: false
-  register: __testing_acmesh_webroot_certdir_stat
+- name: "Molecule | Verify | Certificates (webroot challenge)"
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+  block:
+
+    - name: "Molecule | Verify | Gather stats for directory: certificate data dir (webroot challenge)"
+      ansible.builtin.stat:
+        path: "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc/"
+        get_checksum: false
+        get_mime: false
+      register: __testing_acmesh_webroot_certdir_stat
 
 
-- name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir of webroot test domain"
-  ansible.builtin.assert:
-    that:
-      - __testing_acmesh_webroot_certdir_stat['stat']['exists']
-      - __testing_acmesh_webroot_certdir_stat['stat']['isdir']
-      - __testing_acmesh_webroot_certdir_stat['stat']['mode'] == '2750'
-      - __testing_acmesh_webroot_certdir_stat['stat']['pw_name'] == run_acmesh_user
-      - __testing_acmesh_webroot_certdir_stat['stat']['gr_name'] == run_acmesh_group
-    fail_msg: "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc/ does not exist or has incorrect permissions/ownership"
-  when:
-    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+    - name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir (webroot challenge)"
+      ansible.builtin.assert:
+        that:
+          - __testing_acmesh_webroot_certdir_stat['stat']['exists']
+          - __testing_acmesh_webroot_certdir_stat['stat']['isdir']
+          - __testing_acmesh_webroot_certdir_stat['stat']['mode'] == '2750'
+          - __testing_acmesh_webroot_certdir_stat['stat']['pw_name'] == run_acmesh_user
+          - __testing_acmesh_webroot_certdir_stat['stat']['gr_name'] == run_acmesh_group
+        fail_msg: "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc/ does not exist or has incorrect permissions/ownership"
 
 
-- name: "Molecule | Verify | Gather stats for installed webroot certificate files"
-  ansible.builtin.stat:
-    path: "{{ item }}"
-    get_checksum: false
-    get_mime: false
-  loop:
-    - "/etc/pki/tls/certs/acmesh-webroot.test/ca.cer"
-    - "/etc/pki/tls/certs/acmesh-webroot.test/cert.cer"
-    - "/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer"
-    - "/etc/pki/tls/certs/acmesh-webroot.test/cert.key"
-  register: __testing_acmesh_webroot_cert_files_stat
-  when:
-    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+    - name: "Molecule | Verify | Gather stats for installed certificate files (webroot challenge)"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        get_checksum: false
+        get_mime: false
+      loop:
+        - "/etc/pki/tls/certs/acmesh-webroot.test/ca.cer"
+        - "/etc/pki/tls/certs/acmesh-webroot.test/cert.cer"
+        - "/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer"
+        - "/etc/pki/tls/certs/acmesh-webroot.test/cert.key"
+      register: __testing_acmesh_webroot_cert_files_stat
 
 
-- name: "Molecule | Verify | Check existence, permissions and ownership: installed webroot certificate files"
-  ansible.builtin.assert:
-    that:
-      - item['stat']['exists']
-      - item['stat']['isreg']
-      - item['stat']['mode'] == '0640'
-      - item['stat']['pw_name'] == run_acmesh_user
-      - item['stat']['gr_name'] == run_acmesh_group
-    fail_msg: "{{ item['stat']['path'] }} does not exist or has incorrect permissions/ownership"
-  loop: "{{ __testing_acmesh_webroot_cert_files_stat['results'] | ansible.builtin.default([]) }}"
-  loop_control:
-    label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
-  when:
-    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
-    - __testing_acmesh_webroot_cert_files_stat['results'] is ansible.builtin.defined
-    - __testing_acmesh_webroot_cert_files_stat['results'] | ansible.builtin.length > 0
+    - name: "Molecule | Verify | Check existence, permissions and ownership: installed certificate files (webroot challenge)"
+      ansible.builtin.assert:
+        that:
+          - item['stat']['exists']
+          - item['stat']['isreg']
+          - item['stat']['mode'] == '0640'
+          - item['stat']['pw_name'] == run_acmesh_user
+          - item['stat']['gr_name'] == run_acmesh_group
+        fail_msg: "{{ item['stat']['path'] }} does not exist or has incorrect permissions/ownership"
+      loop: "{{ __testing_acmesh_webroot_cert_files_stat['results'] | ansible.builtin.default([]) }}"
+      loop_control:
+        label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
+      when:
+        - __testing_acmesh_webroot_cert_files_stat['results'] is ansible.builtin.defined
+        - __testing_acmesh_webroot_cert_files_stat['results'] | ansible.builtin.length > 0
 
 
-- name: "Molecule | Verify | Read webroot certificate SAN (Subject Alternative Name)"
-  ansible.builtin.command:
-    argv:
-      - "openssl"
-      - "x509"
-      - "-in"
-      - "/etc/pki/tls/certs/acmesh-webroot.test/cert.cer"
-      - "-noout"
-      - "-ext"
-      - "subjectAltName"
-  changed_when: false
-  register: __testing_acmesh_webroot_cert_san
-  when:
-    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+    - name: "Molecule | Verify | Read certificate SAN (Subject Alternative Name) (webroot challenge)"
+      ansible.builtin.command:
+        argv:
+          - "openssl"
+          - "x509"
+          - "-in"
+          - "/etc/pki/tls/certs/acmesh-webroot.test/cert.cer"
+          - "-noout"
+          - "-ext"
+          - "subjectAltName"
+      changed_when: false
+      register: __testing_acmesh_webroot_cert_san
 
 
-- name: "Molecule | Verify | Assert webroot certificate SAN contains expected domain"
-  ansible.builtin.assert:
-    that:
-      - "'acmesh-webroot.test' in __testing_acmesh_webroot_cert_san['stdout']"
-    fail_msg: >-
-      Webroot certificate SAN does not contain 'acmesh-webroot.test'.
-      Got: {{ __testing_acmesh_webroot_cert_san['stdout'] }}
-    success_msg: "Webroot certificate SAN matches: {{ __testing_acmesh_webroot_cert_san['stdout'] }}"
-  when:
-    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
-    - __testing_acmesh_webroot_cert_san is ansible.builtin.defined
+    - name: "Molecule | Verify | Assert certificate SAN contains expected domain (webroot challenge)"
+      ansible.builtin.assert:
+        that:
+          - "'acmesh-webroot.test' in __testing_acmesh_webroot_cert_san['stdout']"
+        fail_msg: >-
+          Webroot certificate SAN does not contain 'acmesh-webroot.test'.
+          Got: {{ __testing_acmesh_webroot_cert_san['stdout'] }}
+        success_msg: "Webroot certificate SAN matches: {{ __testing_acmesh_webroot_cert_san['stdout'] }}"
+      when:
+        - __testing_acmesh_webroot_cert_san is ansible.builtin.defined
 
 
 ## Files and directories: dns-persist-01 certificate and account.key permissions
 
-- name: "Molecule | Verify | Gather stats for directory: certificate data dir of dns-persist test domain"
-  ansible.builtin.stat:
-    path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}_ecc/"
-    get_checksum: false
-    get_mime: false
-  register: __testing_acmesh_dnspersist_certdir_stat
+- name: "Molecule | Verify | Certificates (dns-persist-01 challenge)"
   when:
-    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN3') | ansible.builtin.length) > 0
-    - (lookup('env', 'TEST_ACMESH_ACCOUNT_KEY') | ansible.builtin.length) > 0
+    - __testing_missing_envvars_dnspersist is not ansible.builtin.defined or
+      ((__testing_missing_envvars_dnspersist | ansible.builtin.length) <= 0)
+  block:
+
+    - name: "Molecule | Verify | Gather stats for directory: certificate data dir of dns-persist test domain"
+      ansible.builtin.stat:
+        path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}_ecc/"
+        get_checksum: false
+        get_mime: false
+      register: __testing_acmesh_dnspersist_certdir_stat
 
 
-- name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir of dns-persist test domain"
-  ansible.builtin.assert:
-    that:
-      - __testing_acmesh_dnspersist_certdir_stat['stat']['exists']
-      - __testing_acmesh_dnspersist_certdir_stat['stat']['isdir']
-      - __testing_acmesh_dnspersist_certdir_stat['stat']['mode'] == '2750'
-      - __testing_acmesh_dnspersist_certdir_stat['stat']['pw_name'] == run_acmesh_user
-      - __testing_acmesh_dnspersist_certdir_stat['stat']['gr_name'] == run_acmesh_group
-    fail_msg: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}_ecc/ does not exist or has incorrect permissions/ownership"
-  when:
-    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN3') | ansible.builtin.length) > 0
-    - (lookup('env', 'TEST_ACMESH_ACCOUNT_KEY') | ansible.builtin.length) > 0
-    - __testing_acmesh_dnspersist_certdir_stat is ansible.builtin.defined
-    - __testing_acmesh_dnspersist_certdir_stat['stat'] is ansible.builtin.defined
+    - name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir (dns-persist-01 challenge)"
+      ansible.builtin.assert:
+        that:
+          - __testing_acmesh_dnspersist_certdir_stat['stat']['exists']
+          - __testing_acmesh_dnspersist_certdir_stat['stat']['isdir']
+          - __testing_acmesh_dnspersist_certdir_stat['stat']['mode'] == '2750'
+          - __testing_acmesh_dnspersist_certdir_stat['stat']['pw_name'] == run_acmesh_user
+          - __testing_acmesh_dnspersist_certdir_stat['stat']['gr_name'] == run_acmesh_group
+        fail_msg: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}_ecc/ does not exist or has incorrect permissions/ownership"
+      when:
+        - __testing_acmesh_dnspersist_certdir_stat is ansible.builtin.defined
+        - __testing_acmesh_dnspersist_certdir_stat['stat'] is ansible.builtin.defined
 
 
-- name: "Molecule | Verify | Gather stats for installed dns-persist certificate files"
-  ansible.builtin.stat:
-    path: "{{ item }}"
-    get_checksum: false
-    get_mime: false
-  loop:
-    - "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}/ca.cer"
-    - "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}/cert.cer"
-    - "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}/fullchain.cer"
-    - "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}/cert.key"
-  register: __testing_acmesh_dnspersist_cert_files_stat
-  when:
-    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN3') | ansible.builtin.length) > 0
-    - (lookup('env', 'TEST_ACMESH_ACCOUNT_KEY') | ansible.builtin.length) > 0
+    - name: "Molecule | Verify | Gather stats for installed certificate files (dns-persist-01 challenge)"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        get_checksum: false
+        get_mime: false
+      loop:
+        - "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}/ca.cer"
+        - "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}/cert.cer"
+        - "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}/fullchain.cer"
+        - "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') }}/cert.key"
+      register: __testing_acmesh_dnspersist_cert_files_stat
 
 
-- name: "Molecule | Verify | Check existence, permissions and ownership: installed dns-persist certificate files"
-  ansible.builtin.assert:
-    that:
-      - item['stat']['exists']
-      - item['stat']['isreg']
-      - item['stat']['mode'] == '0640'
-      - item['stat']['pw_name'] == run_acmesh_user
-      - item['stat']['gr_name'] == run_acmesh_group
-    fail_msg: "{{ item['stat']['path'] }} does not exist or has incorrect permissions/ownership"
-  loop: "{{ __testing_acmesh_dnspersist_cert_files_stat['results'] | ansible.builtin.default([]) }}"
-  loop_control:
-    label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
-  when:
-    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN3') | ansible.builtin.length) > 0
-    - (lookup('env', 'TEST_ACMESH_ACCOUNT_KEY') | ansible.builtin.length) > 0
-    - __testing_acmesh_dnspersist_cert_files_stat is ansible.builtin.defined
-    - __testing_acmesh_dnspersist_cert_files_stat['results'] is ansible.builtin.defined
-    - __testing_acmesh_dnspersist_cert_files_stat['results'] | ansible.builtin.length > 0
+    - name: "Molecule | Verify | Check existence, permissions and ownership: installed certificate files (dns-persist-01 challenge)"
+      ansible.builtin.assert:
+        that:
+          - item['stat']['exists']
+          - item['stat']['isreg']
+          - item['stat']['mode'] == '0640'
+          - item['stat']['pw_name'] == run_acmesh_user
+          - item['stat']['gr_name'] == run_acmesh_group
+        fail_msg: "{{ item['stat']['path'] }} does not exist or has incorrect permissions/ownership"
+      loop: "{{ __testing_acmesh_dnspersist_cert_files_stat['results'] | ansible.builtin.default([]) }}"
+      loop_control:
+        label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
+      when:
+        - __testing_acmesh_dnspersist_cert_files_stat is ansible.builtin.defined
+        - __testing_acmesh_dnspersist_cert_files_stat['results'] is ansible.builtin.defined
+        - __testing_acmesh_dnspersist_cert_files_stat['results'] | ansible.builtin.length > 0
 
 
-- name: "Molecule | Verify | Find account.key files in CA config directory"
-  ansible.builtin.find:
-    paths: "{{ run_acmesh_cfg_config_home }}/ca"
-    patterns: "account.key"
-    recurse: true
-    file_type: "file"
-  register: __testing_acmesh_account_key_files
+    - name: "Molecule | Verify | Find account.key files in CA config directory (dns-persist-01 challenge)"
+      ansible.builtin.find:
+        paths: "{{ run_acmesh_cfg_config_home }}/ca"
+        patterns: "account.key"
+        recurse: true
+        file_type: "file"
+      register: __testing_acmesh_account_key_files
 
 
-- name: "Molecule | Verify | Gather stats for account.key files"
-  ansible.builtin.stat:
-    path: "{{ item['path'] }}"
-    get_checksum: false
-    get_mime: false
-  loop: "{{ __testing_acmesh_account_key_files['files'] | ansible.builtin.default([]) }}"
-  loop_control:
-    label: "{{ item['path'] }}"
-  register: __testing_acmesh_account_key_files_stat
-  when:
-    - __testing_acmesh_account_key_files is ansible.builtin.defined
-    - __testing_acmesh_account_key_files['files'] is ansible.builtin.defined
-    - __testing_acmesh_account_key_files['files'] | ansible.builtin.length > 0
+    - name: "Molecule | Verify | Gather stats for account.key files (dns-persist-01 challenge)"
+      ansible.builtin.stat:
+        path: "{{ item['path'] }}"
+        get_checksum: false
+        get_mime: false
+      loop: "{{ __testing_acmesh_account_key_files['files'] | ansible.builtin.default([]) }}"
+      loop_control:
+        label: "{{ item['path'] }}"
+      register: __testing_acmesh_account_key_files_stat
+      when:
+        - __testing_acmesh_account_key_files is ansible.builtin.defined
+        - __testing_acmesh_account_key_files['files'] is ansible.builtin.defined
+        - __testing_acmesh_account_key_files['files'] | ansible.builtin.length > 0
 
 
-- name: "Molecule | Verify | Check permissions and ownership: account.key files must be 0600"
-  ansible.builtin.assert:
-    that:
-      - item['stat']['exists']
-      - item['stat']['isreg']
-      - item['stat']['mode'] == '0600'
-      - item['stat']['pw_name'] == run_acmesh_user
-      - item['stat']['gr_name'] == run_acmesh_group
-    fail_msg: "{{ item['stat']['path'] }} has incorrect permissions (expected 0600, {{ run_acmesh_user }}:{{ run_acmesh_group }})"
-    success_msg: "{{ item['stat']['path'] }} has correct permissions (0600, {{ run_acmesh_user }}:{{ run_acmesh_group }})"
-  loop: "{{ __testing_acmesh_account_key_files_stat['results'] | ansible.builtin.default([]) }}"
-  loop_control:
-    label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
-  when:
-    - __testing_acmesh_account_key_files_stat is ansible.builtin.defined
-    - __testing_acmesh_account_key_files_stat['results'] is ansible.builtin.defined
-    - __testing_acmesh_account_key_files_stat['results'] | ansible.builtin.length > 0
+    - name: "Molecule | Verify | Check permissions and ownership: account.key files (dns-persist-01 challenge)"
+      ansible.builtin.assert:
+        that:
+          - item['stat']['exists']
+          - item['stat']['isreg']
+          - item['stat']['mode'] == '0600'
+          - item['stat']['pw_name'] == run_acmesh_user
+          - item['stat']['gr_name'] == run_acmesh_group
+        fail_msg: "{{ item['stat']['path'] }} has incorrect permissions (expected 0600, {{ run_acmesh_user }}:{{ run_acmesh_group }})"
+        success_msg: "{{ item['stat']['path'] }} has correct permissions (0600, {{ run_acmesh_user }}:{{ run_acmesh_group }})"
+      loop: "{{ __testing_acmesh_account_key_files_stat['results'] | ansible.builtin.default([]) }}"
+      loop_control:
+        label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
+      when:
+        - __testing_acmesh_account_key_files_stat is ansible.builtin.defined
+        - __testing_acmesh_account_key_files_stat['results'] is ansible.builtin.defined
+        - __testing_acmesh_account_key_files_stat['results'] | ansible.builtin.length > 0
 
 
 ## Environment verification
 
-- name: "Molecule | Verify | Verify current reloadcmd and hook values in certificate config file (second domain certificate)"
+- name: "Molecule | Verify | Verify current reloadcmd and hook values in certificate config file (dns-01 challenge, second test domain)"
   ansible.builtin.assert:
     that:
-      - __testing_acmesh_domaincfg_content_decoded is search("Le_PreHook='__ACME_BASE64__START_dHJ1ZSBwcmU=__ACME_BASE64__END_'")
-      - __testing_acmesh_domaincfg_content_decoded is search("Le_PostHook='__ACME_BASE64__START_dHJ1ZSBwb3N0__ACME_BASE64__END_'")
-      - __testing_acmesh_domaincfg_content_decoded is search("Le_RenewHook='__ACME_BASE64__START_dHJ1ZSByZW5ldw==__ACME_BASE64__END_'")
-      - __testing_acmesh_domaincfg_content_decoded is search("Le_ReloadCmd='__ACME_BASE64__START_dHJ1ZSByZWxvYWQ=__ACME_BASE64__END_'")
+      - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_PreHook='__ACME_BASE64__START_dHJ1ZSBwcmU=__ACME_BASE64__END_'")
+      - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_PostHook='__ACME_BASE64__START_dHJ1ZSBwb3N0__ACME_BASE64__END_'")
+      - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_RenewHook='__ACME_BASE64__START_dHJ1ZSByZW5ldw==__ACME_BASE64__END_'")
+      - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_ReloadCmd='__ACME_BASE64__START_dHJ1ZSByZWxvYWQ=__ACME_BASE64__END_'")
     fail_msg: "The certificate config file does not contain the expected reloadcmd and hook values."
     success_msg: "All reloadcmd and hook values have been found in the certificate config file."
   vars:
-    __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | ansible.builtin.b64decode }}"
+    __testing_acmesh_domaincfg_content_domain2_decoded: "{{ __testing_acmesh_domaincfg_content_domain2['content'] | ansible.builtin.b64decode }}"
   when:
-    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
-    - __testing_acmesh_domaincfg_stat['stat']['exists']
-    - __testing_acmesh_domaincfg_content is ansible.builtin.defined
+    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or
+      ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
+    - __testing_acmesh_domaincfg_stat_domain2 is ansible.builtin.defined
+    - __testing_acmesh_domaincfg_stat_domain2['stat']['exists']
+    - __testing_acmesh_domaincfg_content_domain2 is ansible.builtin.defined
 
 
-# The per-cert environment merge feature (run_acmesh_certs[].environment)
-# works at the Ansible level: per-cert values override global ones via
-# ansible.builtin.combine. However, acme.sh DNS API plugins persist
-# credentials per provider (not per certificate) in account.conf. Using
-# different credentials for the same provider across certificates will
-# result in only the last-written set being saved.
+# The per-cert environment merge feature (run_acmesh_certs[].environment) works
+# at the Ansible level: per-cert values override global ones via
+# ansible.builtin.combine. However, acme.sh DNS API plugins persist credentials
+# per provider (not per certificate) in account.conf. Using different credentials
+# for the same provider across certificates will result in only the last-written
+# set being saved.
 #
 # The test below verifies that acme.sh has persisted the expected DNS API
 # credentials in account.conf after certificate issuance.
@@ -586,6 +626,8 @@
   vars:
     __testing_acmesh_account_conf_decoded: "{{ __testing_acmesh_account_conf_content['content'] | ansible.builtin.b64decode }}"
   when:
+    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or
+      ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
     - (lookup('env', 'TEST_ACMESH_INWX_User') | ansible.builtin.length) > 0
     - (lookup('env', 'TEST_ACMESH_ACCOUNT_KEY') | ansible.builtin.length) <= 0
     - __testing_acmesh_account_conf_stat['stat']['exists']
@@ -594,95 +636,96 @@
 
 ## Test feature: Update reloadcmd and hooks of test domain config
 
-- name: "Molecule | Verify | Flush handlers now"
-  ansible.builtin.meta: "flush_handlers"
-
-
-- name: "Molecule | Verify | Adapt second domain certificate config: Update reloadcmd and hooks"
-  ansible.builtin.include_role:
-    name: "foundata.acmesh.run"
-  vars:
-    run_acmesh_state: "present"
-    run_acmesh_cfg_accountemail: "{{ lookup('env', 'TEST_ACMESH_ACCOUNTEMAIL') }}"
-    run_acmesh_certs:
-      # The following parameters are all copied from the call in converge/run-role.yml execpt:
-      # - reloadcmd
-      # - pre_hook
-      # - post_hook
-      # - renew_hook
-      - domains:
-          - name: "{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}"
-            challenge:
-              type: "dns"
-              dns_provider: "dns_inwx"
-              challenge_alias: "{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2_CHALLENGE_ALIAS') }}"
-          - name: "www.{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}"
-            challenge:
-              type: "dns"
-              dns_provider: "dns_inwx"
-              challenge_alias: "www.{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}.{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2_CHALLENGE_ALIAS') }}"
-        install:
-          ca_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/ca.cer"
-          cert_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/cert.cer"
-          fullchain_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/fullchain.cer"
-          key_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/cert.key"
-          reloadcmd: "true reload_update"
-        # "{letsencrypt,buypass,google}_test" for staging, see
-        # https://github.com/acmesh-official/acme.sh/wiki/Server
-        server: "letsencrypt_test"
-        force: false # optional
-        debug: false # optional
-        pre_hook: "true pre_update" # changed value
-        post_hook: "true post_update" # changed value
-        renew_hook: "true renew_update" # changed value
-        extra_flags: "" # optional (workaround for edge cases, put --whatever here)
-    # Environment variables needed for the DNS API authentication for
-    # type: "dns" and dns_provider: "dns_inwx"
-    run_acmesh_environment:
-      INWX_User: "{{ lookup('env', 'TEST_ACMESH_INWX_User') }}"
-      INWX_Password: "{{ lookup('env', 'TEST_ACMESH_INWX_Password') }}"
+- name: "Molecule | Verify | Permissions of test domain certificates (dns-01 challenge)"
   when:
+    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or
+      ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
     - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
-  tags:
-    - "run_acmesh_cert"
+  block:
+
+    - name: "Molecule | Verify | Flush handlers now"
+      ansible.builtin.meta: "flush_handlers"
 
 
-- name: "Molecule | Verify | Read certificate config file content again (second domain certificate)"
-  ansible.builtin.slurp:
-    src: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}.conf"
-  register: __testing_acmesh_domaincfg_content
-  when:
-    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
-    - __testing_acmesh_domaincfg_stat['stat']['exists']
+    - name: "Molecule | Verify | Adapt second domain certificate config: Update reloadcmd and hooks"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+      vars:
+        run_acmesh_state: "present"
+        run_acmesh_cfg_accountemail: "{{ lookup('env', 'TEST_ACMESH_ACCOUNTEMAIL') }}"
+        run_acmesh_certs:
+          # The following parameters are all copied from the call in converge/run-role.yml execpt:
+          # - reloadcmd
+          # - pre_hook
+          # - post_hook
+          # - renew_hook
+          - domains:
+              - name: "{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}"
+                challenge:
+                  type: "dns"
+                  dns_provider: "dns_inwx"
+                  challenge_alias: "{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2_CHALLENGE_ALIAS') }}"
+              - name: "www.{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}"
+                challenge:
+                  type: "dns"
+                  dns_provider: "dns_inwx"
+                  challenge_alias: "www.{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}.{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2_CHALLENGE_ALIAS') }}"
+            install:
+              ca_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/ca.cer"
+              cert_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/cert.cer"
+              fullchain_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/fullchain.cer"
+              key_file: "/etc/pki/tls/certs/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}/cert.key"
+              reloadcmd: "true reload_update"
+            # "{letsencrypt,buypass,google}_test" for staging, see
+            # https://github.com/acmesh-official/acme.sh/wiki/Server
+            server: "letsencrypt_test"
+            force: false # optional
+            debug: false # optional
+            pre_hook: "true pre_update" # changed value
+            post_hook: "true post_update" # changed value
+            renew_hook: "true renew_update" # changed value
+            extra_flags: "" # optional (workaround for edge cases, put --whatever here)
+        # Environment variables needed for the DNS API authentication for
+        # type: "dns" and dns_provider: "dns_inwx"
+        run_acmesh_environment:
+          INWX_User: "{{ lookup('env', 'TEST_ACMESH_INWX_User') }}"
+          INWX_Password: "{{ lookup('env', 'TEST_ACMESH_INWX_Password') }}"
+
+    - name: "Molecule | Verify | Read certificate config file content again (dns-01 challenge, second test domain)"
+      ansible.builtin.slurp:
+        src: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN2') }}.conf"
+      register: __testing_acmesh_domaincfg_content_domain2
+      when:
+        - __testing_acmesh_domaincfg_stat_domain2 is ansible.builtin.defined
+        - __testing_acmesh_domaincfg_stat_domain2['stat']['exists']
+
+    - name: "Molecule | Verify | Display certificate config file content (dns-01 challenge, second test domain)"
+      ansible.builtin.debug:
+        msg: "{{ __testing_acmesh_domaincfg_content_domain2_decoded.split('\n') }}"
+        verbosity: 1
+      vars:
+        __testing_acmesh_domaincfg_content_domain2_decoded: "{{ __testing_acmesh_domaincfg_content_domain2['content'] | ansible.builtin.b64decode }}"
+      when:
+        - __testing_acmesh_domaincfg_stat_domain2 is ansible.builtin.defined
+        - __testing_acmesh_domaincfg_stat_domain2['stat']['exists']
+        - __testing_acmesh_domaincfg_content_domain2 is ansible.builtin.defined
 
 
-- name: "Molecule | Verify | Display certificate config file content (second domain certificate)"
-  ansible.builtin.debug:
-    msg: "{{ __testing_acmesh_domaincfg_content_decoded.split('\n') }}"
-    verbosity: 1
-  vars:
-    __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | ansible.builtin.b64decode }}"
-  when:
-    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
-    - __testing_acmesh_domaincfg_stat['stat']['exists']
-    - __testing_acmesh_domaincfg_content is ansible.builtin.defined
-
-
-- name: "Molecule | Verify | Verify updated reloadcmd and hook values in certificate config file (second domain certificate)"
-  ansible.builtin.assert:
-    that:
-      - __testing_acmesh_domaincfg_content_decoded is search("Le_PreHook='__ACME_BASE64__START_dHJ1ZSBwcmVfdXBkYXRl__ACME_BASE64__END_'")
-      - __testing_acmesh_domaincfg_content_decoded is search("Le_PostHook='__ACME_BASE64__START_dHJ1ZSBwb3N0X3VwZGF0ZQ==__ACME_BASE64__END_'")
-      - __testing_acmesh_domaincfg_content_decoded is search("Le_RenewHook='__ACME_BASE64__START_dHJ1ZSByZW5ld191cGRhdGU=__ACME_BASE64__END_'")
-      - __testing_acmesh_domaincfg_content_decoded is search("Le_ReloadCmd='__ACME_BASE64__START_dHJ1ZSByZWxvYWRfdXBkYXRl__ACME_BASE64__END_'")
-    fail_msg: "The certificate config file does not contain the expected, updated reloadcmd and hook values."
-    success_msg: "All updated reloadcmd and hook values have been found in the certificate config file."
-  vars:
-    __testing_acmesh_domaincfg_content_decoded: "{{ __testing_acmesh_domaincfg_content['content'] | ansible.builtin.b64decode }}"
-  when:
-    - (lookup('env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
-    - __testing_acmesh_domaincfg_stat['stat']['exists']
-    - __testing_acmesh_domaincfg_content is ansible.builtin.defined
+    - name: "Molecule | Verify | Verify updated reloadcmd and hook values in certificate config file (dns-01 challenge, second test domain)"
+      ansible.builtin.assert:
+        that:
+          - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_PreHook='__ACME_BASE64__START_dHJ1ZSBwcmVfdXBkYXRl__ACME_BASE64__END_'")
+          - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_PostHook='__ACME_BASE64__START_dHJ1ZSBwb3N0X3VwZGF0ZQ==__ACME_BASE64__END_'")
+          - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_RenewHook='__ACME_BASE64__START_dHJ1ZSByZW5ld191cGRhdGU=__ACME_BASE64__END_'")
+          - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_ReloadCmd='__ACME_BASE64__START_dHJ1ZSByZWxvYWRfdXBkYXRl__ACME_BASE64__END_'")
+        fail_msg: "The certificate config file does not contain the expected, updated reloadcmd and hook values."
+        success_msg: "All updated reloadcmd and hook values have been found in the certificate config file."
+      vars:
+        __testing_acmesh_domaincfg_content_domain2_decoded: "{{ __testing_acmesh_domaincfg_content_domain2['content'] | ansible.builtin.b64decode }}"
+      when:
+        - __testing_acmesh_domaincfg_stat_domain2 is ansible.builtin.defined
+        - __testing_acmesh_domaincfg_stat_domain2['stat']['exists']
+        - __testing_acmesh_domaincfg_content_domain2 is ansible.builtin.defined
 
 
 ## Test uninstall: additional, non-primary group removal (no additional members)

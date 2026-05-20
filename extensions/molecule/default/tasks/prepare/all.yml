@@ -150,8 +150,9 @@
       cp /etc/pebble/certs/pebble.minica.pem /usr/local/share/ca-certificates/pebble-minica.crt
       update-ca-certificates
     executable: "/bin/bash"
+  changed_when: true
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - (ansible_facts['os_family'] | ansible.builtin.lower) == 'debian'
 
 
 - name: "Molecule | Prepare | Add pebble CA to system trust store (RedHat)"
@@ -160,18 +161,20 @@
       cp /etc/pebble/certs/pebble.minica.pem /etc/pki/ca-trust/source/anchors/pebble-minica.pem
       update-ca-trust
     executable: "/bin/bash"
+  changed_when: true
   when:
-    - ansible_facts['os_family'] == 'RedHat'
+    - (ansible_facts['os_family'] | ansible.builtin.lower) == 'redhat'
 
 
-- name: "Molecule | Prepare | Add pebble CA to system trust store (Suse)"
+- name: "Molecule | Prepare | Add pebble CA to system trust store (SUSE)"
   ansible.builtin.shell:
     cmd: |
       cp /etc/pebble/certs/pebble.minica.pem /etc/pki/trust/anchors/pebble-minica.pem
       update-ca-certificates
     executable: "/bin/bash"
+  changed_when: true
   when:
-    - ansible_facts['os_family'] == 'Suse'
+    - (ansible_facts['os_family'] | ansible.builtin.lower) == 'suse'
 
 
 - name: "Molecule | Prepare | Create pebble configuration file"

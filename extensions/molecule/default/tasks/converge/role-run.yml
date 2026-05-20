@@ -1,16 +1,8 @@
 # Execute the collection role "run" against all driver-created instances.
 
-- name: "Molecule | Converge | Store run_acmesh_* role parameters in __testing_state"
-  ansible.builtin.include_tasks:
-    file: "../tasks/state_update.yml"
-  vars:
-    __testing_state_update:
-      run_acmesh_state: "present"
-
-
 - name: "Molecule | Converge | Check for environment variables needed to issue certificates via DNS challenge"
   ansible.builtin.set_fact:
-    __testing_missing_envvars_dnschallenge: "{{ __testing_missing_envvars_dnschallenge | ansible.builtin.default([]) + [item] }}"
+    __testing_missing_envvars_dns01: "{{ __testing_missing_envvars_dns01 | ansible.builtin.default([]) + [item] }}"
   when:
     - lookup('env', item, default='') == ''
   loop:
@@ -27,10 +19,18 @@
   ansible.builtin.debug:
     msg: >
       Tests regarding certificate issuing via DNS challenge will be skipped,
-      required environment variables are missing or invalid: {{ __testing_missing_envvars_dnschallenge | join(', ') }}.
+      required environment variables are missing or invalid: {{ __testing_missing_envvars_dns01 | join(', ') }}.
   when:
-    - __testing_missing_envvars_dnschallenge is ansible.builtin.defined
-    - __testing_missing_envvars_dnschallenge | ansible.builtin.length > 0
+    - __testing_missing_envvars_dns01 is ansible.builtin.defined
+    - __testing_missing_envvars_dns01 | ansible.builtin.length > 0
+
+
+- name: "Molecule | Prepare | Store info about missing environment variables (DNS challenge) in __testing_state"
+  ansible.builtin.include_tasks:
+    file: "../tasks/state_update.yml"
+  vars:
+    __testing_state_update:
+      __testing_missing_envvars_dns01: "{{ __testing_missing_envvars_dns01 | ansible.builtin.default('', true) }}"
 
 
 - name: "Molecule | Converge | Store run_acmesh_* role parameters needed for certificate issuance in __testing_state"
@@ -38,7 +38,6 @@
     file: "../tasks/state_update.yml"
   vars:
     __testing_state_update:
-      run_acmesh_git_version: "master" # test against the latest upstream
       run_acmesh_cfg_accountemail: "{{ lookup('env', 'TEST_ACMESH_ACCOUNTEMAIL') }}"
       run_acmesh_certs:
         # first certificate: main domain only
@@ -94,8 +93,8 @@
         INWX_User: "{{ lookup('env', 'TEST_ACMESH_INWX_User') }}"
         INWX_Password: "{{ lookup('env', 'TEST_ACMESH_INWX_Password') }}"
   when:
-    - __testing_missing_envvars_dnschallenge is not ansible.builtin.defined or
-      ((__testing_missing_envvars_dnschallenge | ansible.builtin.length) <= 0)
+    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or
+      ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
 
 
 ## dns-persist-01 certificate (requires permanent TXT records + pre-seeded account key)
@@ -139,7 +138,15 @@
       skipped, required environment variables are missing or invalid: {{ __testing_missing_envvars_dnspersist | join(', ') }}.
   when:
     - __testing_missing_envvars_dnspersist is ansible.builtin.defined
-    - __testing_missing_envvars_dnspersist | ansible.builtin.length > 0
+    - (__testing_missing_envvars_dnspersist | ansible.builtin.length) > 0
+
+
+- name: "Molecule | Prepare | Store info about missing environment variables (DNS challenge) in __testing_state"
+  ansible.builtin.include_tasks:
+    file: "../tasks/state_update.yml"
+  vars:
+    __testing_state_update:
+      __testing_missing_envvars_dnspersist: "{{ __testing_missing_envvars_dnspersist | ansible.builtin.default('', true) }}"
 
 
 - name: "Molecule | Converge | Append dns-persist-01 certificate config and account key to __testing_state"
@@ -147,6 +154,7 @@
     file: "../tasks/state_update.yml"
   vars:
     __testing_state_update:
+      run_acmesh_git_version: "master" # test against the latest upstream at least until 3.1.5 is released
       run_acmesh_dns_persist_pause: 0
       run_acmesh_cfg_account_keys:
         - server: "letsencrypt_test"
@@ -243,6 +251,7 @@
       | ansible.builtin.selectattr('key', 'match', '^run_acmesh_')
       | ansible.builtin.list
     }}
+
 
 - name: "Molecule | Converge | Include the foundata.acmesh.run role"
   ansible.builtin.include_role:
