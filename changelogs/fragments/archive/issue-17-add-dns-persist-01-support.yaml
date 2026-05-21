@@ -1,6 +1,6 @@
 ---
 
-minor_changes:
+major_changes:
   - >
     ``foundata.acmesh.run`` - Added support for the ``dns-persist-01`` ACME challenge type
     (https://github.com/foundata/ansible-collection-acmesh/issues/17). This challenge uses a

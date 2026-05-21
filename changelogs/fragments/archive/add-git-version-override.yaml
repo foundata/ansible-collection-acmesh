@@ -1,6 +1,6 @@
 ---
 
-minor_changes:
+major_changes:
   - >
     ``foundata.acmesh.run`` - Added ``run_acmesh_git_version`` parameter to
     override the automatically detected acme.sh version with a specific Git ref
