@@ -130,6 +130,66 @@
     fail_msg: "{{ run_acmesh_cfg_config_home }}/account.conf does not exist or has incorrect permissions/ownership"
 
 
+## Upstream acme.sh CA_NAMES drift detection
+#
+# The "Cert | Default | Pre-seed ACME account.key files, re-register ACME
+# account" task in roles/run/tasks/cert/default.yml resolves server aliases
+# (zerossl, letsencrypt, google, ...) to ACME directory URLs via an inline
+# `case "${SERVER}" in` block. That block must stay in sync with the upstream
+# CA_NAMES variable defined inside acme.sh. The check below extracts CA_NAMES
+# from the installed acme.sh script and asserts it matches a known-good
+# baseline so any upstream addition/rename/removal is caught immediately.
+
+- name: "Molecule | Verify | Read acme.sh to extract upstream CA_NAMES alias list"
+  ansible.builtin.slurp:
+    src: "{{ run_acmesh_cfg_home }}/acme.sh"
+  register: __testing_acmesh_script_slurp
+
+
+- name: "Molecule | Verify | Capture CA_NAMES block from acme.sh"
+  ansible.builtin.set_fact:
+    __testing_acmesh_ca_names: >-
+      {{
+        (__testing_acmesh_script_slurp['content'] | ansible.builtin.b64decode)
+        | ansible.builtin.regex_search('CA_NAMES="([^"]*)"', '\1', multiline=True)
+        | ansible.builtin.default([''], true)
+        | ansible.builtin.first
+        | ansible.builtin.trim
+      }}
+
+
+- name: "Molecule | Verify | Assert acme.sh CA_NAMES matches the pre-seed task case statement"
+  ansible.builtin.assert:
+    that:
+      - (__testing_acmesh_ca_names | ansible.builtin.trim) == (__testing_acmesh_ca_names_expected | ansible.builtin.trim)
+    fail_msg: >-
+      The CA_NAMES alias list in {{ run_acmesh_cfg_home }}/acme.sh has changed
+      compared to the baseline used when the pre-seed task was last reviewed.
+      Update BOTH of the following to match upstream acme.sh:
+      (1) the `case "${SERVER}" in` block inside the task
+      "Cert | Default | Pre-seed ACME account.key files, re-register ACME account"
+      at roles/run/tasks/cert/default.yml, and
+      (2) the `__testing_acmesh_ca_names_expected` baseline in this verify task.
+      Found in acme.sh:
+      ---
+      {{ __testing_acmesh_ca_names }}
+      ---
+      Expected baseline:
+      ---
+      {{ __testing_acmesh_ca_names_expected }}
+      ---
+    success_msg: "acme.sh CA_NAMES alias list matches the pre-seed task case statement."
+  vars:
+    __testing_acmesh_ca_names_expected: |-
+      ZeroSSL.com,zerossl
+      LetsEncrypt.org,letsencrypt
+      LetsEncrypt.org_test,letsencrypt_test,letsencrypttest
+      SSL.com,sslcom
+      Google.com,google
+      Google.com_test,googletest,google_test
+      Actalis.com,actalis.com,actalis
+
+
 ## systemd service / timer
 
 - name: "Molecule | Verify | Gather service facts"
