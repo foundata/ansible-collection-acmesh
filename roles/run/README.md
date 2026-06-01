@@ -35,6 +35,7 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
       - [`run_acmesh_certs['install']['ca_file']`](#variable-run_acmesh_certs-sub-install-sub-ca_file)
       - [`run_acmesh_certs['install']['cert_file']`](#variable-run_acmesh_certs-sub-install-sub-cert_file)
       - [`run_acmesh_certs['install']['fullchain_file']`](#variable-run_acmesh_certs-sub-install-sub-fullchain_file)
+      - [`run_acmesh_certs['install']['fullcain_file']`](#variable-run_acmesh_certs-sub-install-sub-fullcain_file)
       - [`run_acmesh_certs['install']['key_file']`](#variable-run_acmesh_certs-sub-install-sub-key_file)
       - [`run_acmesh_certs['install']['reloadcmd']`](#variable-run_acmesh_certs-sub-install-sub-reloadcmd)
     - [`run_acmesh_certs['server']`](#variable-run_acmesh_certs-sub-server)
@@ -680,6 +681,15 @@ The following keys specify file paths and a reload command:
 [*⇑ Back to ToC ⇑*](#toc)
 
 
+
+- **Type**: `str`
+- **Required**: No
+
+##### `run_acmesh_certs['install']['fullcain_file']`<a id="variable-run_acmesh_certs-sub-install-sub-fullcain_file"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Deprecated alias of `fullchain_file` (typo, "cain" instead of "chain"). Do not use.
 
 - **Type**: `str`
 - **Required**: No

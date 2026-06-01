@@ -98,7 +98,7 @@ run_acmesh_git_fallback_version_branch: "master"
 #
 # - Type: str
 # - Required: No
-# - Default:
+# - Default: ""
 run_acmesh_git_version: ""
 
 # Defines certificates to be requested, their associated domains, challenge
@@ -184,7 +184,7 @@ run_acmesh_group: "acmesh"
 #
 # - Type: str
 # - Required: No
-# - Default:
+# - Default: ""
 run_acmesh_cfg_accountemail: ""
 
 # Specifies the installation directory for the acme.sh software (relates to
@@ -253,7 +253,7 @@ run_acmesh_cfg_syslog: 3
 #
 # - Type: str
 # - Required: No
-# - Default:
+# - Default: ""
 run_acmesh_cfg_ca_bundle: ""
 
 # Path to a directory of CA certificates in PEM format on the remote host.
@@ -266,7 +266,7 @@ run_acmesh_cfg_ca_bundle: ""
 #
 # - Type: str
 # - Required: No
-# - Default:
+# - Default: ""
 run_acmesh_cfg_ca_path: ""
 
 # List of ACME account keys to pre-seed. This is useful for `dns-persist-01`

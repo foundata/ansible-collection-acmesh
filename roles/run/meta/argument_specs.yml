@@ -284,7 +284,9 @@ argument_specs:
               fullchain_file: # was fullcain_file in former versions (typo, "cain" instead of "chain")
                 type: "str"
                 version_added: "2.0.0"
-              fullcain_file: # deprecated alias of fullchain_file (typo, "cain" instead of "chain").
+              fullcain_file:
+                description:
+                  Deprecated alias of `fullchain_file` (typo, "cain" instead of "chain"). Do not use.
                 type: "str"
               key_file:
                 type: "str"
