@@ -3,7 +3,7 @@
 ---
 
 galaxy_info:
-  description: "foundata.acmesh run role"
+  description: "foundata.acmesh.run role"
   license: "GPL-3.0-or-later" # See https://spdx.org/licenses/ for valid IDs and syntax.
   author: "Andreas Haerter <ah@foundata.com>"
   company: "foundata GmbH (https://foundata.com)"
