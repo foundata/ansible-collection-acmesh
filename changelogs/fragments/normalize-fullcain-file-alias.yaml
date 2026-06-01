@@ -1,7 +1,0 @@
----
-minor_changes:
-  - >
-    ``foundata.acmesh.run`` - The deprecated
-    ``run_acmesh_certs[]['install']['fullcain_file']`` typo alias now emits a
-    timed warning instead of failing immediately, then normalizes the value to
-    ``fullchain_file`` and removes the deprecated key before later tasks run.

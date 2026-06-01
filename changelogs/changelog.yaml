@@ -1,6 +1,26 @@
 ---
 ancestor: null
 releases:
+  2.0.1:
+    changes:
+      minor_changes:
+        - '``foundata.acmesh.run`` - Handle deprecated ``fullcain_file`` alias gracefully.
+          The deprecated ``run_acmesh_certs[][''install''][''fullcain_file'']`` typo
+          alias now emits a timed warning instead of failing immediately, then normalizes
+          the value to ``fullchain_file`` and removes the deprecated key before later
+          tasks run.
+
+          '
+      release_summary: 'Release Date: 2026-06-01
+
+
+        Bugfix release (kind of).
+
+        '
+    fragments:
+      - 2.0.1-release.yaml
+      - normalize-fullcain-file-alias.yaml
+    release_date: '2026-06-01'
   2.0.0:
     changes:
       breaking_changes:
