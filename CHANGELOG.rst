@@ -17,7 +17,7 @@ Bugfix release (kind of).
 Minor Changes
 -------------
 
-- ``foundata.acmesh.run`` - Handle deprecated ``fullcain_file`` alias gracefully. The deprecated ``run_acmesh_certs[]['install']['fullcain_file']`` typo alias now emits a timed warning instead of failing immediately, then normalizes the value to ``fullchain_file`` and removes the deprecated key before later tasks run.
+- ``foundata.acmesh.run`` - Handle deprecated ``fullcain_file`` alias gracefully. The deprecated ``run_acmesh_certs[]['install']['fullcain_file']`` typo alias now emits a timed warning instead of failing immediately, then normalizes the value to ``fullchain_file`` and removes the deprecated key before later tasks run. Please update your playbooks accordingly by replacing all occurrences of ``fullcain_file`` with ``fullchain_file``.
 
 v2.0.0
 ======

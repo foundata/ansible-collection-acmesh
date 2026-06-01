@@ -8,7 +8,8 @@ releases:
           The deprecated ``run_acmesh_certs[][''install''][''fullcain_file'']`` typo
           alias now emits a timed warning instead of failing immediately, then normalizes
           the value to ``fullchain_file`` and removes the deprecated key before later
-          tasks run.
+          tasks run. Please update your playbooks accordingly by replacing all occurrences
+          of ``fullcain_file`` with ``fullchain_file``.
 
           '
       release_summary: 'Release Date: 2026-06-01
