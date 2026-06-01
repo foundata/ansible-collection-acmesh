@@ -195,20 +195,13 @@
     verbosity: 1
 
 
-# This task may be removed in a future version, once several releases have passed and most users are likely to have upgraded.
-- name: "Init | Fail if deprecated 'fullcain_file' key is found in run_acmesh_certs"
-  ansible.builtin.fail:
-    msg: |
-      foundata.acmesh.run: The run_acmesh_certs[]['install'] sub-key "fullcain_file"
-      has been renamed to "fullchain_file" in version 2.0.0 of this role (typo fix,
-      "cain" instead of "chain"). Update your playbooks and inventory accordingly
-      by replacing all occurrences of "fullcain_file" with "fullchain_file":
-
-      run_acmesh_certs:
-        - [...]
-          install:
-          [...]
-            fullcain_file: # rename to fullchain_file:
+# This block may be removed in a future version, e.g. around late ~2027 when most users
+# are likely to have migrated their settings. Do not forget to also remove
+#   1. fullcain_file in meta/argument_specs.yml
+#   2. init-only variable normalization regression test in Molecule verify stage
+# then. __run_acmesh_deprecated_fullchain_file_pause_seconds is intentionally unset (so
+# nothing to remove from vars/main.yml) but not to be exposed as a public parameter.
+- name: "Init | Handle deprecated 'fullcain_file' key in run_acmesh_certs"
   when:
     - run_acmesh_certs is ansible.builtin.defined
     - (run_acmesh_certs | ansible.builtin.default([])
@@ -217,3 +210,46 @@
        | ansible.builtin.selectattr('fullcain_file', 'defined')
        | ansible.builtin.list
        | ansible.builtin.length) > 0
+  block:
+
+    - name: "Init | Warn if deprecated 'fullcain_file' key is found in run_acmesh_certs"
+      ansible.builtin.pause:
+        seconds: "{{ __run_acmesh_deprecated_fullcain_file_pause_seconds | ansible.builtin.default(30) }}"
+        prompt: |
+          foundata.acmesh.run: The run_acmesh_certs[]['install'] sub-key "fullcain_file"
+          has been renamed to "fullchain_file" in version 2.0.0 of this role (typo fix,
+          "cain" instead of "chain"). Update your playbooks and inventory accordingly
+          by replacing all occurrences of "fullcain_file" with "fullchain_file".
+          Future versions of this role might fail hard when "fullcain_file" is used:
+
+          run_acmesh_certs:
+            - [...]
+              install:
+              [...]
+                fullcain_file: # rename to fullchain_file:
+
+
+    - name: "Init | Normalize deprecated 'fullcain_file' key to 'fullchain_file'"
+      ansible.builtin.set_fact:
+        run_acmesh_certs: "{{ __run_acmesh_certs_normalized_json | ansible.builtin.from_json }}"
+      vars:
+        __run_acmesh_certs_normalized_json: |
+          {%- set _certs = [] -%}
+          {%- for _cert in run_acmesh_certs -%}
+            {%- set _install = _cert['install'] | ansible.builtin.default({}) -%}
+            {%- if _install['fullcain_file'] is ansible.builtin.defined -%}
+              {%- set _install_normalized = (
+                    _install
+                    | ansible.builtin.dict2items
+                    | ansible.builtin.rejectattr('key', 'equalto', 'fullcain_file')
+                    | ansible.builtin.list
+                    | ansible.builtin.items2dict
+                    | ansible.builtin.combine({'fullchain_file': _install['fullcain_file']})
+                  )
+              -%}
+              {%- set _ = _certs.append(_cert | ansible.builtin.combine({'install': _install_normalized})) -%}
+            {%- else -%}
+              {%- set _ = _certs.append(_cert) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ _certs | ansible.builtin.to_json }}

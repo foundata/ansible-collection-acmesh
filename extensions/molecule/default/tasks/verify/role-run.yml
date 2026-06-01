@@ -964,3 +964,150 @@
   ansible.builtin.group:
     name: "acmesh-foobar"
     state: "absent"
+
+
+## Regression tests: init-only variable normalization
+
+- name: "Molecule | Verify | Validate deprecated fullcain_file alias normalization"
+  block:
+
+    - name: "Molecule | Verify | Initialize run role with deprecated fullcain_file alias"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+        tasks_from: "init"
+        public: true
+      vars:
+        __run_acmesh_deprecated_fullcain_file_pause_seconds: 1
+        run_acmesh_certs:
+          - domains:
+              - name: "fullcain-alias.test"
+                challenge:
+                  type: "dns"
+                  dns_provider: "dns_inwx"
+                  challenge_alias: "_acme-challenge.fullcain-alias.test.example.net"
+                  domain_alias: "fullcain-alias-validation.test"
+              - name: "www.fullcain-alias.test"
+                challenge:
+                  type: "webroot"
+                  webroot: "/var/www/acmesh-test/www"
+                  httpport: 8080
+              - name: "alpn.fullcain-alias.test"
+                challenge:
+                  type: "alpn"
+                  tlsport: 8443
+              - name: "persist.fullcain-alias.test"
+                challenge:
+                  type: "dns_persist"
+                  dns_persist_wildcard: true
+                  dns_persist_ca_name: "letsencrypt-test"
+                  dns_persist_days: 14
+            install:
+              ca_file: "/tmp/fullcain-alias.test/ca.cer"
+              cert_file: "/tmp/fullcain-alias.test/cert.cer"
+              fullcain_file: "/tmp/fullcain-alias.test/fullchain.cer"
+              key_file: "/tmp/fullcain-alias.test/cert.key"
+              reloadcmd: "true reload_alias"
+            server: "letsencrypt_test"
+            force: true
+            debug: true
+            dnssleep: 15
+            pre_hook: "true pre_alias"
+            post_hook: "true post_alias"
+            renew_hook: "true renew_alias"
+            extra_flags: "--preferred-chain 'ISRG Root X1' --keylength ec-256"
+            environment:
+              INWX_User: "alias-user"
+              INWX_Password: "alias-password"
+              CUSTOM_FLAG: "alias"
+          - domains:
+              - name: "canonical-fullchain.test"
+                challenge:
+                  type: "standalone"
+                  httpport: 8081
+            install:
+              ca_file: "/tmp/canonical-fullchain.test/ca.cer"
+              cert_file: "/tmp/canonical-fullchain.test/cert.cer"
+              fullchain_file: "/tmp/canonical-fullchain.test/fullchain.cer"
+              key_file: "/tmp/canonical-fullchain.test/cert.key"
+              reloadcmd: ""
+            server: "https://acme-staging-v02.api.letsencrypt.org/directory"
+            force: false
+            debug: false
+            dnssleep: 0
+            pre_hook: ""
+            post_hook: ""
+            renew_hook: ""
+            extra_flags: ""
+            environment: {}
+
+
+    - name: "Molecule | Verify | Assert deprecated fullcain_file alias was normalized"
+      ansible.builtin.assert:
+        that:
+          - run_acmesh_certs == __testing_run_acmesh_certs_fullcain_alias_expected
+          - run_acmesh_certs[0]['install']['fullcain_file'] is not ansible.builtin.defined
+          - run_acmesh_certs[1]['install']['fullcain_file'] is not ansible.builtin.defined
+        fail_msg: "Deprecated fullcain_file alias normalization disturbed run_acmesh_certs."
+        success_msg: "Deprecated fullcain_file alias was normalized without disturbing run_acmesh_certs."
+      vars:
+        __testing_run_acmesh_certs_fullcain_alias_expected:
+          - domains:
+              - name: "fullcain-alias.test"
+                challenge:
+                  type: "dns"
+                  dns_provider: "dns_inwx"
+                  challenge_alias: "_acme-challenge.fullcain-alias.test.example.net"
+                  domain_alias: "fullcain-alias-validation.test"
+              - name: "www.fullcain-alias.test"
+                challenge:
+                  type: "webroot"
+                  webroot: "/var/www/acmesh-test/www"
+                  httpport: 8080
+              - name: "alpn.fullcain-alias.test"
+                challenge:
+                  type: "alpn"
+                  tlsport: 8443
+              - name: "persist.fullcain-alias.test"
+                challenge:
+                  type: "dns_persist"
+                  dns_persist_wildcard: true
+                  dns_persist_ca_name: "letsencrypt-test"
+                  dns_persist_days: 14
+            install:
+              ca_file: "/tmp/fullcain-alias.test/ca.cer"
+              cert_file: "/tmp/fullcain-alias.test/cert.cer"
+              fullchain_file: "/tmp/fullcain-alias.test/fullchain.cer"
+              key_file: "/tmp/fullcain-alias.test/cert.key"
+              reloadcmd: "true reload_alias"
+            server: "letsencrypt_test"
+            force: true
+            debug: true
+            dnssleep: 15
+            pre_hook: "true pre_alias"
+            post_hook: "true post_alias"
+            renew_hook: "true renew_alias"
+            extra_flags: "--preferred-chain 'ISRG Root X1' --keylength ec-256"
+            environment:
+              INWX_User: "alias-user"
+              INWX_Password: "alias-password"
+              CUSTOM_FLAG: "alias"
+          - domains:
+              - name: "canonical-fullchain.test"
+                challenge:
+                  type: "standalone"
+                  httpport: 8081
+            install:
+              ca_file: "/tmp/canonical-fullchain.test/ca.cer"
+              cert_file: "/tmp/canonical-fullchain.test/cert.cer"
+              fullchain_file: "/tmp/canonical-fullchain.test/fullchain.cer"
+              key_file: "/tmp/canonical-fullchain.test/cert.key"
+              reloadcmd: ""
+            server: "https://acme-staging-v02.api.letsencrypt.org/directory"
+            force: false
+            debug: false
+            dnssleep: 0
+            pre_hook: ""
+            post_hook: ""
+            renew_hook: ""
+            extra_flags: ""
+            environment: {}
