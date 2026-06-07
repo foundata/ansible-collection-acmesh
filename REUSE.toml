@@ -1,6 +1,6 @@
 version = 1
 SPDX-PackageName = "Ansible collection: foundata.acmesh"
-SPDX-PackageDownloadLocation = "https://github.com/foundata/ansible-collection-acmesh"
+SPDX-PackageDownloadLocation = "https://foundata.com/en/projects/ansible-collection-acmesh/#releases"
 SPDX-PackageSupplier = "foundata GmbH (https://foundata.com)"
 SPDX-PackageComment = """
 This project may include calls to Application Programming Interfaces
