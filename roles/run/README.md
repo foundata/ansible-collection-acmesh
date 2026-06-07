@@ -222,6 +222,56 @@ Multiple domains per certificate with DNS challenge and challenge alias:
           INWX_Password: "{{ lookup('ansible.builtin.unvault', '...') | ansible.builtin.string | ansible.builtin.trim }}"
 ```
 
+A `dns-persist-01` challenge, for a domain whose DNS you cannot (or do not want to) automate with an API plugin. Instead of a per-issue `_acme-challenge` TXT record, it uses a single, long-lived `_validation-persist.<domain>` TXT record bound to your ACME account key, so you publish the record once and renewals need no further DNS changes:
+
+```yaml
+---
+
+- name: "Demo of the foundata.acmesh.run role (dns-persist-01 challenge)"
+  hosts: localhost
+  gather_facts: false
+  tasks:
+
+    - name: "Trigger invocation of the foundata.acmesh.run role"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+      vars:
+        run_acmesh_autoupgrade: true
+        run_acmesh_cfg_accountemail: "hostmaster@example.org"
+
+        # The dns-persist-01 TXT record value is derived from the ACME account
+        # key. Pre-seed that key so the same long-lived record keeps working
+        # across reinstalls and on every server that shares this certificate.
+        # The server must match run_acmesh_certs[].server below.
+        run_acmesh_cfg_account_keys:
+          - server: "letsencrypt"
+            account_key: "{{ lookup('ansible.builtin.unvault', 'files/acmesh_account_key_letsencrypt.pem') }}"
+
+        # Seconds to wait after the role prints the TXT record instructions,
+        # giving you time to publish the record. Set to 0 in CI or when the
+        # record is already in place.
+        run_acmesh_dns_persist_pause: 600
+
+        run_acmesh_certs:
+          - domains:
+              - name: "example.org"
+                challenge:  # parameters depend on type
+                  type: "dns_persist"
+                  dns_persist_wildcard: true  # optional, also authorize *.example.org
+                  # dns_persist_ca_name: "letsencrypt.org"  # optional, override the CA identity in the record value
+                  # dns_persist_days: 365  # optional, adds a "persistUntil" hint to the record
+            install:
+              ca_file: "/etc/pki/tls/certs/example.org/ca.cer"
+              cert_file: "/etc/pki/tls/certs/example.org/cert.cer"
+              fullchain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
+              key_file: "/etc/pki/tls/certs/example.org/cert.key"
+              reloadcmd: "systemctl reload apache2.service"
+            # must match the server of the pre-seeded account key above
+            server: "letsencrypt"
+```
+
+On the first run the role prints the exact `_validation-persist.<domain>` TXT record(s) to create and then pauses for [`run_acmesh_dns_persist_pause`](#variable-run_acmesh_dns_persist_pause) seconds. Publish the record at your DNS provider, then let the play continue (or re-run it later). Because the record value is derived from the ACME account key, pre-seeding that key with [`run_acmesh_cfg_account_keys`](#variable-run_acmesh_cfg_account_keys) keeps the same TXT record valid across reinstalls and across multiple servers sharing the certificate. See the [acme.sh DNS-persist-mode wiki](https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode) for background.
+
 Uninstall (certificate files, if present, will be preserved):
 
 ```yaml
