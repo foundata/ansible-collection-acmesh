@@ -1,0 +1,8 @@
+---
+
+bugfixes:
+  - >
+    The comment written into neutralized distribution config files contained a
+    stray double quote in the Debian hint (``dpkg -S '<file>'"``), so the
+    suggested command could not be copied and pasted as-is. The quote is
+    removed.
