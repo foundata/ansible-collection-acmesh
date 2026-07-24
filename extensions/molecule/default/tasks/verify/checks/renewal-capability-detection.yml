@@ -1,0 +1,18 @@
+# Assert __run_acmesh_renewal_needs_net_bind for a single challenge configuration
+# (see GitHub issue #19). run_acmesh_certs is swapped via set_fact because
+# include-level vars do not override the fact the verify stage set earlier.
+- name: "Molecule | Verify | Renewal capability: set run_acmesh_certs for case '{{ __testing_capcase['label'] }}'"
+  ansible.builtin.set_fact:
+    run_acmesh_certs: "{{ __testing_capcase['certs'] }}"
+
+
+- name: "Molecule | Verify | Renewal capability: assert detection for case '{{ __testing_capcase['label'] }}'"
+  ansible.builtin.assert:
+    that:
+      - (__run_acmesh_renewal_needs_net_bind | ansible.builtin.bool) == __testing_capcase['expect']
+    fail_msg: >-
+      Renewal capability detection wrong for '{{ __testing_capcase['label'] }}':
+      expected {{ __testing_capcase['expect'] }}, got
+      {{ __run_acmesh_renewal_needs_net_bind | ansible.builtin.bool }}.
+    success_msg: "Renewal capability detection for '{{ __testing_capcase['label'] }}' = {{ __testing_capcase['expect'] }}"
+    quiet: true

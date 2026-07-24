@@ -231,6 +231,61 @@
     fail_msg: "acmesh-renewal.service does not have the expected configuration"
 
 
+## Renewal service capability handling for standalone/alpn challenges (issue #19)
+#
+# acme.sh binds a privileged port itself only for the "standalone" (HTTP-01) and
+# "alpn" (TLS-ALPN-01) challenges, and the renewal service runs unprivileged, so
+# the role grants CAP_NET_BIND_SERVICE to that service only when a configured
+# certificate needs it. This is asserted structurally (unit content + detection
+# logic) rather than by issuing a standalone certificate, because the webroot
+# Pebble test already occupies port 80 (HTTP-01), so standalone issuance cannot
+# run alongside it.
+
+- name: "Molecule | Verify | Read the acmesh-renewal.service unit file"
+  ansible.builtin.slurp:
+    src: "{{ __run_acmesh_systemd_renewal_servicefile_path }}"
+  register: __testing_renewal_unit
+
+
+- name: "Molecule | Verify | Assert the renewal service got no capability for the configured (dns/webroot) certificates"
+  ansible.builtin.assert:
+    that:
+      # The converge configures only dns and/or webroot certificates, none of
+      # which makes acme.sh bind a privileged port during renewal.
+      - "'AmbientCapabilities' not in __testing_renewal_unit_content"
+      - "'CapabilityBoundingSet' not in __testing_renewal_unit_content"
+    fail_msg: "acmesh-renewal.service was granted CAP_NET_BIND_SERVICE although no configured certificate needs it"
+    success_msg: "acmesh-renewal.service has no extra capability, as expected for dns/webroot certificates"
+    quiet: true
+  vars:
+    __testing_renewal_unit_content: "{{ __testing_renewal_unit['content'] | ansible.builtin.b64decode }}"
+
+
+- name: "Molecule | Verify | Save the converged run_acmesh_certs before the capability detection cases"
+  ansible.builtin.set_fact:
+    __testing_saved_run_acmesh_certs: "{{ run_acmesh_certs | ansible.builtin.default([]) }}"
+
+
+- name: "Molecule | Verify | Assert the renewal capability is required exactly for privileged-port standalone/alpn"
+  ansible.builtin.include_tasks:
+    file: "{{ (lookup('env', 'MOLECULE_SCENARIO_DIRECTORY') | ansible.builtin.default('../../default')) }}/tasks/verify/checks/renewal-capability-detection.yml"
+  loop:
+    - {label: "standalone (port 80)", expect: true, certs: [{domains: [{name: x, challenge: {type: standalone}}]}]}
+    - {label: "standalone (httpport 8080)", expect: false, certs: [{domains: [{name: x, challenge: {type: standalone, httpport: 8080}}]}]}
+    - {label: "alpn (port 443)", expect: true, certs: [{domains: [{name: x, challenge: {type: alpn}}]}]}
+    - {label: "alpn (tlsport 8443)", expect: false, certs: [{domains: [{name: x, challenge: {type: alpn, tlsport: 8443}}]}]}
+    - {label: "webroot", expect: false, certs: [{domains: [{name: x, challenge: {type: webroot, webroot: /w}}]}]}
+    - {label: "dns", expect: false, certs: [{domains: [{name: x, challenge: {type: dns}}]}]}
+  loop_control:
+    loop_var: "__testing_capcase"
+    label: "{{ __testing_capcase['label'] }}"
+
+
+- name: "Molecule | Verify | Restore the converged run_acmesh_certs after the capability detection cases"
+  ansible.builtin.set_fact:
+    run_acmesh_certs: "{{ __testing_saved_run_acmesh_certs }}"
+
+
 ## Files and directories: certificates of test domains (dns-01 challenge)
 
 - name: "Molecule | Verify | Certificates (dns-01 challenge, first test domain)"

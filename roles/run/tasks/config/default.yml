@@ -75,6 +75,14 @@
       Type=oneshot
       User={{ run_acmesh_user }}
       Group={{ run_acmesh_group }}
+      {% if __run_acmesh_renewal_needs_net_bind | ansible.builtin.bool %}
+      # A configured certificate uses the "standalone" (HTTP-01, privileged port)
+      # or "alpn" (TLS-ALPN-01, port 443) challenge. acme.sh binds that port
+      # itself during renewal and this service runs unprivileged (User=), so it
+      # needs the capability to bind a port below 1024.
+      AmbientCapabilities=CAP_NET_BIND_SERVICE
+      CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+      {% endif %}
       Environment="HOME={{ run_acmesh_cfg_home }}"
       WorkingDirectory={{ run_acmesh_cfg_home }}
       ExecStart="{{ run_acmesh_cfg_home }}"/acme.sh --cron --home "{{ run_acmesh_cfg_home }}" --config-home "{{ run_acmesh_cfg_config_home }}"

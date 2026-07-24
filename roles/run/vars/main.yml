@@ -41,6 +41,31 @@ __run_acmesh_certs_no_secrets: >-
   }}
 
 
+# Whether the unprivileged renewal service (acmesh-renewal.service, runs as
+# run_acmesh_user) needs CAP_NET_BIND_SERVICE. acme.sh binds a listening port
+# itself only for the "standalone" (HTTP-01, default port 80, overridable with
+# httpport) and "alpn" (TLS-ALPN-01, default port 443, overridable with tlsport)
+# challenge types; "dns" and "webroot" need no listening port. The capability is
+# only required when that port is privileged (< 1024), so a standalone/alpn
+# challenge pinned to a high port needs nothing. Evaluated over every domain of
+# every configured certificate because a single renewal run (acme.sh --cron)
+# renews them all.
+__run_acmesh_renewal_needs_net_bind: >-
+  {%- set ns = namespace(need=false) -%}
+  {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+  {%-   for _domain in (_cert['domains'] | ansible.builtin.default([])) -%}
+  {%-     set _challenge = _domain['challenge'] | ansible.builtin.default({}) -%}
+  {%-     set _type = _challenge['type'] | ansible.builtin.default('') -%}
+  {%-     if _type == 'standalone' and ((_challenge['httpport'] | ansible.builtin.default(80) | int) < 1024) -%}
+  {%-       set ns.need = true -%}
+  {%-     elif _type == 'alpn' and ((_challenge['tlsport'] | ansible.builtin.default(443) | int) < 1024) -%}
+  {%-       set ns.need = true -%}
+  {%-     endif -%}
+  {%-   endfor -%}
+  {%- endfor -%}
+  {{ ns.need }}
+
+
 # List of platforms this role supports and was designed for.
 #
 # A warning will be issued if the list contains values and the role is executed
