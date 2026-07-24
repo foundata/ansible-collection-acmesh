@@ -160,6 +160,198 @@ run_acmesh_git_version: ""
 # - Required: No
 # - Default: []
 # - List elements: dict
+# - Dict attributes:
+#   - domains: List of dictionaries specifying the domains to be included in the
+#     certificate request, along with their challenge configurations. If
+#     multiple domains are defined, they will be included in the same
+#     certificate as Subject Alternative Names (SANs).
+#     - Type: list
+#     - Required: No
+#     - List elements: dict
+#     - Dict attributes:
+#       - name: The domain name to request a certificate for.
+#         - Type: str
+#         - Required: No
+#       - challenge:
+#         Dictionary defining the ACME challenge parameters. The required
+#         parameters depend on the challenge type
+#         - Type: dict
+#         - Required: No
+#         - Dict attributes:
+#           - type: Challenge method. See
+#             https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
+#             for details.
+#             - Type: str
+#             - Required: No
+#             - Choices: alpn, dns, dns_persist, standalone, webroot
+#           - dns_provider:
+#             Optional. Required for "dns" challenges. Specifies the DNS
+#             provider for API-based verification. See
+#             https://github.com/acmesh-official/acme.sh/wiki/dnsapi for
+#             supported providers and their name. You usually have to provide
+#             credentials for their APIs via the global `run_acmesh_environment`
+#             variable or the per-certificate `environment` key.
+#             - Type: str
+#             - Required: No
+#           - challenge_alias:
+#             Optional. Used with "dns" challenges when using CNAME delegation.
+#             Requires a CNAME record such as: `_acme-challenge.example.com` ->
+#             `_acme-challenge.example.com.example.net` See
+#             https://github.com/acmesh-official/acme.sh/wiki/DNS-alias-mode for
+#             details.
+#             - Type: str
+#             - Required: No
+#           - domain_alias:
+#             Optional. Used with "dns" challenges as an alternative to
+#             `challenge_alias`. Instead of CNAME delegation, the alias domain
+#             is set directly as the domain to use for the DNS challenge
+#             validation. See
+#             https://github.com/acmesh-official/acme.sh/wiki/DNS-alias-mode for
+#             details.
+#             - Type: str
+#             - Required: No
+#           - webroot:
+#             Optional. Required for "webroot" challenges. Specifies the
+#             directory where the ACME challenge response should be placed (e.g.
+#             the document root of the web server serving the domain). See
+#             https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
+#             for details.
+#             - Type: str
+#             - Required: No
+#           - httpport: Optional. Used with "httpport" challenges. Specifies a
+#             non-standard port for acme.sh's internal HTTP webserver to listen,
+#             might be needed behind a reverse proxy or load balancer.
+#             - Type: int
+#             - Required: No
+#           - tlsport:
+#             Optional. Used with "alpn" challenges. Specifies a non-standard
+#             port for acme.sh's internal HTTPS webserver to listen, might be
+#             needed behind a reverse proxy or load balancer.
+#             - Type: int
+#             - Required: No
+#           - dns_persist_wildcard:
+#             Optional. Used with "dns_persist" challenges. If true, the
+#             persistent TXT record will also authorize wildcard certificates
+#             and matching subdomains for this domain. Corresponds to acme.sh
+#             --dns-persist-wildcard. See
+#             https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode
+#             for details.
+#             - Type: bool
+#             - Required: No
+#           - dns_persist_ca_name:
+#             Optional. Used with "dns_persist" challenges. Specifies a custom
+#             CA identity domain name for the TXT record value (instead of
+#             deriving it from the server URL). Corresponds to acme.sh
+#             --dns-persist-ca-name. See
+#             https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode
+#             for details.
+#             - Type: str
+#             - Required: No
+#           - dns_persist_days:
+#             Optional. Used with "dns_persist" challenges. Specifies the number
+#             of days the TXT record should be considered valid (adds a
+#             persistUntil field to the record). Corresponds to acme.sh
+#             --dns-persist-days. See
+#             https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode
+#             for details.
+#             - Type: int
+#             - Required: No
+#   - install: Dictionary defining where to install the issued certificates. The
+#     following keys specify file paths and a reload command:
+#
+#     - ca_file: String. Path to the certificate authority (CA) file.
+#     - cert_file: String. Path to the certificate file.
+#     - fullchain_file: String. Path to the full certificate chain file.
+#     - key_file: String. Path to the private key file.
+#     - reloadcmd: String. Command to reload or restart services after
+#       certificate renewal (e.g., web server or mail server).
+#     - Type: dict
+#     - Required: No
+#     - Dict attributes:
+#       - ca_file:
+#         - Type: str
+#         - Required: No
+#       - cert_file:
+#         - Type: str
+#         - Required: No
+#       - fullchain_file:
+#         - Type: str
+#         - Required: No
+#       - fullcain_file:
+#         Deprecated alias of `fullchain_file` (typo, "cain" instead of
+#         "chain"). Do not use.
+#         - Type: str
+#         - Required: No
+#       - key_file:
+#         - Type: str
+#         - Required: No
+#       - reloadcmd:
+#         - Type: str
+#         - Required: No
+#   - server:
+#     Optional. Specifies the ACME CA server to use. Defaults to `letsencrypt`.
+#     Other options include:
+#
+#     - "letsencrypt_test", "buypass_test", "google_test" for staging
+#       environments.
+#     - Custom CA URLs can also be used. See
+#       https://github.com/acmesh-official/acme.sh/wiki/Server for a full list
+#       and details.
+#     - Type: str
+#     - Required: No
+#     - Default: letsencrypt
+#   - force: Optional. If true, forces certificate issuance even if the current
+#     certificate is still valid. Defaults to `false`.
+#     - Type: bool
+#     - Required: No
+#   - debug:
+#     - Type: bool
+#     - Required: No
+#   - dnssleep:
+#     - Type: int
+#     - Required: No
+#   - pre_hook:
+#     Optional. Command to execute before attempting certificate issuance or
+#     renewal. See
+#     https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
+#     for details.
+#     - Type: str
+#     - Required: No
+#   - post_hook:
+#     Optional. Command to execute after a successful certificate issuance or
+#     renewal. See
+#     https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
+#     for details.
+#     - Type: str
+#     - Required: No
+#   - renew_hook:
+#     Optional. Command to execute after renewing the certificate. See
+#     https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
+#     for details.
+#     - Type: str
+#     - Required: No
+#   - extra_flags:
+#     Optional. Additional CLI flags for edge cases. Useful for passing custom
+#     parameters during certificate issuance wich are not natively supported by
+#     this role, just pass them as "--foo --bar 'baz'".
+#     - Type: str
+#     - Required: No
+#   - environment:
+#     Optional. Dictionary of environment variables specific to this
+#     certificate. Setting environment variables per certificate can improve
+#     readability, as it clearly shows which certificate or domain is using
+#     which credentials in setups that involve multiple DNS provider
+#     credentials.
+#
+#     These are merged with the global`run_acmesh_environment`, with
+#     per-certificate values taking precedence on key conflicts.
+#
+#     Please note that acme.sh DNS API plugins usually persist credentials per
+#     provider (not per certificate) in `account.conf`, so using different
+#     credentials for the same DNS provider across certificates will result in
+#     only the last-written set being saved for automatic renewals.
+#     - Type: dict
+#     - Required: No
 run_acmesh_certs: []
 
 # Specifies the service user account that runs acme.sh and owns relevant files
@@ -292,6 +484,17 @@ run_acmesh_cfg_ca_path: ""
 # - Required: No
 # - Default: []
 # - List elements: dict
+# - Dict attributes:
+#   - server:
+#     The CA alias or full ACME directory URL. Must match the value used in
+#     `run_acmesh_certs[].server` (e.g., "letsencrypt", "zerossl", or a URL).
+#     - Type: str
+#     - Required: Yes
+#   - account_key: PEM-encoded ACME account private key content. Sensitive - use
+#     `ansible.builtin.unvault` or similar secret management to supply this
+#     value.
+#     - Type: str
+#     - Required: Yes
 run_acmesh_cfg_account_keys: []
 
 # Controls the pause duration (in seconds) after displaying dns-persist-01 TXT
