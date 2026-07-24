@@ -1,0 +1,15 @@
+---
+
+bugfixes:
+  - >
+    ``run`` role - The documented ``reloadcmd`` values and the suggested sudoers
+    rule did not work together: a sudoers rule is only applied when the command
+    actually invokes ``sudo``, so the plain ``systemctl reload ...`` examples
+    were denied during automated renewal (which runs as the unprivileged
+    service user) while ``acme.sh`` tolerates such reload errors, silently
+    leaving services on the old certificate. All ``reloadcmd`` examples now
+    invoke ``sudo -n`` with absolute command paths, the sudoers examples use
+    the matching ``/usr/bin/systemctl`` paths, and the README gained a
+    dedicated "Reload permissions" section covering ``sudo``
+    (``community.general.sudoers`` or ``foundata.linux.sudo``) as well as a
+    polkit rule as an alternative for plain ``systemctl`` commands.

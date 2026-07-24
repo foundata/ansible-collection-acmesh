@@ -120,7 +120,9 @@ run_acmesh_git_version: ""
 #       cert_file: "/etc/pki/tls/certs/example.org/cert.cer"
 #       fullchain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
 #       key_file: "/etc/pki/tls/certs/example.org/cert.key"
-#       reloadcmd: "systemctl reload apache2.service;"
+#       # Automated renewal runs this as the unprivileged service user,
+#       # see the README on how to allow such commands (sudo, polkit).
+#       reloadcmd: "sudo -n /usr/bin/systemctl reload apache2.service"
 #   # second certificate: "foo.example.com" with an additional "bar.example.com" SAN
 #   - domains:
 #       - name: "foo.example.com"
@@ -138,7 +140,7 @@ run_acmesh_git_version: ""
 #       cert_file: "/etc/pki/tls/certs/foo.example.com/cert.cer"
 #       fullchain_file: "/etc/pki/tls/certs/foo.example.com/fullchain.cer"
 #       key_file: "/etc/pki/tls/certs/foo.example.com/cert.key"
-#       reloadcmd: "systemctl reload nginx.service; systemctl restart postfix.service"
+#       reloadcmd: "sudo -n /usr/bin/systemctl reload nginx.service; sudo -n /usr/bin/systemctl restart postfix.service"
 #     # optional, CA alias or URL, defaults to "letsencrypt". "{letsencrypt,buypass,google}_test"
 #     # for staging, see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
 #     server: "zerossl"
@@ -264,7 +266,13 @@ run_acmesh_git_version: ""
 #     - fullchain_file: String. Path to the full certificate chain file.
 #     - key_file: String. Path to the private key file.
 #     - reloadcmd: String. Command to reload or restart services after
-#       certificate renewal (e.g., web server or mail server).
+#       certificate installation and renewal (e.g., web server or mail server).
+#       Automated renewal executes it as the unprivileged service user defined
+#       by `run_acmesh_user`, so privileged commands have to be allowed for that
+#       user and invoked accordingly (e.g.
+#       `sudo -n /usr/bin/systemctl reload nginx.service` together with a
+#       matching sudoers rule, or a plain `systemctl` call allowed via polkit).
+#       See the README of this role for examples.
 #     - Type: dict
 #     - Required: No
 #     - Dict attributes:
@@ -286,6 +294,15 @@ run_acmesh_git_version: ""
 #         - Type: str
 #         - Required: No
 #       - reloadcmd:
+#         Optional. Command to reload or restart services after the certificate
+#         was installed or renewed. The role executes it as `root` right after
+#         the initial issuance, but every automated renewal afterwards executes
+#         it as the unprivileged service user defined by `run_acmesh_user`.
+#         Privileged commands therefore have to be allowed for that user and
+#         invoked accordingly (e.g.
+#         `sudo -n /usr/bin/systemctl reload nginx.service` together with a
+#         matching sudoers rule, or a plain `systemctl` call allowed via
+#         polkit). See the README of this role for examples.
 #         - Type: str
 #         - Required: No
 #   - server:
