@@ -1,0 +1,20 @@
+---
+
+security_fixes:
+  - >
+    ``run`` role - The role now refuses to run when ``run_acmesh_user`` resolves
+    to ``root``, a UID 0 account, or the account Ansible connects with. The role
+    fully owns that account: installation rewrites its password, shell, home
+    directory and supplementary groups, and ``run_acmesh_state: absent`` deletes
+    it together with its home directory. Because the role does not track whether
+    it originally created the account, pointing ``run_acmesh_user`` at a shared,
+    pre-existing or privileged account could previously damage or delete it. The
+    guard runs in the always-included init tasks, so it protects both the install
+    and the uninstall path.
+
+minor_changes:
+  - >
+    ``run`` role - The ``run_acmesh_user`` documentation now states that it must
+    be a dedicated account fully owned by the role and that, when user management
+    is enabled, the role fully manages and removes it regardless of who created
+    it.

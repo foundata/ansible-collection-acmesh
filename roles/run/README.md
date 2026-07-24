@@ -329,7 +329,7 @@ The following variables can be configured for this role:
 | `run_acmesh_git_fallback_version_branch` | `str` | No | `"master"` | The Git branch to clone when no version tag could be determined from the remote repository (e.g. because `git ls-remote` failed or returned no matching tags).<br><br>See https://github.com/acmesh-official/acme.sh/issues/1162 for why acme.sh uses […](#variable-run_acmesh_git_fallback_version_branch) |
 | `run_acmesh_git_version` | `str` | No | `""` | Overrides the automatically detected acme.sh version with a specific Git ref (tag, branch, or commit hash). When set (non-empty string), the role skips the upstream version tag detection via `git ls-remote` and uses this value directly for the […](#variable-run_acmesh_git_version) |
 | `run_acmesh_certs` | `list` | No | `[]` | Defines certificates to be requested, their associated domains, challenge methods, and installation details. Each item in the list is a dictionary with suboptions / keys.<br><br>Example:<br><br>``` run_acmesh_certs: # first certificate: "example.org" […](#variable-run_acmesh_certs) |
-| `run_acmesh_user` | `str` | No | `"acmesh"` | Specifies the service user account that runs acme.sh and owns relevant files and directories. |
+| `run_acmesh_user` | `str` | No | `"acmesh"` | Specifies the service user account that runs acme.sh and owns relevant files and directories.<br><br>This must be a dedicated account fully owned by this role. The role rewrites the account's password, shell, home directory and supplementary group […](#variable-run_acmesh_user) |
 | `run_acmesh_group` | `str` | No | `"acmesh"` | Specifies the group associated with the service user for managing acme.sh and the corresponding file permissions. |
 | `run_acmesh_cfg_accountemail` | `str` | No | `""` | Specifies the email address to be associated with the ACME account. This email is used for expiration notices and recovery purposes. Some ACME providers might refuse to issue certificates if not set. |
 | `run_acmesh_cfg_home` | `str` | No | `"/opt/acme.sh"` | Specifies the installation directory for the acme.sh software (relates to acme.sh option --home). Will also be used as home directory of the service user defined (see `run_acmesh_user`). |
@@ -881,6 +881,18 @@ only the last-written set being saved for automatic renewals.
 
 Specifies the service user account that runs acme.sh and owns relevant
 files and directories.
+
+This must be a dedicated account fully owned by this role. The role
+rewrites the account's password, shell, home directory and supplementary
+group membership on installation. When user management is enabled, the
+role fully manages and removes the account named by `run_acmesh_user`,
+regardless of who originally created it: `run_acmesh_state: absent`
+deletes the account together with its home directory.
+
+Do not point this at a shared, pre-existing or privileged account. The
+role refuses to run when `run_acmesh_user` resolves to `root`, a UID 0
+account, or the account Ansible connects with, to avoid damaging or
+deleting an account that is not meant to be managed by it.
 
 - **Type**: `str`
 - **Required**: No

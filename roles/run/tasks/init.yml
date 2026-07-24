@@ -195,6 +195,55 @@
     var: __run_acmesh_version_installed
     verbosity: 1
 
+# Protect against managing an unsafe account
+#
+# The role fully owns the account named by run_acmesh_user: install rewrites its
+# password, shell, home and supplementary groups, and uninstall deletes it
+# together with its home directory. Pointing that at a shared or privileged
+# account (root, a UID 0 account, or the account Ansible connects with) would
+# damage or delete it, so refuse to run in that case. This guard lives in the
+# always-included init tasks so it protects both the install and uninstall path.
+- name: "Init | Determine the Ansible connection user (unprivileged)"
+  # "become: false" reports the real connection user even when the role runs with
+  # privilege escalation; "check_mode: false" keeps the guard effective during a
+  # "--check" run.
+  ansible.builtin.command:
+    argv:
+      - "id"
+      - "-un"
+  become: false
+  changed_when:
+    - false
+  check_mode: false
+  register: __run_acmesh_connection_user_raw
+
+
+- name: "Init | Look up the configured service account (if it already exists)"
+  ansible.builtin.getent:
+    database: "passwd"
+    key: "{{ run_acmesh_user }}"
+    fail_key: false
+
+
+- name: "Init | Check run_acmesh_user is a dedicated account and fail if unmet"
+  ansible.builtin.assert:
+    that:
+      - run_acmesh_user != 'root'
+      - run_acmesh_user != (__run_acmesh_connection_user_raw['stdout'] | ansible.builtin.trim)
+      - run_acmesh_user != (ansible_facts['user_id'] | ansible.builtin.default('', true))
+      # If the account already exists it must not be UID 0. getent stores the UID
+      # at index 1 and yields "none" for an account that does not exist yet.
+      - >-
+        (ansible_facts['getent_passwd'][run_acmesh_user] is none)
+        or ((ansible_facts['getent_passwd'][run_acmesh_user][1] | int) != 0)
+    fail_msg: >-
+      run_acmesh_user ('{{ run_acmesh_user }}') must be a dedicated account fully
+      owned by this role. It must not be "root", a UID 0 account, or the account
+      Ansible connects with, because the role rewrites this account on install and
+      deletes it (with its home directory) on uninstall. Set run_acmesh_user to a
+      separate, role-owned service account.
+    quiet: true
+
 
 # This block may be removed in a future version, e.g. around late ~2027 when most users
 # are likely to have migrated their settings. Do not forget to also remove

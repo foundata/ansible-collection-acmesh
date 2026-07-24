@@ -357,6 +357,18 @@ run_acmesh_certs: []
 # Specifies the service user account that runs acme.sh and owns relevant files
 # and directories.
 #
+# This must be a dedicated account fully owned by this role. The role rewrites
+# the account's password, shell, home directory and supplementary group
+# membership on installation. When user management is enabled, the role fully
+# manages and removes the account named by `run_acmesh_user`, regardless of who
+# originally created it: `run_acmesh_state: absent` deletes the account together
+# with its home directory.
+#
+# Do not point this at a shared, pre-existing or privileged account. The role
+# refuses to run when `run_acmesh_user` resolves to `root`, a UID 0 account, or
+# the account Ansible connects with, to avoid damaging or deleting an account
+# that is not meant to be managed by it.
+#
 # - Type: str
 # - Required: No
 # - Default: acmesh
