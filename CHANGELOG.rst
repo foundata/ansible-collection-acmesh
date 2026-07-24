@@ -4,6 +4,34 @@ foundata.acmesh Ansible collection Release Notes
 
 .. contents:: Topics
 
+v2.0.2
+======
+
+Release Summary
+---------------
+
+Release Date: 2026-07-24
+
+Bugfix release.
+
+Minor Changes
+-------------
+
+- ``run`` role - The ``run_acmesh_user`` documentation now states that it must be a dedicated account fully owned by the role and that, when user management is enabled, the role fully manages and removes it regardless of who created it.
+
+Security Fixes
+--------------
+
+- ``run`` role - DNS API credentials passed through ``run_acmesh_environment`` and the per-certificate ``environment`` mapping could appear in task output. The certificate issue and install tasks set them as the task environment and also carried the per-certificate values in their loop items, so a normal run (and especially ``--diff`` or a task failure) printed them. Both tasks are now ``no_log``, both variables are marked ``no_log`` in the argument specification, and the remaining tasks that iterate over the certificates but do not need the credentials loop over a credential-free view of the list. Note that a ``-vvv`` run still exposes the environment in the connection plugin's ``EXEC`` line; this is an Ansible limitation that ``no_log`` does not cover.
+- ``run`` role - The role now refuses to run when ``run_acmesh_user`` resolves to ``root``, a UID 0 account, or the account Ansible connects with. The role fully owns that account: installation rewrites its password, shell, home directory and supplementary groups, and ``run_acmesh_state: absent`` deletes it together with its home directory. Because the role does not track whether it originally created the account, pointing ``run_acmesh_user`` at a shared, pre-existing or privileged account could previously damage or delete it. The guard runs in the always-included init tasks, so it protects both the install and the uninstall path.
+
+Bugfixes
+--------
+
+- The comment written into neutralized distribution config files contained a stray double quote in the Debian hint (``dpkg -S '<file>'"``), so the suggested command could not be copied and pasted as-is. The quote is removed.
+- ``run`` role - Automatic renewal of certificates issued with the ``standalone`` (HTTP-01) or ``alpn`` (TLS-ALPN-01) challenge failed because ``acmesh-renewal.service`` runs unprivileged (as ``run_acmesh_user``) and acme.sh could not bind the privileged port (80 or 443) it opens for those challenges. The renewal service now gets ``AmbientCapabilities=CAP_NET_BIND_SERVICE`` when, and only when, a configured certificate uses ``standalone`` or ``alpn`` on a privileged port (below 1024). Certificates using ``dns``, ``dns_persist`` or ``webroot`` (or ``standalone`` / ``alpn`` pinned to a high port) get a renewal service without any extra capability. Thanks to @Menchen13 for reporting this and presenting a proposed solution.
+- ``run`` role - The documented ``reloadcmd`` values and the suggested sudoers rule did not work together: a sudoers rule is only applied when the command actually invokes ``sudo``, so the plain ``systemctl reload ...`` examples were denied during automated renewal (which runs as the unprivileged service user) while ``acme.sh`` tolerates such reload errors, silently leaving services on the old certificate. All ``reloadcmd`` examples now invoke ``sudo -n`` with absolute command paths, the sudoers examples use the matching ``/usr/bin/systemctl`` paths, and the README gained a dedicated "Reload permissions" section covering ``sudo`` (``community.general.sudoers`` or ``foundata.linux.sudo``) as well as a polkit rule as an alternative for plain ``systemctl`` commands.
+
 v2.0.1
 ======
 
