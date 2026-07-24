@@ -562,6 +562,11 @@
       ((__run_acmesh_issue_result is ansible.builtin.failed) and ('Domains not changed' not in __run_acmesh_issue_result['stdout']))
   loop: "{{ run_acmesh_certs }}"
   register: __run_acmesh_issue_result
+  # The task environment carries the DNS API credentials (global and
+  # per-certificate) and the loop item includes the per-certificate ones, so its
+  # output must not be logged. Note: a "-vvv" run still exposes the environment
+  # in the connection plugin's EXEC line, which no_log cannot suppress.
+  no_log: true
   notify:
     - "run_acmesh: set ownership and permissions"
 
@@ -713,6 +718,9 @@
     )
   loop: "{{ run_acmesh_certs }}"
   register: __run_acmesh_install_result
+  # As with issuing: the task environment carries the DNS API credentials and the
+  # loop item includes the per-certificate ones. See the no_log note above.
+  no_log: true
   notify:
     - "run_acmesh: set ownership and permissions"
 
@@ -919,7 +927,10 @@
   changed_when:
     - __run_acmesh_cmdupdates_result is ansible.builtin.success
     - __run_acmesh_cmdupdates_result['stdout'] | ansible.builtin.trim | ansible.builtin.length > 0
-  loop: "{{ run_acmesh_certs }}"
+  # This task does not need the DNS API credentials, so it iterates over the
+  # credential-free view to keep its (useful) output while avoiding leaking the
+  # per-certificate "environment" values in item labels or on failure.
+  loop: "{{ __run_acmesh_certs_no_secrets }}"
   register: __run_acmesh_cmdupdates_result
   notify:
     - "run_acmesh: set ownership and permissions"

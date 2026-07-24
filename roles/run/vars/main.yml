@@ -24,6 +24,23 @@ __run_acmesh_used_facts:
     - "os_family"
 
 
+# run_acmesh_certs with every per-certificate "environment" mapping removed.
+#
+# A certificate's "environment" holds DNS API credentials. Tasks that iterate
+# over the certificates but do not need those credentials loop over this view
+# instead of run_acmesh_certs, so the credentials never appear in task output
+# (item labels, --diff, failure dumps). The credential-consuming tasks (issue,
+# install) still use run_acmesh_certs and are marked no_log.
+__run_acmesh_certs_no_secrets: >-
+  {{
+    run_acmesh_certs | ansible.builtin.default([])
+    | map('ansible.builtin.dict2items')
+    | map('ansible.builtin.rejectattr', 'key', 'eq', 'environment')
+    | map('ansible.builtin.items2dict')
+    | ansible.builtin.list
+  }}
+
+
 # List of platforms this role supports and was designed for.
 #
 # A warning will be issued if the list contains values and the role is executed

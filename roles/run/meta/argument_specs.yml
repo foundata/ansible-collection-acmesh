@@ -59,6 +59,7 @@ argument_specs:
             "HETZNER_Token": "\{\{ lookup('ansible.builtin.unvault', '...') | ansible.builtin.string | ansible.builtin.trim \}\}"
           ```
         type: "dict"
+        no_log: true # holds DNS API credentials, keep them out of Ansible output
         default: {}
 
       run_acmesh_git_url:
@@ -351,6 +352,7 @@ argument_specs:
               credentials for the same DNS provider across certificates will result in
               only the last-written set being saved for automatic renewals.
             type: "dict"
+            no_log: true # holds DNS API credentials, keep them out of Ansible output
             version_added: "1.5.0"
 
       run_acmesh_user:
