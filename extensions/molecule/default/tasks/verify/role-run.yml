@@ -692,6 +692,117 @@
           reload command, which ran as root with byte-identical content.
 
 
+## Renewal parity: a forced renewal as the unprivileged service user must work
+## end-to-end (issue #20). This emulates what acmesh-renewal.service does,
+## including the webroot challenge against pebble, the reinstallation of the
+## certificate files and the root-side reload trigger.
+
+- name: "Molecule | Verify | Renewal as the service user (webroot challenge)"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+  block:
+
+    - name: "Molecule | Verify | Remove the reload marker file again (webroot challenge)"
+      ansible.builtin.file:
+        path: "/var/tmp/acmesh-reload-webroot-marker"
+        state: "absent"
+
+
+    - name: "Molecule | Verify | Force a renewal as the service user (webroot challenge)"
+      ansible.builtin.command:
+        cmd: >
+          runuser -u {{ run_acmesh_user | ansible.builtin.quote }} --
+          ./acme.sh
+            --renew
+            --force
+            --ecc
+            --domain acmesh-webroot.test
+            --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
+            --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
+      args:
+        chdir: "{{ run_acmesh_cfg_home }}"
+      environment:
+        # Mirror the Environment= of acmesh-renewal.service
+        HOME: "{{ run_acmesh_cfg_home }}"
+      changed_when:
+        - true
+      register: __testing_acmesh_forced_renewal
+
+
+    - name: "Molecule | Verify | Assert the forced renewal succeeded (webroot challenge)"
+      ansible.builtin.assert:
+        that:
+          - __testing_acmesh_forced_renewal['rc'] == 0
+          - "'Cert success' in __testing_acmesh_forced_renewal['stdout']"
+        fail_msg: >-
+          Renewing the certificate as the unprivileged service user failed:
+          {{ __testing_acmesh_forced_renewal['stdout'] | ansible.builtin.default('') }}
+          {{ __testing_acmesh_forced_renewal['stderr'] | ansible.builtin.default('') }}
+
+
+    - name: "Molecule | Verify | Wait for the reload marker file after the renewal (webroot challenge)"
+      ansible.builtin.stat:
+        path: "/var/tmp/acmesh-reload-webroot-marker"
+        get_checksum: false
+        get_mime: false
+      register: __testing_acmesh_reload_marker_stat_renewal
+      until:
+        - __testing_acmesh_reload_marker_stat_renewal['stat']['exists']
+      retries: 15
+      delay: 2
+
+
+    - name: "Molecule | Verify | Read the reload marker file after the renewal (webroot challenge)"
+      ansible.builtin.slurp:
+        src: "/var/tmp/acmesh-reload-webroot-marker"
+      register: __testing_acmesh_reload_marker_content_renewal
+
+
+    - name: "Molecule | Verify | Assert the renewal reinstalled the certificate and triggered the root-side reload"
+      ansible.builtin.assert:
+        that:
+          - >-
+            (__testing_acmesh_reload_marker_content_renewal['content'] | ansible.builtin.b64decode | ansible.builtin.trim)
+            == __testing_reload_marker_expected
+        fail_msg: >-
+          The unprivileged renewal did not trigger the root-side reload
+          (marker content:
+          {{ __testing_acmesh_reload_marker_content_renewal['content'] | ansible.builtin.b64decode | ansible.builtin.trim }};
+          expected: {{ __testing_reload_marker_expected }}).
+        success_msg: >-
+          The unprivileged renewal reinstalled the certificate files and the
+          reload command ran as root.
+
+
+    # The renewal ran without any Ansible ownership fixups afterwards, so this
+    # is a meaningful check that the whole acme.sh runtime operates as the
+    # service user (a root-owned file here would mean some step still runs
+    # with too many privileges).
+    - name: "Molecule | Verify | Find files not owned by the service user after the unprivileged renewal"
+      ansible.builtin.command:
+        argv:
+          - "find"
+          - "{{ run_acmesh_cfg_home }}"
+          - "{{ run_acmesh_cfg_config_home }}"
+          - "{{ run_acmesh_cfg_cert_home }}"
+          - "/etc/pki/tls/certs/acmesh-webroot.test"
+          - "!"
+          - "-user"
+          - "{{ run_acmesh_user }}"
+      changed_when:
+        - false
+      register: __testing_acmesh_foreign_owned_files
+
+
+    - name: "Molecule | Verify | Assert no foreign-owned files exist after the unprivileged renewal"
+      ansible.builtin.assert:
+        that:
+          - (__testing_acmesh_foreign_owned_files['stdout'] | ansible.builtin.trim | ansible.builtin.length) == 0
+        fail_msg: >-
+          Files not owned by {{ run_acmesh_user }} found after the unprivileged
+          renewal: {{ __testing_acmesh_foreign_owned_files['stdout_lines'] | ansible.builtin.default([]) }}
+
+
 - name: "Molecule | Verify | Reload units: negative check (dns-persist-01 certificate, empty reloadcmd)"
   when:
     - __testing_missing_envvars_dnspersist is not ansible.builtin.defined or

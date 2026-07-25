@@ -167,8 +167,11 @@
 
       # Create the CA directory and seed the account key before running
       # --register-account. acme.sh checks for an existing account.key
-      # and uses it instead of generating a new one.
+      # and uses it instead of generating a new one. The directory chain is
+      # handed over to the service user, which runs acme.sh (and has to write
+      # account.json and friends next to the key).
       mkdir -p "${CA_DIR}"
+      chown -R {{ run_acmesh_user | ansible.builtin.quote }}:{{ run_acmesh_group | ansible.builtin.quote }} "${CONFIG_HOME}/ca"
 
       # Compare current key with expected key
       CURRENT_KEY=""
@@ -200,7 +203,7 @@
       # On subsequent runs with no changes, this is a no-op.
       if [ "${CHANGES_MADE}" = "1" ]
       then
-          "${ACMESH_HOME}/acme.sh" \
+          {{ __run_acmesh_setpriv_run_as_user }} -- "${ACMESH_HOME}/acme.sh" \
             --register-account \
             --config-home "${CONFIG_HOME}" \
             --server "${SERVER}" \
@@ -254,7 +257,7 @@
     # metadata (account URL, contact info), so on subsequent runs with no
     # key changes, this is a no-op.
     cmd: >
-      ./acme.sh
+      {{ __run_acmesh_setpriv_run_as_user }} -- ./acme.sh
         --register-account
         --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
         --server {{ item | ansible.builtin.quote }}
@@ -309,7 +312,7 @@
   #   used command.
   ansible.builtin.command:
     cmd: >
-      ./acme.sh
+      {{ __run_acmesh_setpriv_run_as_user }} -- ./acme.sh
         --make-dns-persist-value
         --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
         --domain {{ item['domain'] | ansible.builtin.quote }}
@@ -409,8 +412,17 @@
   # - Inline templating allows for safe and efficient parameter handling,
   #   avoiding the need for multiple additional tasks with little to no benefit.
   ansible.builtin.command:
+    # The setpriv prefix runs acme.sh as the service user. A certificate using
+    # the "standalone" or "alpn" challenge on a privileged port (< 1024)
+    # additionally gets CAP_NET_BIND_SERVICE as ambient capability, exactly
+    # like acmesh-renewal.service grants it for the renewal (AmbientCapabilities=).
     cmd: >
-      ./acme.sh
+      {{ __run_acmesh_setpriv_run_as_user }}
+      {{ '--inh-caps +net_bind_service --ambient-caps +net_bind_service'
+          if (__run_acmesh_issue_needs_net_bind | ansible.builtin.bool)
+          else
+          '' }}
+      -- ./acme.sh
         --issue
         --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
         --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
@@ -545,11 +557,31 @@
             '' }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
+  # HOME mirrors the environment of the renewal service unit. The environment
+  # is preserved across the setpriv user switch, so the DNS API credentials
+  # reach acme.sh as before.
   environment: >-
     {{
-      (run_acmesh_environment | ansible.builtin.default({}))
+      {'HOME': run_acmesh_cfg_home}
+      | ansible.builtin.combine(run_acmesh_environment | ansible.builtin.default({}))
       | ansible.builtin.combine(item['environment'] | ansible.builtin.default({}))
     }}
+  vars:
+    # Whether this certificate needs CAP_NET_BIND_SERVICE for issuance: same
+    # logic as __run_acmesh_renewal_needs_net_bind (vars/main.yml), but for a
+    # single certificate.
+    __run_acmesh_issue_needs_net_bind: >-
+      {%- set ns = namespace(need=false) -%}
+      {%- for _domain in (item['domains'] | ansible.builtin.default([])) -%}
+      {%-   set _challenge = _domain['challenge'] | ansible.builtin.default({}) -%}
+      {%-   set _type = _challenge['type'] | ansible.builtin.default('') -%}
+      {%-   if _type == 'standalone' and ((_challenge['httpport'] | ansible.builtin.default(80) | int) < 1024) -%}
+      {%-     set ns.need = true -%}
+      {%-   elif _type == 'alpn' and ((_challenge['tlsport'] | ansible.builtin.default(443) | int) < 1024) -%}
+      {%-     set ns.need = true -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ ns.need }}
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
@@ -659,8 +691,9 @@
   # - Inline templating allows for safe and efficient parameter handling,
   #   avoiding the need for multiple additional tasks with little to no benefit.
   ansible.builtin.command:
+    # The setpriv prefix runs acme.sh as the service user, see vars/main.yml.
     cmd: >
-      ./acme.sh
+      {{ __run_acmesh_setpriv_run_as_user }} -- ./acme.sh
         --install-cert
         --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
         --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
@@ -687,9 +720,13 @@
             '' }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
+  # HOME mirrors the environment of the renewal service unit. The environment
+  # is preserved across the setpriv user switch, so the DNS API credentials
+  # reach acme.sh as before.
   environment: >-
     {{
-      (run_acmesh_environment | ansible.builtin.default({}))
+      {'HOME': run_acmesh_cfg_home}
+      | ansible.builtin.combine(run_acmesh_environment | ansible.builtin.default({}))
       | ansible.builtin.combine(item['environment'] | ansible.builtin.default({}))
     }}
   when:
@@ -945,7 +982,7 @@
 - name: "Cert | Default | Gather certificate information"
   ansible.builtin.command:
     cmd: >
-      ./acme.sh --list --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
+      {{ __run_acmesh_setpriv_run_as_user }} -- ./acme.sh --list --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   when:

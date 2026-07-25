@@ -215,7 +215,11 @@ run_acmesh_git_version: ""
 #           - webroot:
 #             Optional. Required for "webroot" challenges. Specifies the
 #             directory where the ACME challenge response should be placed (e.g.
-#             the document root of the web server serving the domain). See
+#             the document root of the web server serving the domain). The
+#             service user defined by `run_acmesh_user` needs write access there
+#             (acme.sh creates `.well-known/acme-challenge` below it during
+#             issuance and renewal), e.g. via group membership or a pre-created,
+#             service-user owned `.well-known/acme-challenge` directory. See
 #             https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
 #             for details.
 #             - Type: str
@@ -336,20 +340,29 @@ run_acmesh_git_version: ""
 #     - Required: No
 #   - pre_hook:
 #     Optional. Command to execute before attempting certificate issuance or
-#     renewal. See
+#     renewal. Executed by acme.sh as the unprivileged service user defined by
+#     `run_acmesh_user` (during issuance as well as automated renewal), so it
+#     must not require root privileges. Use `reloadcmd` for reloading or
+#     restarting services (it runs as root). See
 #     https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
 #     for details.
 #     - Type: str
 #     - Required: No
 #   - post_hook:
 #     Optional. Command to execute after a successful certificate issuance or
-#     renewal. See
+#     renewal. Executed by acme.sh as the unprivileged service user defined by
+#     `run_acmesh_user` (during issuance as well as automated renewal), so it
+#     must not require root privileges. Use `reloadcmd` for reloading or
+#     restarting services (it runs as root). See
 #     https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
 #     for details.
 #     - Type: str
 #     - Required: No
 #   - renew_hook:
-#     Optional. Command to execute after renewing the certificate. See
+#     Optional. Command to execute after renewing the certificate. Executed by
+#     acme.sh as the unprivileged service user defined by `run_acmesh_user`, so
+#     it must not require root privileges. Use `reloadcmd` for reloading or
+#     restarting services (it runs as root). See
 #     https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
 #     for details.
 #     - Type: str
@@ -380,6 +393,15 @@ run_acmesh_certs: []
 
 # Specifies the service user account that runs acme.sh and owns relevant files
 # and directories.
+#
+# All acme.sh operations run as this account: account registration, certificate
+# issuance and installation during the Ansible run as well as the automated
+# renewal (`acmesh-renewal.service`). Issuance and renewal therefore behave
+# identically, and permission problems surface during the Ansible run instead of
+# weeks later at the first renewal. When a certificate uses the `standalone` or
+# `alpn` challenge on a privileged port (below 1024), the needed
+# `CAP_NET_BIND_SERVICE` capability is granted automatically for both issuance
+# and renewal.
 #
 # This must be a dedicated account fully owned by this role. The role rewrites
 # the account's password, shell, home directory and supplementary group

@@ -25,7 +25,7 @@
 
       __run_acmesh_checksum_before=$({{ __run_acmesh_sha1sum_exec_path }} {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }})
 
-      if ! ./acme.sh \
+      if ! {{ __run_acmesh_setpriv_run_as_user }} -- ./acme.sh \
             --info \
             --home {{ run_acmesh_cfg_home | ansible.builtin.quote }} \
             --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }} \
@@ -57,6 +57,11 @@
     executable: "/bin/bash" # Support for other shells untested (so far)
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
+  # Mirror the environment of the renewal service unit (which sets HOME= the
+  # same way); acme.sh runs as the service user, see vars/main.yml on the
+  # setpriv prefix.
+  environment:
+    HOME: "{{ run_acmesh_cfg_home }}"
   changed_when:
     - __run_acmesh_config_result is ansible.builtin.success
     - ('Changed config file') in __run_acmesh_config_result['stdout']

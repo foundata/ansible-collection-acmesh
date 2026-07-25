@@ -204,6 +204,19 @@
     - not __run_acmesh_is_installed
 
 
+- name: "Setup | Install | Default | Hand the temporary working directory over to the service user"
+  # The installation below runs acme.sh as the service user (like every other
+  # acme.sh invocation of this role), so it has to be able to read the clone.
+  ansible.builtin.file:
+    path: "{{ __run_acmesh_tempdir['path'] }}"
+    state: "directory"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
+    recurse: true
+  when:
+    - not __run_acmesh_is_installed
+
+
 - name: "Setup | Install | Default | Ensure existence and permissions of main directories"
   ansible.builtin.file:
     path: "{{ item['path'] }}"
@@ -247,8 +260,12 @@
   # See the official documentation for a explanation of the parameters:
   # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
   ansible.builtin.command:
+    # The setpriv prefix runs acme.sh as the service user, see vars/main.yml.
+    # This way account.conf and every other file acme.sh creates belong to the
+    # service user from the start (the config tasks run acme.sh unprivileged
+    # before any ownership-normalizing handler had a chance to run).
     cmd: >
-      ./acme.sh
+      {{ __run_acmesh_setpriv_run_as_user }} -- ./acme.sh
         --install
         --home {{ run_acmesh_cfg_home | ansible.builtin.quote }}
         --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
@@ -270,6 +287,12 @@
   args:
     chdir: "{{ __run_acmesh_tempdir['path'] }}"
     creates: "{{ run_acmesh_cfg_home }}/acme.sh"
+  # HOME mirrors the environment of the renewal service unit. acme.sh's
+  # installer also writes its profile source-line there (into
+  # "<run_acmesh_cfg_home>/.bashrc"), which a later task removes in favor of
+  # the system-wide profile.d entry.
+  environment:
+    HOME: "{{ run_acmesh_cfg_home }}"
   when:
     - not __run_acmesh_is_installed
   notify:
@@ -291,8 +314,9 @@
   # does no harm. See the official documentation for a explanation of the parameters:
   # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
   ansible.builtin.command:
+    # The setpriv prefix runs acme.sh as the service user, see vars/main.yml.
     cmd: >
-      ./acme.sh
+      {{ __run_acmesh_setpriv_run_as_user }} -- ./acme.sh
         --upgrade
         --home {{ run_acmesh_cfg_home | ansible.builtin.quote }}
         --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}

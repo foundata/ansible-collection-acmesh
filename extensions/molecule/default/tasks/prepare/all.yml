@@ -287,7 +287,13 @@
     state: "directory"
     owner: "root"
     group: "root"
-    mode: "u=rwx,g=rx,o=rx" # 0755
+    # World-writable for testing only: acme.sh runs as the role's service user
+    # and has to create ".well-known/acme-challenge" below the webroot. The
+    # service user does not exist yet at prepare time, so open permissions are
+    # the simplest way to grant this here. Production setups should grant
+    # write access via group membership or a pre-created (service-user owned)
+    # ".well-known/acme-challenge" directory instead.
+    mode: "u=rwx,g=rwx,o=rwx" # 0777
 
 
 - name: "Molecule | Prepare | Include foundata.nginx.run role for webroot serving"

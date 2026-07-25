@@ -1,0 +1,20 @@
+---
+
+breaking_changes:
+  - >
+    ``run`` role - All ``acme.sh`` operations during the Ansible run (account
+    registration, certificate issuance and installation) now run as the
+    unprivileged service user defined by ``run_acmesh_user`` instead of
+    ``root``, matching the automated renewal (``acmesh-renewal.service``).
+    Issuance and renewal now behave identically, so permission problems
+    surface during the Ansible run instead of weeks later at the first
+    renewal. Migration notes: with the ``webroot`` challenge, the service
+    user now needs write access to the configured webroot directory
+    (``acme.sh`` creates ``.well-known/acme-challenge`` below it); the
+    ``pre_hook``, ``post_hook`` and ``renew_hook`` commands now also run as
+    the service user during issuance (previously only during renewal) and
+    must not require root privileges - use ``reloadcmd`` for service
+    reloads, which runs as root. Certificates using the ``standalone`` or
+    ``alpn`` challenge on a privileged port (below 1024) automatically get
+    ``CAP_NET_BIND_SERVICE`` granted for issuance (via ``setpriv`` ambient
+    capabilities), exactly as the renewal service unit already does.

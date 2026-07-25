@@ -82,6 +82,7 @@ Main features:
 
 - **Dedicated, configurable storage locations** for installation, configuration, and certificate files.
 - **Dedicated, configurable service user and group (non-root, rootless)** for improved security, controlled via the `run_acmesh_user` and `run_acmesh_group` variables:
+  - All `acme.sh` operations (account registration, issuance, installation, renewal) run as this unprivileged account, so issuance and renewal behave identically and permission problems surface during the Ansible run instead of weeks later at the first renewal. Privileged ports for `standalone`/`alpn` challenges are covered by an automatically granted `CAP_NET_BIND_SERVICE` capability.
   - By default, other users cannot read certificates managed by `acme.sh`. See the [usage examples](#examples-cert-access) for ways to grant access if needed.
   - The `reloadcmd` of each certificate runs as `root` via a systemd path unit watching the installed certificate files, so services get reloaded reliably after issuance and renewal without granting the service user any privileges. See the [usage examples](#examples-reload-permissions) for details.
 - **Automatic certificate renewal via systemd timer.**
@@ -101,7 +102,7 @@ Currently not supported:
 
 ### Webroot challenge (single domain)<a id="examples-webroot"></a>
 
-Using only one domain per certificate and the webroot challenge:
+Using only one domain per certificate and the webroot challenge. `acme.sh` runs as the unprivileged service user defined by `run_acmesh_user` (defaults to `acmesh`), which therefore needs write access to the webroot (it creates `.well-known/acme-challenge` below it), e.g. via group membership or a pre-created, service-user owned `.well-known/acme-challenge` directory:
 
 ```yaml
 ---
@@ -160,7 +161,7 @@ The `reloadcmd` of a certificate is **not** executed by `acme.sh`. Instead, the 
 
 Reload units of certificates that are no longer listed in `run_acmesh_certs` are kept on purpose, as `acme.sh` continues to renew and reinstall already issued certificates until they are actively removed. All `acmesh-reload-*` resources get removed on `run_acmesh_state: "absent"`.
 
-The [`pre_hook`, `post_hook` and `renew_hook`](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) commands are different: they are still executed by `acme.sh` itself and therefore run as the unprivileged service user during automated renewal. Keep them free of privileged operations (or grant the needed permissions yourself, e.g. via [`foundata.linux.sudo`](https://github.com/foundata/ansible-collection-linux) or a polkit rule).
+The [`pre_hook`, `post_hook` and `renew_hook`](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) commands are different: they are executed by `acme.sh` itself and therefore always run as the unprivileged service user — consistently during issuance and automated renewal. Keep them free of privileged operations (or grant the needed permissions yourself, e.g. via [`foundata.linux.sudo`](https://github.com/foundata/ansible-collection-linux) or a polkit rule).
 
 
 ### DNS challenge (multiple domains and certificates)<a id="examples-dns"></a>
@@ -350,7 +351,7 @@ The following variables can be configured for this role:
 | `run_acmesh_git_fallback_version_branch` | `str` | No | `"master"` | The Git branch to clone when no version tag could be determined from the remote repository (e.g. because `git ls-remote` failed or returned no matching tags).<br><br>See https://github.com/acmesh-official/acme.sh/issues/1162 for why acme.sh uses […](#variable-run_acmesh_git_fallback_version_branch) |
 | `run_acmesh_git_version` | `str` | No | `""` | Overrides the automatically detected acme.sh version with a specific Git ref (tag, branch, or commit hash). When set (non-empty string), the role skips the upstream version tag detection via `git ls-remote` and uses this value directly for the […](#variable-run_acmesh_git_version) |
 | `run_acmesh_certs` | `list` | No | `[]` | Defines certificates to be requested, their associated domains, challenge methods, and installation details. Each item in the list is a dictionary with suboptions / keys.<br><br>Example:<br><br>``` run_acmesh_certs: # first certificate: "example.org" […](#variable-run_acmesh_certs) |
-| `run_acmesh_user` | `str` | No | `"acmesh"` | Specifies the service user account that runs acme.sh and owns relevant files and directories.<br><br>This must be a dedicated account fully owned by this role. The role rewrites the account's password, shell, home directory and supplementary group […](#variable-run_acmesh_user) |
+| `run_acmesh_user` | `str` | No | `"acmesh"` | Specifies the service user account that runs acme.sh and owns relevant files and directories.<br><br>All acme.sh operations run as this account: account registration, certificate issuance and installation during the Ansible run as well as the […](#variable-run_acmesh_user) |
 | `run_acmesh_group` | `str` | No | `"acmesh"` | Specifies the group associated with the service user for managing acme.sh and the corresponding file permissions. |
 | `run_acmesh_cfg_accountemail` | `str` | No | `""` | Specifies the email address to be associated with the ACME account. This email is used for expiration notices and recovery purposes. Some ACME providers might refuse to issue certificates if not set. |
 | `run_acmesh_cfg_home` | `str` | No | `"/opt/acme.sh"` | Specifies the installation directory for the acme.sh software (relates to acme.sh option --home). Will also be used as home directory of the service user defined (see `run_acmesh_user`). |
@@ -648,6 +649,11 @@ for details.
 Optional. Required for "webroot" challenges. Specifies
 the directory where the ACME challenge response should be placed
 (e.g. the document root of the web server serving the domain).
+The service user defined by `run_acmesh_user` needs write access
+there (acme.sh creates `.well-known/acme-challenge` below it
+during issuance and renewal), e.g. via group membership or a
+pre-created, service-user owned `.well-known/acme-challenge`
+directory.
 See https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
 for details.
 
@@ -857,7 +863,11 @@ the current certificate is still valid. Defaults to `false`.
 [*⇑ Back to ToC ⇑*](#toc)
 
 Optional. Command to execute before attempting certificate
-issuance or renewal. See
+issuance or renewal. Executed by acme.sh as the unprivileged service
+user defined by `run_acmesh_user` (during issuance as well as
+automated renewal), so it must not require root privileges. Use
+`reloadcmd` for reloading or restarting services (it runs as root).
+See
 https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
 for details.
 
@@ -868,7 +878,11 @@ for details.
 
 [*⇑ Back to ToC ⇑*](#toc)
 
-Optional. Command to execute after a successful certificate issuance or renewal. See
+Optional. Command to execute after a successful certificate issuance
+or renewal. Executed by acme.sh as the unprivileged service user
+defined by `run_acmesh_user` (during issuance as well as automated
+renewal), so it must not require root privileges. Use `reloadcmd`
+for reloading or restarting services (it runs as root). See
 https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
 for details.
 
@@ -879,7 +893,11 @@ for details.
 
 [*⇑ Back to ToC ⇑*](#toc)
 
-Optional. Command to execute after renewing the certificate. See
+Optional. Command to execute after renewing the certificate.
+Executed by acme.sh as the unprivileged service user defined by
+`run_acmesh_user`, so it must not require root privileges. Use
+`reloadcmd` for reloading or restarting services (it runs as root).
+See
 https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
 for details.
 
@@ -925,6 +943,15 @@ only the last-written set being saved for automatic renewals.
 
 Specifies the service user account that runs acme.sh and owns relevant
 files and directories.
+
+All acme.sh operations run as this account: account registration,
+certificate issuance and installation during the Ansible run as well
+as the automated renewal (`acmesh-renewal.service`). Issuance and
+renewal therefore behave identically, and permission problems surface
+during the Ansible run instead of weeks later at the first renewal.
+When a certificate uses the `standalone` or `alpn` challenge on a
+privileged port (below 1024), the needed `CAP_NET_BIND_SERVICE`
+capability is granted automatically for both issuance and renewal.
 
 This must be a dedicated account fully owned by this role. The role
 rewrites the account's password, shell, home directory and supplementary
@@ -1187,6 +1214,7 @@ See `min_ansible_version` in [`meta/main.yml`](./meta/main.yml) and `__run_acmes
   - [`ansible.posix.selinux`](https://docs.ansible.com/ansible/latest/collections/ansible/posix/selinux_module.html)
   - [`community.general.sefcontext_module`](https://docs.ansible.com/ansible/latest/collections/community/general/sefcontext_module.html)
   - [`community.general.seport_module`](https://docs.ansible.com/ansible/latest/collections/community/general/seport_module.html)
-* **Permissions to restart services for the service user:** Not needed for `reloadcmd`, which runs as `root` via a systemd path unit (see [Service reloads after certificate changes](#examples-reload-permissions)). However, the [`pre_hook`, `post_hook` and `renew_hook`](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) commands are executed by `acme.sh` itself and therefore run as the unprivileged service user defined by `run_acmesh_user` (defaults to `acmesh`) during automated renewal; privileged operations in these hooks have to be allowed explicitly (e.g. via `sudo` or polkit).
+* **Permissions to restart services for the service user:** Not needed for `reloadcmd`, which runs as `root` via a systemd path unit (see [Service reloads after certificate changes](#examples-reload-permissions)). However, the [`pre_hook`, `post_hook` and `renew_hook`](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) commands are executed by `acme.sh` itself and therefore always run as the unprivileged service user defined by `run_acmesh_user` (defaults to `acmesh`); privileged operations in these hooks have to be allowed explicitly (e.g. via `sudo` or polkit).
+* **Webroot write access for the service user:** When using the `webroot` challenge, the service user needs write access to the configured webroot directory (`acme.sh` creates `.well-known/acme-challenge` below it during issuance and renewal).
 
 Beside that, there are no special requirements not covered by the role or Ansible itself.
