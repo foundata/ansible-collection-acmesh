@@ -212,6 +212,38 @@
     fail_msg: "acmesh-renewal.timer does not have the expected configuration"
 
 
+# The role owns the complete unit here, so there is no vendor schedule to
+# accumulate with. The parsed schedule is still worth asserting: it is the only
+# check that the OnCalendar written into the unit is a valid expression systemd
+# accepted and that the daemon reload actually picked the unit up. An invalid
+# or never-reloaded schedule leaves the timer loaded and enabled, so the
+# assertions above would still pass while nothing ever fires.
+- name: "Molecule | Verify | Get the effective calendar schedule of acmesh-renewal.timer"
+  ansible.builtin.command:
+    argv:
+      - "systemctl"
+      - "show"
+      - "--property=TimersCalendar"
+      - "acmesh-renewal.timer"
+  register: __testing_acmesh_timer_calendar
+  changed_when:
+    - false
+
+
+- name: "Molecule | Verify | Assert acmesh-renewal.timer runs on the configured daily schedule"
+  ansible.builtin.assert:
+    that:
+      # "daily" normalizes to midnight in the parsed schedule
+      - "'*-*-* 00:00:00' in __testing_acmesh_timer_calendar['stdout']"
+      - "(__testing_acmesh_timer_calendar['stdout'] | ansible.builtin.regex_findall('OnCalendar=') | ansible.builtin.length) == 1"
+    fail_msg: >-
+      acmesh-renewal.timer has no or an unexpected effective calendar schedule.
+      Got '{{ __testing_acmesh_timer_calendar['stdout'] }}'.
+    success_msg: >-
+      acmesh-renewal.timer runs on the configured daily schedule
+      ('{{ __testing_acmesh_timer_calendar['stdout'] }}').
+
+
 - name: "Molecule | Verify | Get acmesh-renewal.service properties"
   ansible.builtin.systemd:
     name: "acmesh-renewal.service"
