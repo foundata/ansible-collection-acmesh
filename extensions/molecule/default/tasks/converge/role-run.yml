@@ -211,7 +211,18 @@
   ansible.builtin.include_tasks:
     file: "../tasks/state_update.yml"
   vars:
+    # The reloadcmd doubles as escaping-torture test for the inlined
+    # ExecStart= rendering: it contains every character class the role has to
+    # escape for systemd ("%", "$", double quotes, backslashes) plus shell
+    # command substitution and single quotes. It writes the executing username
+    # and the tricky characters into the marker file; the verify stage asserts
+    # the marker content byte-identically, proving the shell received the
+    # command unaltered and ran it as root.
+    __testing_reloadcmd_torture: "printf '%s %s\\n' \"$(id -un)\" '100% \"sure\" $HOME \\ok' > /var/tmp/acmesh-reload-webroot-marker"
     __testing_state_update:
+      # Expected marker file content, stored in the testing state so the
+      # verify stage compares against the same single source.
+      __testing_reload_marker_expected: "root 100% \"sure\" $HOME \\ok"
       run_acmesh_certs: >-
         {{
           (__testing_state['run_acmesh_certs'] | ansible.builtin.default([], true))
@@ -229,7 +240,7 @@
               'cert_file': '/etc/pki/tls/certs/acmesh-webroot.test/cert.cer',
               'fullchain_file': '/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer',
               'key_file': '/etc/pki/tls/certs/acmesh-webroot.test/cert.key',
-              'reloadcmd': ''
+              'reloadcmd': __testing_reloadcmd_torture
             },
             'server': 'https://localhost:14000/dir'
           }]

@@ -100,16 +100,53 @@
     - "run_acmesh: systemd daemon-reload"
 
 
+# The reload units are searched on the target (instead of being derived from
+# run_acmesh_certs) so that uninstall also removes units belonging to
+# certificates that are no longer listed in the current configuration.
+- name: "Setup | Uninstall | Default | Find reload unit files (acmesh-reload-*)"
+  ansible.builtin.find:
+    paths: "{{ __run_acmesh_reload_unitfile_dir }}"
+    patterns:
+      - "{{ __run_acmesh_reload_unit_prefix }}*.path"
+      - "{{ __run_acmesh_reload_unit_prefix }}*.service"
+    file_type: "file"
+  register: __run_acmesh_reload_unitfiles_found
+
+
+- name: "Setup | Uninstall | Default | Disable acmesh-reload-*.path unit(s) (best-effort)"
+  ansible.builtin.systemd_service:
+    name: "{{ item['path'] | ansible.builtin.basename }}"
+    enabled: false
+    state: "stopped"
+  failed_when:
+    - false
+  loop: >-
+    {{
+      __run_acmesh_reload_unitfiles_found['files'] | ansible.builtin.default([])
+      | ansible.builtin.selectattr('path', 'ansible.builtin.search', '\.path$')
+      | ansible.builtin.list
+    }}
+  loop_control:
+    label: "{{ item['path'] | ansible.builtin.basename }}"
+  notify:
+    - "run_acmesh: systemd daemon-reload"
+
+
 - name: "Setup | Uninstall | Default | Delete files and directories (except certificates)"
   ansible.builtin.file:
     path: "{{ item }}"
     state: "absent"
-  loop:
-    - "{{ run_acmesh_cfg_home }}"
-    - "{{ run_acmesh_cfg_config_home }}"
-    - "{{ run_acmesh_cfg_logfile }}"
-    - "{{ __run_acmesh_profiled_envfile_path }}"
-    - "{{ __run_acmesh_systemd_renewal_servicefile_path }}"
-    - "{{ __run_acmesh_systemd_renewal_timerfile_path }}"
+  loop: >-
+    {{
+      [
+        run_acmesh_cfg_home,
+        run_acmesh_cfg_config_home,
+        run_acmesh_cfg_logfile,
+        __run_acmesh_profiled_envfile_path,
+        __run_acmesh_systemd_renewal_servicefile_path,
+        __run_acmesh_systemd_renewal_timerfile_path,
+      ]
+      + (__run_acmesh_reload_unitfiles_found['files'] | ansible.builtin.default([]) | ansible.builtin.map(attribute='path') | ansible.builtin.list)
+    }}
   notify:
     - "run_acmesh: systemd daemon-reload"

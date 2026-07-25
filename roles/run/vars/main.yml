@@ -66,6 +66,87 @@ __run_acmesh_renewal_needs_net_bind: >-
   {{ ns.need }}
 
 
+# Reload handling: acme.sh does not get a --reloadcmd anymore. Instead, a
+# root-side systemd path unit per certificate watches the installed certificate
+# files and starts a service unit of the same name which runs the configured
+# "reloadcmd" as root. This works identically for initial issuance, automated
+# renewal (which runs unprivileged) and manual acme.sh runs, without granting
+# the service user any privileges.
+#
+# Naming and locations shared by the tasks managing these resources. The unit
+# names are derived from the certificate's primary domain (see
+# __run_acmesh_reload_units below).
+__run_acmesh_reload_unit_prefix: "acmesh-reload-"
+__run_acmesh_reload_unitfile_dir: "/etc/systemd/system"
+__run_acmesh_reload_unitfile_owner: "root"
+__run_acmesh_reload_unitfile_group: "root"
+__run_acmesh_reload_unitfile_mode: "u=rw,g=r,o=r" # 0644
+
+
+# List of reload units to manage, one entry per certificate with a non-empty
+# "reloadcmd". Each entry provides:
+#
+# - name: unit/script name part, the certificate's primary domain with every
+#   character that is not allowed in systemd unit names replaced by "-".
+# - domain: the certificate's primary domain (for descriptions/messages).
+# - watch_path: the installed certificate file the path unit watches. acme.sh
+#   installs the files in the fixed order cert_file, ca_file, key_file,
+#   fullchain_file (see _installcert()), so the last one of the configured
+#   files is watched: when it is written, the whole set is consistent and the
+#   services can be reloaded safely.
+# - reloadcmd: the configured reload command, inlined into the service unit's
+#   ExecStart= (systemd-escaped there, see tasks/config/default.yml).
+#
+# Certificates whose "reloadcmd" is set but which do not define any of the
+# install file paths cannot be watched; they are collected in
+# __run_acmesh_reload_units_missing_watch and rejected in tasks/init.yml.
+__run_acmesh_reload_units: >-
+  {%- set units = [] -%}
+  {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+  {%-   set _install = _cert['install'] | ansible.builtin.default({}) -%}
+  {%-   set _reloadcmd = _install['reloadcmd'] | ansible.builtin.default('') -%}
+  {%-   set _ns = namespace(watch='') -%}
+  {%-   for _key in ['fullchain_file', 'key_file', 'ca_file', 'cert_file'] -%}
+  {%-     if ((_ns.watch | ansible.builtin.length) == 0) and
+             (((_install[_key] | ansible.builtin.default('')) | ansible.builtin.length) > 0) -%}
+  {%-       set _ns.watch = _install[_key] -%}
+  {%-     endif -%}
+  {%-   endfor -%}
+  {%-   if ((_reloadcmd | ansible.builtin.length) > 0) and ((_ns.watch | ansible.builtin.length) > 0) -%}
+  {%-     set _domain = (_cert['domains'] | ansible.builtin.default([{}]))[0]['name'] | ansible.builtin.default('') -%}
+  {%-     set _ = units.append({
+            'name': (_domain | lower | ansible.builtin.regex_replace('[^a-z0-9.-]', '-')),
+            'domain': _domain,
+            'watch_path': _ns.watch,
+            'reloadcmd': _reloadcmd,
+          }) -%}
+  {%-   endif -%}
+  {%- endfor -%}
+  {{ units }}
+
+
+# Primary domains of certificates with a non-empty "reloadcmd" but without any
+# install file path to watch. Used by tasks/init.yml to fail early with a
+# helpful message (the reload command of such a certificate would never run).
+__run_acmesh_reload_units_missing_watch: >-
+  {%- set domains = [] -%}
+  {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+  {%-   set _install = _cert['install'] | ansible.builtin.default({}) -%}
+  {%-   set _ns = namespace(watch='') -%}
+  {%-   for _key in ['fullchain_file', 'key_file', 'ca_file', 'cert_file'] -%}
+  {%-     if ((_ns.watch | ansible.builtin.length) == 0) and
+             (((_install[_key] | ansible.builtin.default('')) | ansible.builtin.length) > 0) -%}
+  {%-       set _ns.watch = _install[_key] -%}
+  {%-     endif -%}
+  {%-   endfor -%}
+  {%-   if (((_install['reloadcmd'] | ansible.builtin.default('')) | ansible.builtin.length) > 0) and
+           ((_ns.watch | ansible.builtin.length) == 0) -%}
+  {%-     set _ = domains.append((_cert['domains'] | ansible.builtin.default([{}]))[0]['name'] | ansible.builtin.default('unknown')) -%}
+  {%-   endif -%}
+  {%- endfor -%}
+  {{ domains }}
+
+
 # List of platforms this role supports and was designed for.
 #
 # A warning will be issued if the list contains values and the role is executed

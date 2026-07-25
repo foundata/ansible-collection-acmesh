@@ -537,6 +537,185 @@
         - __testing_acmesh_webroot_cert_san is ansible.builtin.defined
 
 
+## Reload decoupling: root-side acmesh-reload-* path/service units
+
+- name: "Molecule | Verify | Reload units (webroot challenge)"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+  block:
+
+    - name: "Molecule | Verify | Gather stats for the reload unit files (webroot challenge)"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        get_checksum: false
+        get_mime: false
+      loop:
+        - "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.path"
+        - "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.service"
+      register: __testing_acmesh_reload_files_stat
+
+
+    - name: "Molecule | Verify | Assert reload unit files exist with root ownership (webroot challenge)"
+      ansible.builtin.assert:
+        that:
+          - item['stat']['exists']
+          - item['stat']['isreg']
+          - item['stat']['pw_name'] == 'root'
+          - item['stat']['gr_name'] == 'root'
+        fail_msg: "{{ item['item'] }} does not exist or is not owned by root:root"
+      loop: "{{ __testing_acmesh_reload_files_stat['results'] }}"
+      loop_control:
+        label: "{{ item['item'] }}"
+
+
+    - name: "Molecule | Verify | Read the reload service unit file (webroot challenge)"
+      ansible.builtin.slurp:
+        src: "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.service"
+      register: __testing_acmesh_reload_serviceunit_content
+
+
+    - name: "Molecule | Verify | Assert the reload command is inlined into ExecStart (webroot challenge)"
+      # Fidelity of the (systemd-escaped) inlined command is proven end-to-end
+      # by the marker content assertions below, which compare the output of
+      # the escaping-torture reloadcmd byte-identically.
+      ansible.builtin.assert:
+        that:
+          - >-
+            'ExecStart=/bin/sh -c "' in
+            (__testing_acmesh_reload_serviceunit_content['content'] | ansible.builtin.b64decode)
+        fail_msg: "The reload service unit does not inline the reload command into ExecStart."
+
+
+    - name: "Molecule | Verify | Get acmesh-reload path unit state (webroot challenge)"
+      ansible.builtin.command:
+        argv:
+          - "systemctl"
+          - "show"
+          - "acmesh-reload-acmesh-webroot.test.path"
+          - "--property=ActiveState,UnitFileState"
+      changed_when:
+        - false
+      register: __testing_acmesh_reload_path_state
+
+
+    - name: "Molecule | Verify | Assert acmesh-reload path unit is active and enabled (webroot challenge)"
+      ansible.builtin.assert:
+        that:
+          - "'ActiveState=active' in __testing_acmesh_reload_path_state['stdout']"
+          - "'UnitFileState=enabled' in __testing_acmesh_reload_path_state['stdout']"
+        fail_msg: >-
+          The acmesh-reload path unit is not active/enabled:
+          {{ __testing_acmesh_reload_path_state['stdout'] }}
+
+
+    # The converge run installed the certificate files, which must have
+    # triggered the path unit; the reloadcmd writes the executing username
+    # into the marker file, proving the reload ran as root.
+    - name: "Molecule | Verify | Gather stats for the reload marker file written during converge (webroot challenge)"
+      ansible.builtin.stat:
+        path: "/var/tmp/acmesh-reload-webroot-marker"
+        get_checksum: false
+        get_mime: false
+      register: __testing_acmesh_reload_marker_stat
+
+
+    - name: "Molecule | Verify | Assert the reload marker file was written during converge (webroot challenge)"
+      ansible.builtin.assert:
+        that:
+          - __testing_acmesh_reload_marker_stat['stat']['exists']
+        fail_msg: >-
+          /var/tmp/acmesh-reload-webroot-marker does not exist: installing the
+          certificate files did not trigger the acmesh-reload path unit.
+
+
+    # Functional round-trip: an unprivileged write to the watched file (as done
+    # by the renewal service) must trigger the root-side reload. "dd" with
+    # "conv=notrunc" and zero blocks opens the file for writing and closes it
+    # again without altering its content, firing the close-after-write event
+    # the path unit watches.
+    - name: "Molecule | Verify | Remove the reload marker file (webroot challenge)"
+      ansible.builtin.file:
+        path: "/var/tmp/acmesh-reload-webroot-marker"
+        state: "absent"
+
+
+    - name: "Molecule | Verify | Touch the watched certificate file as the service user (webroot challenge)"
+      ansible.builtin.command:
+        argv:
+          - "runuser"
+          - "-u"
+          - "{{ run_acmesh_user }}"
+          - "--"
+          - "dd"
+          - "if=/dev/null"
+          - "of=/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer"
+          - "conv=notrunc"
+      changed_when:
+        - true
+
+
+    - name: "Molecule | Verify | Wait for the reload marker file to reappear (webroot challenge)"
+      ansible.builtin.stat:
+        path: "/var/tmp/acmesh-reload-webroot-marker"
+        get_checksum: false
+        get_mime: false
+      register: __testing_acmesh_reload_marker_stat_retrigger
+      until:
+        - __testing_acmesh_reload_marker_stat_retrigger['stat']['exists']
+      retries: 15
+      delay: 2
+
+
+    - name: "Molecule | Verify | Read the reload marker file (webroot challenge)"
+      ansible.builtin.slurp:
+        src: "/var/tmp/acmesh-reload-webroot-marker"
+      register: __testing_acmesh_reload_marker_content
+
+
+    - name: "Molecule | Verify | Assert the reload command ran as root and unaltered after an unprivileged file write (webroot challenge)"
+      # The expected value starts with "root" (the executing username) and
+      # continues with the escaping-torture characters of the configured
+      # reloadcmd, so this proves the root context and the byte-identical
+      # command round-trip through the systemd unit in one comparison.
+      ansible.builtin.assert:
+        that:
+          - >-
+            (__testing_acmesh_reload_marker_content['content'] | ansible.builtin.b64decode | ansible.builtin.trim)
+            == __testing_reload_marker_expected
+        fail_msg: >-
+          The reload command did not run as root or was altered by the systemd
+          escaping (marker content:
+          {{ __testing_acmesh_reload_marker_content['content'] | ansible.builtin.b64decode | ansible.builtin.trim }};
+          expected: {{ __testing_reload_marker_expected }}).
+        success_msg: >-
+          An unprivileged write to the watched certificate file triggered the
+          reload command, which ran as root with byte-identical content.
+
+
+- name: "Molecule | Verify | Reload units: negative check (dns-persist-01 certificate, empty reloadcmd)"
+  when:
+    - __testing_missing_envvars_dnspersist is not ansible.builtin.defined or
+      ((__testing_missing_envvars_dnspersist | ansible.builtin.length) <= 0)
+  block:
+
+    - name: "Molecule | Verify | Gather stats for a reload path unit of the dns-persist certificate"
+      ansible.builtin.stat:
+        # The role derives unit names from the lowercased primary domain
+        path: "/etc/systemd/system/acmesh-reload-{{ lookup('env', 'TEST_ACMESH_TESTDOMAIN3') | lower }}.path"
+        get_checksum: false
+        get_mime: false
+      register: __testing_acmesh_reload_dnspersist_path_stat
+
+
+    - name: "Molecule | Verify | Assert no reload units exist for a certificate with an empty reloadcmd"
+      ansible.builtin.assert:
+        that:
+          - not __testing_acmesh_reload_dnspersist_path_stat['stat']['exists']
+        fail_msg: >-
+          A reload path unit exists for the dns-persist certificate although its
+          reloadcmd is empty.
+
+
 ## Files and directories: dns-persist-01 certificate and account.key permissions
 
 - name: "Molecule | Verify | Certificates (dns-persist-01 challenge)"
@@ -649,9 +828,11 @@
       - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_PreHook='__ACME_BASE64__START_dHJ1ZSBwcmU=__ACME_BASE64__END_'")
       - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_PostHook='__ACME_BASE64__START_dHJ1ZSBwb3N0__ACME_BASE64__END_'")
       - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_RenewHook='__ACME_BASE64__START_dHJ1ZSByZW5ldw==__ACME_BASE64__END_'")
-      - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_ReloadCmd='__ACME_BASE64__START_dHJ1ZSByZWxvYWQ=__ACME_BASE64__END_'")
-    fail_msg: "The certificate config file does not contain the expected reloadcmd and hook values."
-    success_msg: "All reloadcmd and hook values have been found in the certificate config file."
+      # Reload commands run via root-side acmesh-reload-* units; the value
+      # stored in the acme.sh certificate config must always be cleared.
+      - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_ReloadCmd=''")
+    fail_msg: "The certificate config file does not contain the expected hook values (and a cleared Le_ReloadCmd)."
+    success_msg: "All hook values have been found in the certificate config file and Le_ReloadCmd is cleared."
   vars:
     __testing_acmesh_domaincfg_content_domain2_decoded: "{{ __testing_acmesh_domaincfg_content_domain2['content'] | ansible.builtin.b64decode }}"
   when:
@@ -820,9 +1001,12 @@
           - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_PreHook='__ACME_BASE64__START_dHJ1ZSBwcmVfdXBkYXRl__ACME_BASE64__END_'")
           - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_PostHook='__ACME_BASE64__START_dHJ1ZSBwb3N0X3VwZGF0ZQ==__ACME_BASE64__END_'")
           - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_RenewHook='__ACME_BASE64__START_dHJ1ZSByZW5ld191cGRhdGU=__ACME_BASE64__END_'")
-          - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_ReloadCmd='__ACME_BASE64__START_dHJ1ZSByZWxvYWRfdXBkYXRl__ACME_BASE64__END_'")
-        fail_msg: "The certificate config file does not contain the expected, updated reloadcmd and hook values."
-        success_msg: "All updated reloadcmd and hook values have been found in the certificate config file."
+          # Reload commands run via root-side acmesh-reload-* units; the value
+          # stored in the acme.sh certificate config must stay cleared even
+          # when the configured reloadcmd changes.
+          - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_ReloadCmd=''")
+        fail_msg: "The certificate config file does not contain the expected, updated hook values (and a cleared Le_ReloadCmd)."
+        success_msg: "All updated hook values have been found in the certificate config file and Le_ReloadCmd is cleared."
       vars:
         __testing_acmesh_domaincfg_content_domain2_decoded: "{{ __testing_acmesh_domaincfg_content_domain2['content'] | ansible.builtin.b64decode }}"
       when:

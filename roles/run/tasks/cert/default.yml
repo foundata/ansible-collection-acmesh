@@ -685,11 +685,6 @@
                 (item['install']['key_file']))
             else
             '' }}
-        {{ '--reloadcmd ' ~ (item['install']['reloadcmd'] | ansible.builtin.quote)
-            if ((item['install']['reloadcmd'] is ansible.builtin.defined) and
-                (item['install']['reloadcmd']))
-            else
-            '' }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   environment: >-
@@ -703,19 +698,12 @@
   changed_when:
     - __run_acmesh_install_result is ansible.builtin.success
     - ('Cert success') in __run_acmesh_install_result['stdout']
-  # Errors from --reloadcmd are ignored to avoid chicken-and-egg issues. These
-  # errors typically occur when services required for reloading are not yet
-  # running because they depend on valid certificates. Services managed by
-  # Ansible that rely on these certificates should trigger relevant errors later
-  # if issues persist.
+  # No --reloadcmd is passed to acme.sh: reload commands run via root-side
+  # acmesh-reload-* systemd path units watching the installed files (see
+  # tasks/config/default.yml), so acme.sh reload errors cannot occur here.
   failed_when: >
     (run_acmesh_certs is not ansible.builtin.defined) or
-    ((__run_acmesh_install_result is ansible.builtin.failed) and ('Installing' not in __run_acmesh_install_result['stdout'])) or
-    (
-      __run_acmesh_install_result is ansible.builtin.failed and
-      ((__run_acmesh_install_result['stderr_lines'] | ansible.builtin.length) > 0) and
-      'Reload error' not in __run_acmesh_install_result['stderr']
-    )
+    ((__run_acmesh_install_result is ansible.builtin.failed) and ('Installing' not in __run_acmesh_install_result['stdout']))
   loop: "{{ run_acmesh_certs }}"
   register: __run_acmesh_install_result
   # As with issuing: the task environment carries the DNS API credentials and the
@@ -776,12 +764,12 @@
       EXPECTED_PRE_HOOK={{ item['pre_hook'] | ansible.builtin.default('') | ansible.builtin.quote }}
       EXPECTED_POST_HOOK={{ item['post_hook'] | ansible.builtin.default('') | ansible.builtin.quote }}
       EXPECTED_RENEW_HOOK={{ item['renew_hook'] | ansible.builtin.default('') | ansible.builtin.quote }}
-      EXPECTED_RELOAD_CMD={{
-                              ( (item['install']['reloadcmd'] | ansible.builtin.default(''))
-                                if (item['install'] is ansible.builtin.defined)
-                                else ''
-                              ) | ansible.builtin.quote
-                          }}
+      # Always empty: reload commands are executed by the root-side
+      # acmesh-reload-* systemd path units, not by acme.sh. This also clears
+      # any Le_ReloadCmd stored by acme.sh or by version 2.x and below of this
+      # role, which would otherwise fail (or run with unexpected privileges)
+      # during unprivileged renewal.
+      EXPECTED_RELOAD_CMD=''
 
       # Function: Decode base64 value from config line
       decode_value() {

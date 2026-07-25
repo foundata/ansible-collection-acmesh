@@ -10,7 +10,7 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
 - [Example playbooks, using this role](#examples)
   - [Webroot challenge (single domain)](#examples-webroot)
   - [Certificate file access for other services](#examples-cert-access)
-  - [Reload permissions (e.g. sudo, polkit)](#examples-reload-permissions)
+  - [Service reloads after certificate changes (reloadcmd)](#examples-reload-permissions)
   - [DNS challenge (multiple domains and certificates)](#examples-dns)
   - [dns-persist-01 challenge (long-lived TXT record)](#examples-dns-persist)
   - [Uninstall](#examples-uninstall)
@@ -83,7 +83,7 @@ Main features:
 - **Dedicated, configurable storage locations** for installation, configuration, and certificate files.
 - **Dedicated, configurable service user and group (non-root, rootless)** for improved security, controlled via the `run_acmesh_user` and `run_acmesh_group` variables:
   - By default, other users cannot read certificates managed by `acme.sh`. See the [usage examples](#examples-cert-access) for ways to grant access if needed.
-  - By default, the service user defined by `run_acmesh_user` does not have permission to restart/reload privileged services. This may be required for [hooks](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) to function properly. See the [usage examples](#examples-reload-permissions) for ways to allow service management if needed.
+  - The `reloadcmd` of each certificate runs as `root` via a systemd path unit watching the installed certificate files, so services get reloaded reliably after issuance and renewal without granting the service user any privileges. See the [usage examples](#examples-reload-permissions) for details.
 - **Automatic certificate renewal via systemd timer.**
 - Support for multiple [ACME challenge types](https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert): `alpn`, `dns` (including alias mode), `standalone`, and `webroot`
 - Global `acme.sh` shell alias for easy execution.
@@ -128,7 +128,7 @@ Using only one domain per certificate and the webroot challenge:
               cert_file: "/etc/pki/tls/certs/example.org/cert.cer"
               fullchain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
               key_file: "/etc/pki/tls/certs/example.org/cert.key"
-              reloadcmd: "sudo -n /usr/bin/systemctl reload apache2.service" # see the "Reload permissions" section below
+              reloadcmd: "systemctl reload apache2.service" # executed as root by a systemd unit, see the "Service reloads" section below
             server: "letsencrypt_test" # optional, CA alias or URL, defaults to "letsencrypt" see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
 ```
 
@@ -148,71 +148,19 @@ By default, other users and groups cannot read the certificate files managed by 
 ```
 
 
-### Reload permissions (e.g. sudo, polkit)<a id="examples-reload-permissions"></a>
+### Service reloads after certificate changes (reloadcmd)<a id="examples-reload-permissions"></a>
 
-The `reloadcmd` and the [other hooks](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) are executed as `root` only when this role issues a certificate for the first time. Every automated renewal afterwards (`acmesh-renewal.service`) executes them as the unprivileged service user defined by `run_acmesh_user` (defaults to `acmesh`). A `reloadcmd` like `systemctl reload nginx.service` therefore works during the initial Ansible run but gets denied weeks later during the first automated renewal — and as `acme.sh` tolerates reload errors during renewal, the certificate gets renewed while the service silently keeps serving the old one. So you have to grant the service user the needed permissions *and* write the `reloadcmd` so it actually uses them. You can (and should) put the grants in place before this role runs: a sudoers or polkit rule referencing a user that does not exist yet is valid and simply stays inert until this role creates the account.
+The `reloadcmd` of a certificate is **not** executed by `acme.sh`. Instead, the role creates a systemd path unit (`acmesh-reload-<primary domain>.path`) which watches the installed certificate files and starts a companion service unit that runs the `reloadcmd` **as `root`** whenever the files change:
 
-**Option 1: `sudo`.** A sudoers rule is only applied when a command actually invokes `sudo`, so write the `reloadcmd` with `sudo -n` (non-interactive) and absolute command paths:
+- No sudo or polkit setup is needed; plain commands like `reloadcmd: "systemctl reload nginx.service"` just work. The unprivileged service user defined by `run_acmesh_user` does not get any privileges: it only writes the certificate files, root reacts to the change.
+- The behavior is identical no matter how the certificate files change: initial issuance through this role, automated renewal (`acmesh-renewal.service`, which runs unprivileged), manual `acme.sh` runs, or restoring [pre-seeded files](#examples-preseed).
+- A failing `reloadcmd` leaves `acmesh-reload-<primary domain>.service` in a failed state, visible via `systemctl --failed` and the journal (`journalctl -t acmesh-reload`), instead of being silently swallowed during renewal.
+- The command is inlined into the service unit's `ExecStart=` (systemd-escaped so the shell receives it exactly as configured, single line only); `systemctl cat acmesh-reload-<primary domain>.service` shows it.
+- The reload happens asynchronously (typically within milliseconds) after the certificate files were written, not synchronously as part of the Ansible task.
 
-```yaml
-reloadcmd: "sudo -n /usr/bin/systemctl reload nginx.service; sudo -n /usr/bin/systemctl restart postfix.service"
-```
+Reload units of certificates that are no longer listed in `run_acmesh_certs` are kept on purpose, as `acme.sh` continues to renew and reinstall already issued certificates until they are actively removed. All `acmesh-reload-*` resources get removed on `run_acmesh_state: "absent"`.
 
-Then allow exactly these command lines for the service user. `sudo` matches commands on their exact absolute path and arguments, so the entries have to match the `reloadcmd` literally. [`community.general.sudoers`](https://docs.ansible.com/ansible/latest/collections/community/general/sudoers_module.html) can help you with that:
-
-```yaml
-- name: "Allow the acme.sh service user to reload / restart services with managed certificates"
-  community.general.sudoers:
-    name: "acmesh-service"
-    user: "acmesh" # the username gets set via the run_acmesh_user role variable, defaults to "acmesh"
-    commands:
-      - "/usr/bin/systemctl reload apache2.service"
-      - "/usr/bin/systemctl reload nginx.service"
-      - "/usr/bin/systemctl restart postfix.service"
-    nopassword: true
-```
-
-The [`foundata.linux.sudo`](https://github.com/foundata/ansible-collection-linux) role provides the same (and also ensures `sudo` is installed, which might not be the case on minimal systems):
-
-```yaml
-- name: "Allow the acme.sh service user to reload / restart services with managed certificates"
-  ansible.builtin.include_role:
-    name: "foundata.linux.sudo"
-  vars:
-    sudo_linux_rules:
-      - name: "acmesh-service"
-        users:
-          - "acmesh" # the username gets set via the run_acmesh_user role variable, defaults to "acmesh"
-        commands:
-          - "/usr/bin/systemctl reload apache2.service"
-          - "/usr/bin/systemctl reload nginx.service"
-          - "/usr/bin/systemctl restart postfix.service"
-        nopassword: true
-```
-
-**Option 2: polkit.** When an unprivileged user runs `systemctl`, `systemd` asks [polkit](https://www.freedesktop.org/software/polkit/docs/latest/polkit.8.html) for authorization. So for plain `systemctl` commands you can grant the permission with a polkit rule instead of `sudo`; the `reloadcmd` then stays as-is (e.g. `reloadcmd: "systemctl reload nginx.service"`, no `sudo -n` prefix). This only covers `systemctl` commands and needs a running `polkitd` (usually present on systemd-based systems but sometimes missing on minimal installations):
-
-```yaml
-- name: "Allow the acme.sh service user to reload / restart services with managed certificates"
-  ansible.builtin.copy:
-    dest: "/etc/polkit-1/rules.d/60-acmesh-service.rules"
-    content: |
-      // Allow the acme.sh service user to reload / restart the services
-      // that are using the managed certificates.
-      polkit.addRule(function(action, subject) {
-          if (action.id === "org.freedesktop.systemd1.manage-units" &&
-              subject.user === "acmesh" && // the username gets set via the run_acmesh_user role variable
-              ((action.lookup("verb") === "reload" &&
-                ["apache2.service", "nginx.service"].indexOf(action.lookup("unit")) !== -1) ||
-               (action.lookup("verb") === "restart" &&
-                action.lookup("unit") === "postfix.service"))) {
-              return polkit.Result.YES;
-          }
-      });
-    owner: "root"
-    group: "root"
-    mode: "u=rw,g=r,o=r" # 0644
-```
+The [`pre_hook`, `post_hook` and `renew_hook`](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) commands are different: they are still executed by `acme.sh` itself and therefore run as the unprivileged service user during automated renewal. Keep them free of privileged operations (or grant the needed permissions yourself, e.g. via [`foundata.linux.sudo`](https://github.com/foundata/ansible-collection-linux) or a polkit rule).
 
 
 ### DNS challenge (multiple domains and certificates)<a id="examples-dns"></a>
@@ -245,7 +193,7 @@ Multiple domains per certificate with DNS challenge and challenge alias:
               cert_file: "/etc/pki/tls/certs/example.org/cert.cer"
               fullchain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
               key_file: "/etc/pki/tls/certs/example.org/cert.key"
-              reloadcmd: "sudo -n /usr/bin/systemctl reload apache2.service" # see the "Reload permissions" section
+              reloadcmd: "systemctl reload apache2.service" # executed as root by a systemd unit, see the "Service reloads" section
             # optional, CA alias or URL, defaults to "letsencrypt" see
             # https://github.com/acmesh-official/acme.sh/wiki/Server
             server: "zerossl"
@@ -269,7 +217,7 @@ Multiple domains per certificate with DNS challenge and challenge alias:
               cert_file: "/etc/pki/tls/certs/foo.example.com/cert.cer"
               fullchain_file: "/etc/pki/tls/certs/foo.example.com/fullchain.cer"
               key_file: "/etc/pki/tls/certs/foo.example.com/cert.key"
-              reloadcmd: "sudo -n /usr/bin/systemctl reload nginx.service; sudo -n /usr/bin/systemctl restart postfix.service"
+              reloadcmd: "systemctl reload nginx.service; systemctl restart postfix.service"
             # "{letsencrypt,buypass,google}_test" for staging, see
             # https://github.com/acmesh-official/acme.sh/wiki/Server
             server: "letsencrypt"
@@ -333,7 +281,7 @@ A `dns-persist-01` challenge, for a domain whose DNS you cannot (or do not want 
               cert_file: "/etc/pki/tls/certs/example.org/cert.cer"
               fullchain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
               key_file: "/etc/pki/tls/certs/example.org/cert.key"
-              reloadcmd: "sudo -n /usr/bin/systemctl reload apache2.service" # see the "Reload permissions" section
+              reloadcmd: "systemctl reload apache2.service" # executed as root by a systemd unit, see the "Service reloads" section
             # must match the server of the pre-seeded account key above
             server: "letsencrypt"
 ```
@@ -567,9 +515,9 @@ run_acmesh_certs:
       cert_file: "/etc/pki/tls/certs/example.org/cert.cer"
       fullchain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
       key_file: "/etc/pki/tls/certs/example.org/cert.key"
-      # Automated renewal runs this as the unprivileged service user,
-      # see the README on how to allow such commands (sudo, polkit).
-      reloadcmd: "sudo -n /usr/bin/systemctl reload apache2.service"
+      # Executed as root by a systemd unit whenever the installed
+      # certificate files change (see the README for details).
+      reloadcmd: "systemctl reload apache2.service"
   # second certificate: "foo.example.com" with an additional "bar.example.com" SAN
   - domains:
       - name: "foo.example.com"
@@ -587,7 +535,7 @@ run_acmesh_certs:
       cert_file: "/etc/pki/tls/certs/foo.example.com/cert.cer"
       fullchain_file: "/etc/pki/tls/certs/foo.example.com/fullchain.cer"
       key_file: "/etc/pki/tls/certs/foo.example.com/cert.key"
-      reloadcmd: "sudo -n /usr/bin/systemctl reload nginx.service; sudo -n /usr/bin/systemctl restart postfix.service"
+      reloadcmd: "systemctl reload nginx.service; systemctl restart postfix.service"
     # optional, CA alias or URL, defaults to "letsencrypt". "{letsencrypt,buypass,google}_test"
     # for staging, see https://github.com/acmesh-official/acme.sh/wiki/Server for details.
     server: "zerossl"
@@ -780,13 +728,11 @@ The following keys specify file paths and a reload command:
 - fullchain_file: String. Path to the full certificate chain file.
 - key_file: String. Path to the private key file.
 - reloadcmd: String. Command to reload or restart services after certificate
-  installation and renewal (e.g., web server or mail server). Automated
-  renewal executes it as the unprivileged service user defined by
-  `run_acmesh_user`, so privileged commands have to be allowed for that
-  user and invoked accordingly (e.g. `sudo -n /usr/bin/systemctl reload
-  nginx.service` together with a matching sudoers rule, or a plain
-  `systemctl` call allowed via polkit). See the README of this role for
-  examples.
+  installation and renewal (e.g., web server or mail server). It is
+  executed as root by a systemd unit whenever the installed certificate
+  files change, so no sudo or polkit setup is needed. Requires at least
+  one of the install file paths to be set. See the README of this role
+  for details.
 
 - **Type**: `dict`
 - **Required**: No
@@ -841,14 +787,23 @@ Deprecated alias of `fullchain_file` (typo, "cain" instead of "chain"). Do not u
 [*⇑ Back to ToC ⇑*](#toc)
 
 Optional. Command to reload or restart services after the certificate
-was installed or renewed. The role executes it as `root` right after
-the initial issuance, but every automated renewal afterwards executes
-it as the unprivileged service user defined by `run_acmesh_user`.
-Privileged commands therefore have to be allowed for that user and
-invoked accordingly (e.g. `sudo -n /usr/bin/systemctl reload
-nginx.service` together with a matching sudoers rule, or a plain
-`systemctl` call allowed via polkit). See the README of this role
-for examples.
+was installed or renewed. It is not executed by `acme.sh` but by a
+root-side systemd path unit (`acmesh-reload-<primary domain>.path`)
+which watches the installed certificate files and runs the command
+(as `root`, via a companion service unit) whenever they change. This
+works identically for the initial issuance, automated renewal and
+manual `acme.sh` runs, without granting the service user defined by
+`run_acmesh_user` any privileges (no sudo or polkit setup needed).
+A failing reload command leaves the `acmesh-reload-<primary
+domain>.service` unit in a failed state, visible via
+`systemctl --failed` and the journal.
+
+Requires at least one of `fullchain_file`, `key_file`, `ca_file` or
+`cert_file` to be set (the unit watches the last one of these files
+`acme.sh` writes). Reload units of certificates that are no longer
+listed in `run_acmesh_certs` are kept (`acme.sh` keeps renewing and
+reinstalling issued certificates until they are actively removed);
+all of them get removed when `run_acmesh_state` is `absent`.
 
 - **Type**: `str`
 - **Required**: No
@@ -1232,6 +1187,6 @@ See `min_ansible_version` in [`meta/main.yml`](./meta/main.yml) and `__run_acmes
   - [`ansible.posix.selinux`](https://docs.ansible.com/ansible/latest/collections/ansible/posix/selinux_module.html)
   - [`community.general.sefcontext_module`](https://docs.ansible.com/ansible/latest/collections/community/general/sefcontext_module.html)
   - [`community.general.seport_module`](https://docs.ansible.com/ansible/latest/collections/community/general/seport_module.html)
-* **Permissions to restart services for the service user:** Automated renewal executes the `reloadcmd` and [other hooks](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) as the unprivileged service user defined by `run_acmesh_user` (defaults to `acmesh`). Privileged commands like `systemctl reload nginx.service` therefore have to be allowed explicitly, e.g. via `sudo` or polkit. See [Reload permissions (e.g. sudo, polkit)](#examples-reload-permissions) for details and examples.
+* **Permissions to restart services for the service user:** Not needed for `reloadcmd`, which runs as `root` via a systemd path unit (see [Service reloads after certificate changes](#examples-reload-permissions)). However, the [`pre_hook`, `post_hook` and `renew_hook`](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) commands are executed by `acme.sh` itself and therefore run as the unprivileged service user defined by `run_acmesh_user` (defaults to `acmesh`) during automated renewal; privileged operations in these hooks have to be allowed explicitly (e.g. via `sudo` or polkit).
 
 Beside that, there are no special requirements not covered by the role or Ansible itself.

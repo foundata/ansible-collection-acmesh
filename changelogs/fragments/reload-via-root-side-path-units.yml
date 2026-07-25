@@ -1,0 +1,23 @@
+---
+
+breaking_changes:
+  - >
+    ``run`` role - The per-certificate ``reloadcmd`` is no longer executed by
+    ``acme.sh`` but by a root-side systemd path unit
+    (``acmesh-reload-<primary domain>.path``) watching the installed
+    certificate files. Previously, the command ran as ``root`` only during the
+    initial issuance and as the unprivileged service user during automated
+    renewal, where privileged commands failed silently (``acme.sh`` tolerates
+    reload errors during ``--cron``), leaving services on the old certificate.
+    Now the command always runs as ``root`` whenever the installed files
+    change, and a failing reload leaves the companion service unit in a failed
+    state visible via ``systemctl --failed``. Migration notes: plain commands
+    like ``systemctl reload nginx.service`` now work as-is; ``sudo -n``
+    prefixes are no longer needed (they keep working but should be removed
+    along with the related sudoers rules). A certificate defining ``reloadcmd``
+    must now also define at least one install file path (``fullchain_file``,
+    ``key_file``, ``ca_file`` or ``cert_file``), otherwise the role fails
+    early. The reload happens asynchronously (typically within milliseconds)
+    after the files were written, no longer synchronously within ``acme.sh``.
+    Any ``Le_ReloadCmd`` stored in the ``acme.sh`` certificate configuration
+    (by earlier versions of this role or manual runs) gets cleared.

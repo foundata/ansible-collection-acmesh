@@ -126,3 +126,92 @@
     enabled: "{{ run_acmesh_autorenewal }}"
     state: "{{ 'started' if (run_acmesh_autorenewal | ansible.builtin.bool) else 'stopped' }}"
     daemon_reload: true
+
+
+# Reload handling: the configured "reloadcmd" of each certificate is not passed
+# to acme.sh (which would execute it as the unprivileged service user during
+# renewal). Instead, a root-side path unit watches the installed certificate
+# files and starts a service unit of the same name, which runs the reload
+# command as root. This behaves identically for initial issuance, automated
+# renewal and manual acme.sh runs. See __run_acmesh_reload_units in
+# vars/main.yml for the entry layout and the choice of the watched file.
+#
+# Units of certificates that are no longer listed in run_acmesh_certs are kept
+# on purpose: acme.sh continues to renew and reinstall already issued
+# certificates until they are actively removed, so their services still need
+# reloading. All acmesh-reload-* resources get removed on
+# run_acmesh_state: "absent".
+- name: "Config | Default | Create systemd unit file(s) (acmesh-reload-*.service)"
+  ansible.builtin.copy:
+    # The reload command runs via a shell (it may contain multiple commands)
+    # and is inlined into ExecStart=. The replace chain escapes systemd's
+    # unit-file syntax so the shell receives the configured command
+    # byte-identical: backslashes and double quotes (C-style unquoting of the
+    # double-quoted word), "%" (specifier expansion, "%%" yields a literal
+    # "%") and "$" (variable expansion, "$$" yields a literal "$").
+    dest: "{{ __run_acmesh_reload_unitfile_dir }}/{{ __run_acmesh_reload_unit_prefix }}{{ item['name'] }}.service"
+    content: |
+      [Unit]
+      Description=acme.sh - run reload command after certificate change ({{ item['domain'] }})
+
+      [Service]
+      Type=oneshot
+      ExecStart=/bin/sh -c "{{ item['reloadcmd']
+        | ansible.builtin.trim
+        | ansible.builtin.replace(__run_acmesh_backslash, __run_acmesh_backslash ~ __run_acmesh_backslash)
+        | ansible.builtin.replace('"', __run_acmesh_backslash ~ '"')
+        | ansible.builtin.replace('%', '%%')
+        | ansible.builtin.replace('$', '$$') }}"
+      StandardError=journal
+      SyslogIdentifier=acmesh-reload
+    force: true
+    owner: "{{ __run_acmesh_reload_unitfile_owner }}"
+    group: "{{ __run_acmesh_reload_unitfile_group }}"
+    mode: "{{ __run_acmesh_reload_unitfile_mode }}"
+  vars:
+    # A literal backslash cannot be written as a Jinja string literal (the
+    # lexer keeps escape pairs raw), so it is provided here via YAML
+    # double-quoted escaping instead.
+    __run_acmesh_backslash: "\\"
+  loop: "{{ __run_acmesh_reload_units }}"
+  loop_control:
+    label: "{{ item['name'] }}"
+  notify:
+    - "run_acmesh: systemd daemon-reload"
+
+
+- name: "Config | Default | Create systemd unit file(s) (acmesh-reload-*.path)"
+  ansible.builtin.copy:
+    dest: "{{ __run_acmesh_reload_unitfile_dir }}/{{ __run_acmesh_reload_unit_prefix }}{{ item['name'] }}.path"
+    content: |
+      [Unit]
+      Description=acme.sh - watch installed certificate files ({{ item['domain'] }})
+
+      [Path]
+      # PathChanged= triggers when the watched file gets closed after writing,
+      # not on every write and not on permission or ownership changes.
+      PathChanged={{ item['watch_path'] }}
+      Unit={{ __run_acmesh_reload_unit_prefix }}{{ item['name'] }}.service
+
+      [Install]
+      WantedBy=multi-user.target
+    force: true
+    owner: "{{ __run_acmesh_reload_unitfile_owner }}"
+    group: "{{ __run_acmesh_reload_unitfile_group }}"
+    mode: "{{ __run_acmesh_reload_unitfile_mode }}"
+  loop: "{{ __run_acmesh_reload_units }}"
+  loop_control:
+    label: "{{ item['name'] }}"
+  notify:
+    - "run_acmesh: systemd daemon-reload"
+
+
+- name: "Config | Default | Manage (enable and start) acmesh-reload-*.path unit(s)"
+  ansible.builtin.systemd_service:
+    name: "{{ __run_acmesh_reload_unit_prefix }}{{ item['name'] }}.path"
+    enabled: true
+    state: "started"
+    daemon_reload: true
+  loop: "{{ __run_acmesh_reload_units }}"
+  loop_control:
+    label: "{{ item['name'] }}"

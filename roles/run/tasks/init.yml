@@ -245,6 +245,48 @@
     quiet: true
 
 
+- name: "Init | Check every reloadcmd has an installed certificate file to watch and fail if unmet"
+  # Reload commands run via root-side systemd path units watching the installed
+  # certificate files (see vars/main.yml). A certificate with a "reloadcmd" but
+  # without any install file path has nothing to watch, so its reload command
+  # would silently never run.
+  ansible.builtin.assert:
+    that:
+      - "(__run_acmesh_reload_units_missing_watch | ansible.builtin.length) == 0"
+    fail_msg: >-
+      The following certificate(s) define run_acmesh_certs[]['install']['reloadcmd']
+      but none of the install file paths (fullchain_file, key_file, ca_file,
+      cert_file): {{ __run_acmesh_reload_units_missing_watch | ansible.builtin.join(', ') }}.
+      The reload command is executed by a systemd path unit watching the installed
+      certificate files, so at least one of these paths is required.
+    quiet: true
+
+
+- name: "Init | Check no reloadcmd contains a line break and fail if unmet"
+  # The reload command is inlined into the ExecStart= line of a systemd unit;
+  # a line break would corrupt the unit file syntax.
+  ansible.builtin.assert:
+    that:
+      - "(__run_acmesh_reloadcmds_multiline | ansible.builtin.length) == 0"
+    fail_msg: >-
+      The run_acmesh_certs[]['install']['reloadcmd'] of the following
+      certificate(s) contains a line break, which is not supported (the command
+      becomes part of a systemd unit's ExecStart= line):
+      {{ __run_acmesh_reloadcmds_multiline | ansible.builtin.join(', ') }}.
+      Separate multiple commands with ";" on a single line instead.
+    quiet: true
+  vars:
+    __run_acmesh_reloadcmds_multiline: >-
+      {%- set domains = [] -%}
+      {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+      {%-   set _reloadcmd = (_cert['install'] | ansible.builtin.default({}))['reloadcmd'] | ansible.builtin.default('') -%}
+      {%-   if (_reloadcmd | ansible.builtin.trim) != (_reloadcmd | ansible.builtin.trim | ansible.builtin.regex_replace('[\r\n]', ' ')) -%}
+      {%-     set _ = domains.append((_cert['domains'] | ansible.builtin.default([{}]))[0]['name'] | ansible.builtin.default('unknown')) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ domains }}
+
+
 # This block may be removed in a future version, e.g. around late ~2027 when most users
 # are likely to have migrated their settings. Do not forget to also remove
 #   1. fullcain_file in meta/argument_specs.yml
