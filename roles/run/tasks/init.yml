@@ -278,7 +278,7 @@
   vars:
     __run_acmesh_reloadcmds_multiline: >-
       {%- set domains = [] -%}
-      {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+      {%- for _cert in __run_acmesh_certs_managed -%}
       {%-   set _reloadcmd = (_cert['install'] | ansible.builtin.default({}))['reloadcmd'] | ansible.builtin.default('') -%}
       {%-   if (_reloadcmd | ansible.builtin.trim) != (_reloadcmd | ansible.builtin.trim | ansible.builtin.regex_replace('[\r\n]', ' ')) -%}
       {%-     set _ = domains.append((_cert['domains'] | ansible.builtin.default([{}]))[0]['name'] | ansible.builtin.default('unknown')) -%}

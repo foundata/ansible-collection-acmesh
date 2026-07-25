@@ -1,0 +1,21 @@
+---
+
+minor_changes:
+  - >
+    ``run`` role - Certificates can now be removed declaratively. A
+    ``run_acmesh_certs`` entry with ``state: absent`` removes all data of that
+    certificate: the ``acme.sh`` data below ``run_acmesh_cfg_cert_home``
+    (which also stops its automated renewal), its ``acmesh-reload-*`` systemd
+    units and the installed certificate files (their directories are kept, as
+    they may be shared with other software; the certificate is not revoked at
+    the ACME CA).
+  - >
+    ``run`` role - New ``run_acmesh_certs_delete_unmanaged`` option (default:
+    ``false``). When enabled, certificate data below
+    ``run_acmesh_cfg_cert_home`` that does not belong to any certificate
+    listed in ``run_acmesh_certs`` gets removed (stopping its automated
+    renewal), as do ``acmesh-reload-*`` units the current configuration does
+    not define. Installed certificate files of unmanaged certificates are
+    never touched, and nothing is removed while ``run_acmesh_certs`` is
+    undefined. A full uninstall via ``run_acmesh_state: absent`` still
+    preserves all certificate data.

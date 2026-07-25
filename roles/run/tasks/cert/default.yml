@@ -2,6 +2,170 @@
 
 ---
 
+# Removal of certificates with state: "absent". This reaps all data of the
+# certificate: the acme.sh data below run_acmesh_cfg_cert_home (which also
+# stops the automated renewal for it), the acmesh-reload-* systemd units and
+# the installed certificate files. Directories holding installed files are
+# kept, they may be shared with other software.
+- name: "Cert | Default | Disable reload path unit(s) of certificate(s) with state 'absent' (best-effort)"
+  ansible.builtin.systemd_service:
+    name: "{{ __run_acmesh_reload_unit_prefix }}{{ item['unit_name'] }}.path"
+    enabled: false
+    state: "stopped"
+  failed_when:
+    - false # the unit might not exist (e.g. certificate without reloadcmd)
+  when:
+    - run_acmesh_certs is ansible.builtin.defined
+  loop: "{{ __run_acmesh_certs_absent_cleanup }}"
+  loop_control:
+    label: "{{ item['domain'] }}"
+  notify:
+    - "run_acmesh: systemd daemon-reload"
+
+
+- name: "Cert | Default | Delete reload unit file(s) of certificate(s) with state 'absent'"
+  ansible.builtin.file:
+    path: "{{ __run_acmesh_reload_unitfile_dir }}/{{ __run_acmesh_reload_unit_prefix }}{{ item[0]['unit_name'] }}.{{ item[1] }}"
+    state: "absent"
+  when:
+    - run_acmesh_certs is ansible.builtin.defined
+  loop: "{{ __run_acmesh_certs_absent_cleanup | ansible.builtin.product(['path', 'service']) }}"
+  loop_control:
+    label: "{{ item[0]['domain'] }} ({{ item[1] }})"
+  notify:
+    - "run_acmesh: systemd daemon-reload"
+
+
+- name: "Cert | Default | Delete certificate data and installed files of certificate(s) with state 'absent'"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: "absent"
+  when:
+    - run_acmesh_certs is ansible.builtin.defined
+  loop: >-
+    {{
+      (__run_acmesh_certs_absent_cleanup | ansible.builtin.map(attribute='cert_dirs') | ansible.builtin.flatten)
+      + (__run_acmesh_certs_absent_cleanup | ansible.builtin.map(attribute='installed_files') | ansible.builtin.flatten)
+    }}
+
+
+# Removal of unmanaged certificate data (opt-in): when
+# run_acmesh_certs_delete_unmanaged is enabled, acme.sh certificate data below
+# run_acmesh_cfg_cert_home that does not belong to any certificate listed in
+# run_acmesh_certs gets removed (which also stops the automated renewal for
+# it), as do acmesh-reload-* units the current configuration does not define.
+# Installed certificate files of unmanaged certificates are not touched (their
+# paths are unknown to the role).
+- name: "Cert | Default | Find certificate data directories (unmanaged certificate data removal)"
+  ansible.builtin.find:
+    paths: "{{ run_acmesh_cfg_cert_home }}"
+    file_type: "directory"
+  when:
+    - run_acmesh_certs is ansible.builtin.defined
+    - run_acmesh_certs_delete_unmanaged | ansible.builtin.bool
+  register: __run_acmesh_certhome_dirs_found
+
+
+- name: "Cert | Default | Determine unmanaged certificate data directories"
+  ansible.builtin.set_fact:
+    # acme.sh stores a certificate's data in "<domain>", "<domain>_ecc" or
+    # "<domain>_rsa" below the certificate home; strip the suffix to compare
+    # against the configured primary domains.
+    __run_acmesh_certhome_dirs_unmanaged: >-
+      {%- set dirs = [] -%}
+      {%- for _dir in (__run_acmesh_certhome_dirs_found['files'] | ansible.builtin.default([])
+                       | ansible.builtin.map(attribute='path') | ansible.builtin.list) -%}
+      {%-   set _domain = (_dir | ansible.builtin.basename) | ansible.builtin.regex_replace('(_ecc|_rsa)$', '') -%}
+      {%-   if _domain not in __run_acmesh_certs_known_domains -%}
+      {%-     set _ = dirs.append(_dir) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ dirs }}
+  when:
+    - run_acmesh_certs is ansible.builtin.defined
+    - run_acmesh_certs_delete_unmanaged | ansible.builtin.bool
+
+
+- name: "Cert | Default | Delete unmanaged certificate data directories"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: "absent"
+  when:
+    - run_acmesh_certs is ansible.builtin.defined
+    - run_acmesh_certs_delete_unmanaged | ansible.builtin.bool
+  loop: "{{ __run_acmesh_certhome_dirs_unmanaged | ansible.builtin.default([]) }}"
+
+
+- name: "Cert | Default | Find reload unit files (unmanaged certificate data removal)"
+  ansible.builtin.find:
+    paths: "{{ __run_acmesh_reload_unitfile_dir }}"
+    patterns:
+      - "{{ __run_acmesh_reload_unit_prefix }}*.path"
+      - "{{ __run_acmesh_reload_unit_prefix }}*.service"
+    file_type: "file"
+  when:
+    - run_acmesh_certs is ansible.builtin.defined
+    - run_acmesh_certs_delete_unmanaged | ansible.builtin.bool
+  register: __run_acmesh_reload_unitfiles_present
+
+
+- name: "Cert | Default | Determine unmanaged reload unit files"
+  ansible.builtin.set_fact:
+    __run_acmesh_reload_unitfiles_unmanaged: >-
+      {%- set files = [] -%}
+      {%- set _expected = [] -%}
+      {%- for _unit in __run_acmesh_reload_units -%}
+      {%-   set _ = _expected.append(__run_acmesh_reload_unit_prefix ~ _unit['name'] ~ '.path') -%}
+      {%-   set _ = _expected.append(__run_acmesh_reload_unit_prefix ~ _unit['name'] ~ '.service') -%}
+      {%- endfor -%}
+      {%- for _file in (__run_acmesh_reload_unitfiles_present['files'] | ansible.builtin.default([])
+                        | ansible.builtin.map(attribute='path') | ansible.builtin.list) -%}
+      {%-   if (_file | ansible.builtin.basename) not in _expected -%}
+      {%-     set _ = files.append(_file) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ files }}
+  when:
+    - run_acmesh_certs is ansible.builtin.defined
+    - run_acmesh_certs_delete_unmanaged | ansible.builtin.bool
+
+
+- name: "Cert | Default | Disable unmanaged acmesh-reload-*.path unit(s) (best-effort)"
+  ansible.builtin.systemd_service:
+    name: "{{ item | ansible.builtin.basename }}"
+    enabled: false
+    state: "stopped"
+  failed_when:
+    - false
+  when:
+    - run_acmesh_certs is ansible.builtin.defined
+    - run_acmesh_certs_delete_unmanaged | ansible.builtin.bool
+  loop: >-
+    {{
+      __run_acmesh_reload_unitfiles_unmanaged | ansible.builtin.default([])
+      | ansible.builtin.select('ansible.builtin.search', '\.path$')
+      | ansible.builtin.list
+    }}
+  loop_control:
+    label: "{{ item | ansible.builtin.basename }}"
+  notify:
+    - "run_acmesh: systemd daemon-reload"
+
+
+- name: "Cert | Default | Delete unmanaged reload unit files"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: "absent"
+  when:
+    - run_acmesh_certs is ansible.builtin.defined
+    - run_acmesh_certs_delete_unmanaged | ansible.builtin.bool
+  loop: "{{ __run_acmesh_reload_unitfiles_unmanaged | ansible.builtin.default([]) }}"
+  loop_control:
+    label: "{{ item | ansible.builtin.basename }}"
+  notify:
+    - "run_acmesh: systemd daemon-reload"
+
+
 # These tasks for copying existing certificates can be useful in non-production
 # environments during development to avoid hitting CA rate limits or encountering
 # similar restrictions.
@@ -16,7 +180,7 @@
   when:
     - run_acmesh_certs is ansible.builtin.defined
   loop: >
-    {{ run_acmesh_certs | ansible.builtin.selectattr('domains', 'defined') | ansible.builtin.map(attribute='domains') |
+    {{ __run_acmesh_certs_managed | ansible.builtin.selectattr('domains', 'defined') | ansible.builtin.map(attribute='domains') |
        flatten | ansible.builtin.selectattr('name', 'defined') | ansible.builtin.map(attribute='name') | ansible.builtin.unique }}
   register: __run_acmesh_local_preseed_rsa_result
 
@@ -61,7 +225,7 @@
   when:
     - run_acmesh_certs is ansible.builtin.defined
   loop: >
-    {{ run_acmesh_certs | ansible.builtin.selectattr('domains', 'defined') | ansible.builtin.map(attribute='domains') |
+    {{ __run_acmesh_certs_managed | ansible.builtin.selectattr('domains', 'defined') | ansible.builtin.map(attribute='domains') |
        flatten | ansible.builtin.selectattr('name', 'defined') | ansible.builtin.map(attribute='name') | ansible.builtin.unique }}
   register: __run_acmesh_local_preseed_ecc_result
 
@@ -292,7 +456,7 @@
   vars:
     __run_acmesh_dns_persist_servers: >-
       {%- set servers = [] -%}
-      {%- for cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+      {%- for cert in __run_acmesh_certs_managed -%}
         {%- for domain in (cert['domains'] | ansible.builtin.default([])) -%}
           {%- if (domain['challenge'] is ansible.builtin.defined) and
                  (domain['challenge']['type'] is ansible.builtin.defined) and
@@ -344,7 +508,7 @@
   vars:
     __run_acmesh_dns_persist_domains: >-
       {%- set domains = [] -%}
-      {%- for cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+      {%- for cert in __run_acmesh_certs_managed -%}
         {%- for domain in (cert['domains'] | ansible.builtin.default([])) -%}
           {%- if (domain['challenge'] is ansible.builtin.defined) and
                  (domain['challenge']['type'] is ansible.builtin.defined) and
@@ -592,7 +756,7 @@
     - >
       (run_acmesh_certs is not ansible.builtin.defined) or
       ((__run_acmesh_issue_result is ansible.builtin.failed) and ('Domains not changed' not in __run_acmesh_issue_result['stdout']))
-  loop: "{{ run_acmesh_certs }}"
+  loop: "{{ __run_acmesh_certs_managed }}"
   register: __run_acmesh_issue_result
   # The task environment carries the DNS API credentials (global and
   # per-certificate) and the loop item includes the per-certificate ones, so its
@@ -615,7 +779,7 @@
     - run_acmesh_certs is ansible.builtin.defined
   loop: >-
     {{
-      run_acmesh_certs
+      __run_acmesh_certs_managed
       | ansible.builtin.selectattr('install', 'defined')
       | ansible.builtin.map(attribute='install')
       | ansible.builtin.selectattr('ca_file', 'defined')
@@ -635,7 +799,7 @@
     - run_acmesh_certs is ansible.builtin.defined
   loop: >-
     {{
-      run_acmesh_certs
+      __run_acmesh_certs_managed
       | ansible.builtin.selectattr('install', 'defined')
       | ansible.builtin.map(attribute='install')
       | ansible.builtin.selectattr('cert_file', 'defined')
@@ -655,7 +819,7 @@
     - run_acmesh_certs is ansible.builtin.defined
   loop: >-
     {{
-      run_acmesh_certs
+      __run_acmesh_certs_managed
       | ansible.builtin.selectattr('install', 'defined')
       | ansible.builtin.map(attribute='install')
       | ansible.builtin.selectattr('fullchain_file', 'defined')
@@ -675,7 +839,7 @@
     - run_acmesh_certs is ansible.builtin.defined
   loop: >-
     {{
-      run_acmesh_certs
+      __run_acmesh_certs_managed
       | ansible.builtin.selectattr('install', 'defined')
       | ansible.builtin.map(attribute='install')
       | ansible.builtin.selectattr('key_file', 'defined')
@@ -741,7 +905,7 @@
   failed_when: >
     (run_acmesh_certs is not ansible.builtin.defined) or
     ((__run_acmesh_install_result is ansible.builtin.failed) and ('Installing' not in __run_acmesh_install_result['stdout']))
-  loop: "{{ run_acmesh_certs }}"
+  loop: "{{ __run_acmesh_certs_managed }}"
   register: __run_acmesh_install_result
   # As with issuing: the task environment carries the DNS API credentials and the
   # loop item includes the per-certificate ones. See the no_log note above.
@@ -758,7 +922,7 @@
     mode: "{{ __run_acmesh_cfg_cert_install_file_mode }}"
   loop: >-
     {{
-      run_acmesh_certs | ansible.builtin.default([])
+      __run_acmesh_certs_managed
       | ansible.builtin.map(attribute='install')
       | ansible.builtin.map('dict2items')
       | ansible.builtin.list

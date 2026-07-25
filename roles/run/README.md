@@ -13,6 +13,7 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
   - [Service reloads after certificate changes (reloadcmd)](#examples-reload-permissions)
   - [DNS challenge (multiple domains and certificates)](#examples-dns)
   - [dns-persist-01 challenge (long-lived TXT record)](#examples-dns-persist)
+  - [Removing certificates](#examples-remove)
   - [Uninstall](#examples-uninstall)
   - [Pre-seeding certificate files](#examples-preseed)
 - [Supported tags](#tags)<!-- ANSIBLE DOCSMITH TOC START -->
@@ -54,6 +55,8 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
     - [`run_acmesh_certs['renew_hook']`](#variable-run_acmesh_certs-sub-renew_hook)
     - [`run_acmesh_certs['extra_flags']`](#variable-run_acmesh_certs-sub-extra_flags)
     - [`run_acmesh_certs['environment']`](#variable-run_acmesh_certs-sub-environment)
+    - [`run_acmesh_certs['state']`](#variable-run_acmesh_certs-sub-state)
+  - [`run_acmesh_certs_delete_unmanaged`](#variable-run_acmesh_certs_delete_unmanaged)
   - [`run_acmesh_user`](#variable-run_acmesh_user)
   - [`run_acmesh_group`](#variable-run_acmesh_group)
   - [`run_acmesh_cfg_accountemail`](#variable-run_acmesh_cfg_accountemail)
@@ -159,7 +162,7 @@ The `reloadcmd` of a certificate is **not** executed by `acme.sh`. Instead, the 
 - The command is inlined into the service unit's `ExecStart=` (systemd-escaped so the shell receives it exactly as configured, single line only); `systemctl cat acmesh-reload-<primary domain>.service` shows it.
 - The reload happens asynchronously (typically within milliseconds) after the certificate files were written, not synchronously as part of the Ansible task.
 
-Reload units of certificates that are no longer listed in `run_acmesh_certs` are kept on purpose, as `acme.sh` continues to renew and reinstall already issued certificates until they are actively removed. All `acmesh-reload-*` resources get removed on `run_acmesh_state: "absent"`.
+Reload units of certificates that are no longer listed in `run_acmesh_certs` are kept by default, as `acme.sh` continues to renew and reinstall already issued certificates until they are actively removed. Remove a certificate cleanly with a `state: "absent"` entry, or enable `run_acmesh_certs_delete_unmanaged` to reap such leftovers (see [Removing certificates](#examples-remove)). All `acmesh-reload-*` resources get removed on `run_acmesh_state: "absent"`.
 
 The [`pre_hook`, `post_hook` and `renew_hook`](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) commands are different: they are executed by `acme.sh` itself and therefore always run as the unprivileged service user — consistently during issuance and automated renewal. Keep them free of privileged operations (or grant the needed permissions yourself, e.g. via [`foundata.linux.sudo`](https://github.com/foundata/ansible-collection-linux) or a polkit rule).
 
@@ -290,6 +293,30 @@ A `dns-persist-01` challenge, for a domain whose DNS you cannot (or do not want 
 On the first run the role prints the exact `_validation-persist.<domain>` TXT record(s) to create and then pauses for [`run_acmesh_dns_persist_pause`](#variable-run_acmesh_dns_persist_pause) seconds. Publish the record at your DNS provider, then let the play continue (or re-run it later). Because the record value is derived from the ACME account key, pre-seeding that key with [`run_acmesh_cfg_account_keys`](#variable-run_acmesh_cfg_account_keys) keeps the same TXT record valid across reinstalls and across multiple servers sharing the certificate. See the [acme.sh DNS-persist-mode wiki](https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode) for background.
 
 
+### Removing certificates<a id="examples-remove"></a>
+
+Set `state: "absent"` on a certificate entry to remove all of its data: the acme.sh data below `run_acmesh_cfg_cert_home` (this also stops the automated renewal for it), its `acmesh-reload-*` systemd units and the installed files listed under `install` (their directories are kept, as they may be shared with other software). The certificate is not revoked at the ACME CA:
+
+```yaml
+run_acmesh_certs:
+  - domains:
+      - name: "example.org"
+        challenge:
+          type: "webroot"
+          webroot: "/var/www/example.org"
+    install:
+      ca_file: "/etc/pki/tls/certs/example.org/ca.cer"
+      cert_file: "/etc/pki/tls/certs/example.org/cert.cer"
+      fullchain_file: "/etc/pki/tls/certs/example.org/fullchain.cer"
+      key_file: "/etc/pki/tls/certs/example.org/cert.key"
+    state: "absent"
+```
+
+Certificates that are simply deleted from `run_acmesh_certs` keep their data and continue to be renewed by `acme.sh`. Set `run_acmesh_certs_delete_unmanaged: true` to reap such unmanaged leftovers declaratively (acme.sh data and reload units; installed files of unmanaged certificates are never touched because their paths are unknown to the role).
+
+A full uninstall via `run_acmesh_state: "absent"` intentionally preserves all certificate data (see below).
+
+
 ### Uninstall<a id="examples-uninstall"></a>
 
 Uninstall (certificate files, if present, will be preserved):
@@ -351,6 +378,7 @@ The following variables can be configured for this role:
 | `run_acmesh_git_fallback_version_branch` | `str` | No | `"master"` | The Git branch to clone when no version tag could be determined from the remote repository (e.g. because `git ls-remote` failed or returned no matching tags).<br><br>See https://github.com/acmesh-official/acme.sh/issues/1162 for why acme.sh uses […](#variable-run_acmesh_git_fallback_version_branch) |
 | `run_acmesh_git_version` | `str` | No | `""` | Overrides the automatically detected acme.sh version with a specific Git ref (tag, branch, or commit hash). When set (non-empty string), the role skips the upstream version tag detection via `git ls-remote` and uses this value directly for the […](#variable-run_acmesh_git_version) |
 | `run_acmesh_certs` | `list` | No | `[]` | Defines certificates to be requested, their associated domains, challenge methods, and installation details. Each item in the list is a dictionary with suboptions / keys.<br><br>Example:<br><br>``` run_acmesh_certs: # first certificate: "example.org" […](#variable-run_acmesh_certs) |
+| `run_acmesh_certs_delete_unmanaged` | `bool` | No | `false` | If set to `true`, certificate data below `run_acmesh_cfg_cert_home` that does not belong to any certificate listed in `run_acmesh_certs` gets removed (which also stops the automated renewal for it), as do `acmesh-reload-*` systemd units the current […](#variable-run_acmesh_certs_delete_unmanaged) |
 | `run_acmesh_user` | `str` | No | `"acmesh"` | Specifies the service user account that runs acme.sh and owns relevant files and directories.<br><br>All acme.sh operations run as this account: account registration, certificate issuance and installation during the Ansible run as well as the […](#variable-run_acmesh_user) |
 | `run_acmesh_group` | `str` | No | `"acmesh"` | Specifies the group associated with the service user for managing acme.sh and the corresponding file permissions. |
 | `run_acmesh_cfg_accountemail` | `str` | No | `""` | Specifies the email address to be associated with the ACME account. This email is used for expiration notices and recovery purposes. Some ACME providers might refuse to issue certificates if not set. |
@@ -807,9 +835,11 @@ domain>.service` unit in a failed state, visible via
 Requires at least one of `fullchain_file`, `key_file`, `ca_file` or
 `cert_file` to be set (the unit watches the last one of these files
 `acme.sh` writes). Reload units of certificates that are no longer
-listed in `run_acmesh_certs` are kept (`acme.sh` keeps renewing and
-reinstalling issued certificates until they are actively removed);
-all of them get removed when `run_acmesh_state` is `absent`.
+listed in `run_acmesh_certs` are kept by default (`acme.sh` keeps
+renewing and reinstalling issued certificates until they are
+actively removed). Remove a certificate with its `state: absent` or
+enable `run_acmesh_certs_delete_unmanaged` to reap such leftovers;
+everything gets removed when `run_acmesh_state` is `absent`.
 
 - **Type**: `str`
 - **Required**: No
@@ -934,6 +964,53 @@ only the last-written set being saved for automatic renewals.
 
 - **Type**: `dict`
 - **Required**: No
+
+#### `run_acmesh_certs['state']`<a id="variable-run_acmesh_certs-sub-state"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Optional. `present` (the default) issues and maintains the certificate.
+
+`absent` removes all data of this certificate: the acme.sh data below
+`run_acmesh_cfg_cert_home` (which also stops the automated renewal for
+it), the `acmesh-reload-*` systemd units and the installed certificate
+files listed under `install`. Directories holding installed files are
+kept, as they may be shared with other software. The certificate is not
+revoked at the ACME CA. This works independently of
+`run_acmesh_certs_delete_unmanaged`.
+
+- **Type**: `str`
+- **Required**: No
+- **Default**: `"present"`
+- **Choices**: `present`, `absent`
+
+
+
+### `run_acmesh_certs_delete_unmanaged`<a id="variable-run_acmesh_certs_delete_unmanaged"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+If set to `true`, certificate data below `run_acmesh_cfg_cert_home` that
+does not belong to any certificate listed in `run_acmesh_certs` gets
+removed (which also stops the automated renewal for it), as do
+`acmesh-reload-*` systemd units the current configuration does not
+define. Useful to declaratively clean up certificates that were simply
+deleted from `run_acmesh_certs` (instead of being listed with
+`state: absent`).
+
+Two safety properties: installed certificate files of unmanaged
+certificates are never touched (their installation paths are unknown to
+the role), and nothing is removed while `run_acmesh_certs` is undefined.
+Note that an empty certificate list (`run_acmesh_certs: []`, the
+default) combined with `true` declares "no certificates", so all
+certificate data below `run_acmesh_cfg_cert_home` gets removed.
+
+Prefer a per-certificate `state: absent` entry for targeted removal
+including the installed files.
+
+- **Type**: `bool`
+- **Required**: No
+- **Default**: `false`
 
 
 

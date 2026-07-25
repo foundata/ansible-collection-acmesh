@@ -142,10 +142,12 @@
 # vars/main.yml for the entry layout and the choice of the watched file.
 #
 # Units of certificates that are no longer listed in run_acmesh_certs are kept
-# on purpose: acme.sh continues to renew and reinstall already issued
+# by default: acme.sh continues to renew and reinstall already issued
 # certificates until they are actively removed, so their services still need
-# reloading. All acmesh-reload-* resources get removed on
-# run_acmesh_state: "absent".
+# reloading. A certificate listed with state "absent" gets its units removed
+# together with its data (see tasks/cert/default.yml), and
+# run_acmesh_certs_delete_unmanaged reaps units of unlisted certificates. All
+# acmesh-reload-* resources get removed on run_acmesh_state: "absent".
 - name: "Config | Default | Create systemd unit file(s) (acmesh-reload-*.service)"
   ansible.builtin.copy:
     # The reload command runs via a shell (it may contain multiple commands)

@@ -692,10 +692,12 @@
           reload command, which ran as root with byte-identical content.
 
 
-## Renewal parity: a forced renewal as the unprivileged service user must work
-## end-to-end (issue #20). This emulates what acmesh-renewal.service does,
-## including the webroot challenge against pebble, the reinstallation of the
-## certificate files and the root-side reload trigger.
+## Renewal parity
+#
+# A forced renewal as the unprivileged service user must work end-to-end (issue
+# #20). This emulates what acmesh-renewal.service does, including the webroot
+# challenge against pebble, the reinstallation of the certificate files and the
+# root-side reload trigger.
 
 - name: "Molecule | Verify | Renewal as the service user (webroot challenge)"
   when:
@@ -801,6 +803,176 @@
         fail_msg: >-
           Files not owned by {{ run_acmesh_user }} found after the unprivileged
           renewal: {{ __testing_acmesh_foreign_owned_files['stdout_lines'] | ansible.builtin.default([]) }}
+
+
+## Declarative certificate removal
+#
+# The run_acmesh_certs_delete_unmanaged sweep reaps certificate data and reload
+# units of unlisted certificates, and a per-certificate state "absent" removes
+# everything belonging to that certificate (including the installed files).
+
+- name: "Molecule | Verify | Unmanaged certificate data removal (delete_unmanaged sweep)"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+  block:
+
+    - name: "Molecule | Verify | Plant stray certificate data directory"
+      ansible.builtin.file:
+        path: "{{ run_acmesh_cfg_cert_home }}/stray-reap.test_ecc"
+        state: "directory"
+        owner: "{{ run_acmesh_user }}"
+        group: "{{ run_acmesh_group }}"
+        mode: "u=rwx,g=rx,o="
+
+
+    - name: "Molecule | Verify | Plant stray certificate config file"
+      ansible.builtin.copy:
+        dest: "{{ run_acmesh_cfg_cert_home }}/stray-reap.test_ecc/stray-reap.test.conf"
+        content: |
+          Le_Domain='stray-reap.test'
+        owner: "{{ run_acmesh_user }}"
+        group: "{{ run_acmesh_group }}"
+        mode: "u=rw,g=r,o="
+
+
+    - name: "Molecule | Verify | Plant stray reload path unit file"
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/acmesh-reload-stray-reap.test.path"
+        content: |
+          [Unit]
+          Description=stray reload unit for reap testing
+
+          [Path]
+          PathChanged=/var/tmp/nonexistent-stray-reap-watch
+
+          [Install]
+          WantedBy=multi-user.target
+        owner: "root"
+        group: "root"
+        mode: "u=rw,g=r,o=r" # 0644
+
+
+    - name: "Molecule | Verify | Plant stray reload service unit file"
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/acmesh-reload-stray-reap.test.service"
+        content: |
+          [Unit]
+          Description=stray reload unit for reap testing
+
+          [Service]
+          Type=oneshot
+          ExecStart=/bin/true
+        owner: "root"
+        group: "root"
+        mode: "u=rw,g=r,o=r" # 0644
+
+
+    - name: "Molecule | Verify | Include the foundata.acmesh.run role (with run_acmesh_certs_delete_unmanaged)"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+      vars:
+        run_acmesh_certs_delete_unmanaged: true
+
+
+    - name: "Molecule | Verify | Gather stats for stray and managed resources after the sweep"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        get_checksum: false
+        get_mime: false
+      loop:
+        - "{{ run_acmesh_cfg_cert_home }}/stray-reap.test_ecc"
+        - "/etc/systemd/system/acmesh-reload-stray-reap.test.path"
+        - "/etc/systemd/system/acmesh-reload-stray-reap.test.service"
+        - "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc"
+        - "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.path"
+      register: __testing_acmesh_sweep_stat
+
+
+    - name: "Molecule | Verify | Assert the sweep removed stray resources and kept managed ones"
+      ansible.builtin.assert:
+        that:
+          - not __testing_acmesh_sweep_stat['results'][0]['stat']['exists']
+          - not __testing_acmesh_sweep_stat['results'][1]['stat']['exists']
+          - not __testing_acmesh_sweep_stat['results'][2]['stat']['exists']
+          - __testing_acmesh_sweep_stat['results'][3]['stat']['exists']
+          - __testing_acmesh_sweep_stat['results'][4]['stat']['exists']
+        fail_msg: >-
+          run_acmesh_certs_delete_unmanaged did not remove exactly the stray
+          resources: {{ __testing_acmesh_sweep_stat['results']
+                        | ansible.builtin.map(attribute='stat.exists') | ansible.builtin.list }}
+          for {{ __testing_acmesh_sweep_stat['results']
+                 | ansible.builtin.map(attribute='item') | ansible.builtin.list }}
+        success_msg: >-
+          The sweep removed the stray certificate data and reload units while
+          keeping the managed webroot certificate untouched.
+
+
+- name: "Molecule | Verify | Per-certificate removal (state 'absent', webroot challenge)"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+  block:
+
+    - name: "Molecule | Verify | Include the foundata.acmesh.run role (webroot certificate with state 'absent')"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+      vars:
+        run_acmesh_certs: >-
+          {{
+            [
+              (__testing_state['run_acmesh_certs']
+               | ansible.builtin.selectattr('domains.0.name', 'ansible.builtin.equalto', 'acmesh-webroot.test')
+               | ansible.builtin.first)
+              | ansible.builtin.combine({'state': 'absent'})
+            ]
+          }}
+
+
+    - name: "Molecule | Verify | Gather stats for the removed webroot certificate resources"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        get_checksum: false
+        get_mime: false
+      loop:
+        - "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test"
+        - "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc"
+        - "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_rsa"
+        - "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.path"
+        - "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.service"
+        - "/etc/pki/tls/certs/acmesh-webroot.test/ca.cer"
+        - "/etc/pki/tls/certs/acmesh-webroot.test/cert.cer"
+        - "/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer"
+        - "/etc/pki/tls/certs/acmesh-webroot.test/cert.key"
+      register: __testing_acmesh_certabsent_stat
+
+
+    - name: "Molecule | Verify | Assert all data of the removed certificate is gone"
+      ansible.builtin.assert:
+        that:
+          - not item['stat']['exists']
+        fail_msg: "{{ item['item'] }} still exists although the certificate was removed with state 'absent'"
+      loop: "{{ __testing_acmesh_certabsent_stat['results'] }}"
+      loop_control:
+        label: "{{ item['item'] }}"
+
+
+    - name: "Molecule | Verify | Gather stats for the installation directory of the removed certificate"
+      ansible.builtin.stat:
+        path: "/etc/pki/tls/certs/acmesh-webroot.test"
+        get_checksum: false
+        get_mime: false
+      register: __testing_acmesh_certabsent_installdir_stat
+
+
+    - name: "Molecule | Verify | Assert the installation directory of the removed certificate is kept"
+      # Only the installed files get removed; the directory may be shared
+      # with other software.
+      ansible.builtin.assert:
+        that:
+          - __testing_acmesh_certabsent_installdir_stat['stat']['exists']
+          - __testing_acmesh_certabsent_installdir_stat['stat']['isdir']
+        fail_msg: >-
+          The installation directory was removed although only the installed
+          certificate files of a state=absent certificate may be deleted.
 
 
 - name: "Molecule | Verify | Reload units: negative check (dns-persist-01 certificate, empty reloadcmd)"

@@ -24,21 +24,90 @@ __run_acmesh_used_facts:
     - "os_family"
 
 
-# run_acmesh_certs with every per-certificate "environment" mapping removed.
+# Certificates of run_acmesh_certs the role manages (per-certificate "state"
+# is unset or "present"). Every task that registers, issues, installs or
+# otherwise maintains certificates operates on this view; entries with
+# state: "absent" are handled exclusively by the removal tasks (see
+# __run_acmesh_certs_absent_cleanup).
+__run_acmesh_certs_managed: >-
+  {%- set certs = [] -%}
+  {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+  {%-   if (_cert['state'] | ansible.builtin.default('present')) != 'absent' -%}
+  {%-     set _ = certs.append(_cert) -%}
+  {%-   endif -%}
+  {%- endfor -%}
+  {{ certs }}
+
+
+# __run_acmesh_certs_managed with every per-certificate "environment" mapping
+# removed.
 #
 # A certificate's "environment" holds DNS API credentials. Tasks that iterate
 # over the certificates but do not need those credentials loop over this view
-# instead of run_acmesh_certs, so the credentials never appear in task output
-# (item labels, --diff, failure dumps). The credential-consuming tasks (issue,
-# install) still use run_acmesh_certs and are marked no_log.
+# instead, so the credentials never appear in task output (item labels,
+# --diff, failure dumps). The credential-consuming tasks (issue, install)
+# still use the certificate data directly and are marked no_log.
 __run_acmesh_certs_no_secrets: >-
   {{
-    run_acmesh_certs | ansible.builtin.default([])
+    __run_acmesh_certs_managed
     | map('ansible.builtin.dict2items')
     | map('ansible.builtin.rejectattr', 'key', 'eq', 'environment')
     | map('ansible.builtin.items2dict')
     | ansible.builtin.list
   }}
+
+
+# Removal data for every certificate with state: "absent", credential-free
+# (safe for loop labels). Per entry:
+#
+# - domain: the certificate's primary domain.
+# - unit_name: sanitized domain as used in the acmesh-reload-* unit names.
+# - cert_dirs: possible acme.sh data directories of the certificate below
+#   run_acmesh_cfg_cert_home (plain, _ecc and _rsa variants). Removing them
+#   also stops the automated renewal for this certificate.
+# - installed_files: the configured install file paths. Only the files are
+#   removed, not their directories (those may be shared with other software).
+__run_acmesh_certs_absent_cleanup: >-
+  {%- set entries = [] -%}
+  {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+  {%-   if (_cert['state'] | ansible.builtin.default('present')) == 'absent' -%}
+  {%-     set _domain = (_cert['domains'] | ansible.builtin.default([{}]))[0]['name'] | ansible.builtin.default('') -%}
+  {%-     set _install = _cert['install'] | ansible.builtin.default({}) -%}
+  {%-     set _files = [] -%}
+  {%-     for _key in ['ca_file', 'cert_file', 'fullchain_file', 'key_file'] -%}
+  {%-       if (((_install[_key] | ansible.builtin.default('')) | ansible.builtin.length) > 0) -%}
+  {%-         set _ = _files.append(_install[_key]) -%}
+  {%-       endif -%}
+  {%-     endfor -%}
+  {%-     if ((_domain | ansible.builtin.length) > 0) -%}
+  {%-       set _ = entries.append({
+              'domain': _domain,
+              'unit_name': (_domain | lower | ansible.builtin.regex_replace('[^a-z0-9.-]', '-')),
+              'cert_dirs': [
+                (run_acmesh_cfg_cert_home ~ '/' ~ _domain),
+                (run_acmesh_cfg_cert_home ~ '/' ~ _domain ~ '_ecc'),
+                (run_acmesh_cfg_cert_home ~ '/' ~ _domain ~ '_rsa'),
+              ],
+              'installed_files': _files,
+            }) -%}
+  {%-     endif -%}
+  {%-   endif -%}
+  {%- endfor -%}
+  {{ entries }}
+
+
+# Primary domains of every listed certificate (any state). Used by the
+# delete-unmanaged sweep to decide which acme.sh data directories below
+# run_acmesh_cfg_cert_home belong to a known certificate.
+__run_acmesh_certs_known_domains: >-
+  {%- set domains = [] -%}
+  {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+  {%-   set _domain = (_cert['domains'] | ansible.builtin.default([{}]))[0]['name'] | ansible.builtin.default('') -%}
+  {%-   if ((_domain | ansible.builtin.length) > 0) -%}
+  {%-     set _ = domains.append(_domain) -%}
+  {%-   endif -%}
+  {%- endfor -%}
+  {{ domains }}
 
 
 # Whether the unprivileged renewal service (acmesh-renewal.service, runs as
@@ -52,7 +121,7 @@ __run_acmesh_certs_no_secrets: >-
 # renews them all.
 __run_acmesh_renewal_needs_net_bind: >-
   {%- set ns = namespace(need=false) -%}
-  {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+  {%- for _cert in __run_acmesh_certs_managed -%}
   {%-   for _domain in (_cert['domains'] | ansible.builtin.default([])) -%}
   {%-     set _challenge = _domain['challenge'] | ansible.builtin.default({}) -%}
   {%-     set _type = _challenge['type'] | ansible.builtin.default('') -%}
@@ -102,7 +171,7 @@ __run_acmesh_reload_unitfile_mode: "u=rw,g=r,o=r" # 0644
 # __run_acmesh_reload_units_missing_watch and rejected in tasks/init.yml.
 __run_acmesh_reload_units: >-
   {%- set units = [] -%}
-  {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+  {%- for _cert in __run_acmesh_certs_managed -%}
   {%-   set _install = _cert['install'] | ansible.builtin.default({}) -%}
   {%-   set _reloadcmd = _install['reloadcmd'] | ansible.builtin.default('') -%}
   {%-   set _ns = namespace(watch='') -%}
@@ -130,7 +199,7 @@ __run_acmesh_reload_units: >-
 # helpful message (the reload command of such a certificate would never run).
 __run_acmesh_reload_units_missing_watch: >-
   {%- set domains = [] -%}
-  {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+  {%- for _cert in __run_acmesh_certs_managed -%}
   {%-   set _install = _cert['install'] | ansible.builtin.default({}) -%}
   {%-   set _ns = namespace(watch='') -%}
   {%-   for _key in ['fullchain_file', 'key_file', 'ca_file', 'cert_file'] -%}

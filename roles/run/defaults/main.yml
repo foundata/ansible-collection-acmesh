@@ -311,9 +311,11 @@ run_acmesh_git_version: ""
 #         Requires at least one of `fullchain_file`, `key_file`, `ca_file` or
 #         `cert_file` to be set (the unit watches the last one of these files
 #         `acme.sh` writes). Reload units of certificates that are no longer
-#         listed in `run_acmesh_certs` are kept (`acme.sh` keeps renewing and
-#         reinstalling issued certificates until they are actively removed); all
-#         of them get removed when `run_acmesh_state` is `absent`.
+#         listed in `run_acmesh_certs` are kept by default (`acme.sh` keeps
+#         renewing and reinstalling issued certificates until they are actively
+#         removed). Remove a certificate with its `state: absent` or enable
+#         `run_acmesh_certs_delete_unmanaged` to reap such leftovers; everything
+#         gets removed when `run_acmesh_state` is `absent`.
 #         - Type: str
 #         - Required: No
 #   - server:
@@ -389,7 +391,43 @@ run_acmesh_git_version: ""
 #     only the last-written set being saved for automatic renewals.
 #     - Type: dict
 #     - Required: No
+#   - state:
+#     Optional. `present` (the default) issues and maintains the certificate.
+#
+#     `absent` removes all data of this certificate: the acme.sh data below
+#     `run_acmesh_cfg_cert_home` (which also stops the automated renewal for
+#     it), the `acmesh-reload-*` systemd units and the installed certificate
+#     files listed under `install`. Directories holding installed files are
+#     kept, as they may be shared with other software. The certificate is not
+#     revoked at the ACME CA. This works independently of
+#     `run_acmesh_certs_delete_unmanaged`.
+#     - Type: str
+#     - Required: No
+#     - Default: present
+#     - Choices: present, absent
 run_acmesh_certs: []
+
+# If set to `true`, certificate data below `run_acmesh_cfg_cert_home` that does
+# not belong to any certificate listed in `run_acmesh_certs` gets removed (which
+# also stops the automated renewal for it), as do `acmesh-reload-*` systemd
+# units the current configuration does not define. Useful to declaratively clean
+# up certificates that were simply deleted from `run_acmesh_certs` (instead of
+# being listed with `state: absent`).
+#
+# Two safety properties: installed certificate files of unmanaged certificates
+# are never touched (their installation paths are unknown to the role), and
+# nothing is removed while `run_acmesh_certs` is undefined. Note that an empty
+# certificate list (`run_acmesh_certs: []`, the default) combined with `true`
+# declares "no certificates", so all certificate data below
+# `run_acmesh_cfg_cert_home` gets removed.
+#
+# Prefer a per-certificate `state: absent` entry for targeted removal including
+# the installed files.
+#
+# - Type: bool
+# - Required: No
+# - Default: false
+run_acmesh_certs_delete_unmanaged: false
 
 # Specifies the service user account that runs acme.sh and owns relevant files
 # and directories.
