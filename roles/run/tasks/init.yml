@@ -53,10 +53,10 @@
     __run_acmesh_matched_versions: >-
       {{
         __run_acmesh_supported_platforms
-        | ansible.builtin.selectattr('name', 'match', __run_acmesh_platform_names_regex, ignorecase=true)
+        | ansible.builtin.selectattr('name', 'ansible.builtin.match', __run_acmesh_platform_names_regex, ignorecase=true)
         | ansible.builtin.map(attribute='versions')
         | ansible.builtin.flatten
-        | ansible.builtin.select('match', __run_acmesh_platform_versions_regex, ignorecase=true)
+        | ansible.builtin.select('ansible.builtin.match', __run_acmesh_platform_versions_regex, ignorecase=true)
         | ansible.builtin.list
       }}
   when:
@@ -235,7 +235,7 @@
       # at index 1 and yields "none" for an account that does not exist yet.
       - >-
         (ansible_facts['getent_passwd'][run_acmesh_user] is none)
-        or ((ansible_facts['getent_passwd'][run_acmesh_user][1] | int) != 0)
+        or ((ansible_facts['getent_passwd'][run_acmesh_user][1] | ansible.builtin.int) != 0)
     fail_msg: >-
       run_acmesh_user ('{{ run_acmesh_user }}') must be a dedicated account fully
       owned by this role. It must not be "root", a UID 0 account, or the account
@@ -297,9 +297,9 @@
   when:
     - run_acmesh_certs is ansible.builtin.defined
     - (run_acmesh_certs | ansible.builtin.default([])
-       | ansible.builtin.selectattr('install', 'defined')
+       | ansible.builtin.selectattr('install', 'ansible.builtin.defined')
        | ansible.builtin.map(attribute='install')
-       | ansible.builtin.selectattr('fullcain_file', 'defined')
+       | ansible.builtin.selectattr('fullcain_file', 'ansible.builtin.defined')
        | ansible.builtin.list
        | ansible.builtin.length) > 0
   block:
@@ -333,7 +333,7 @@
               {%- set _install_normalized = (
                     _install
                     | ansible.builtin.dict2items
-                    | ansible.builtin.rejectattr('key', 'equalto', 'fullcain_file')
+                    | ansible.builtin.rejectattr('key', 'ansible.builtin.equalto', 'fullcain_file')
                     | ansible.builtin.list
                     | ansible.builtin.items2dict
                     | ansible.builtin.combine({'fullchain_file': _install['fullcain_file']})
