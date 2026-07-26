@@ -1,0 +1,11 @@
+---
+
+bugfixes:
+  - >
+    ``run`` role - Platform-specific task files are now guaranteed to run before the
+    shared default tasks. The former single include loop did not preserve that
+    order with several platforms in one play: Ansible batches the includes
+    across hosts and the insertion order depends on when results arrive
+    (non-deterministic), so default tasks could run before platform-specific
+    ones. The includes are now two sequential tasks, which is a hard ordering
+    barrier.
