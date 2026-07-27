@@ -245,6 +245,98 @@
     quiet: true
 
 
+# The first domain is the certificate's identity: it names the acme.sh data
+# directory below run_acmesh_cfg_cert_home and the acmesh-reload-* units, and
+# the issue/install/removal tasks dereference it directly. Without this check
+# an empty entry only fails later with an unhelpful templating error, and a
+# state: absent entry without a domain is silently skipped by the cleanup.
+- name: "Init | Check every certificate defines non-empty domain names and fail if unmet"
+  ansible.builtin.assert:
+    that:
+      - "(__run_acmesh_certs_unnamed | ansible.builtin.length) == 0"
+    fail_msg: >-
+      The following run_acmesh_certs entr(y/ies) have an empty "domains" list or
+      an entry without a non-empty "name":
+      {{ __run_acmesh_certs_unnamed | ansible.builtin.join(', ') }}.
+      Every certificate needs at least one domain and every domain a name; the
+      first one is the certificate's primary domain and identity.
+    quiet: true
+  vars:
+    __run_acmesh_certs_unnamed: >-
+      {%- set offenders = [] -%}
+      {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+      {%-   set _domains = _cert['domains'] | ansible.builtin.default([]) -%}
+      {%-   set _ns = namespace(bad=((_domains | ansible.builtin.length) == 0)) -%}
+      {%-   for _domain in _domains -%}
+      {%-     if (((_domain['name'] | ansible.builtin.default('')) | ansible.builtin.trim) | ansible.builtin.length) == 0 -%}
+      {%-       set _ns.bad = true -%}
+      {%-     endif -%}
+      {%-   endfor -%}
+      {%-   if _ns.bad -%}
+      {%-     set _ = offenders.append('run_acmesh_certs[' ~ loop.index0 ~ ']') -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ offenders }}
+
+
+# Two entries with the same primary domain would share the acme.sh data
+# directory and the reload units (last writer wins); the unit names must also
+# stay unique AFTER normalization, since e.g. "Example.com" and "example.com"
+# or "wild_card.example.com" and "wild-card.example.com" collapse to the same
+# acmesh-reload-* unit while using different storage directories.
+- name: "Init | Check certificate primary domains and derived unit names are unique and fail if unmet"
+  ansible.builtin.assert:
+    that:
+      - "(__run_acmesh_primary_domains_duplicated | ansible.builtin.length) == 0"
+      - "(__run_acmesh_unit_names_duplicated | ansible.builtin.length) == 0"
+    fail_msg: >-
+      run_acmesh_certs contains certificates whose identity collides.
+      Duplicated primary domains (sharing acme.sh storage and reload units):
+      {{ __run_acmesh_primary_domains_duplicated | ansible.builtin.join(', ') | ansible.builtin.default('none', true) }}.
+      Primary domains collapsing to the same acmesh-reload-* unit name after
+      normalization (lowercase, every character outside 'a-z0-9.-' becomes '-'):
+      {{ __run_acmesh_unit_names_duplicated | ansible.builtin.join(', ') | ansible.builtin.default('none', true) }}.
+      Use one entry per certificate identity (all additional names of a
+      certificate belong into its "domains" list as SANs).
+    quiet: true
+  vars:
+    __run_acmesh_primary_domains_all: >-
+      {%- set domains = [] -%}
+      {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+      {%-   set _ = domains.append((_cert['domains'] | ansible.builtin.default([{}]))[0]['name'] | ansible.builtin.default('')) -%}
+      {%- endfor -%}
+      {{ domains }}
+    __run_acmesh_primary_domains_duplicated: >-
+      {%- set duplicated = [] -%}
+      {%- for _domain in (__run_acmesh_primary_domains_all | ansible.builtin.unique) -%}
+      {%-   set _hits = __run_acmesh_primary_domains_all
+                        | ansible.builtin.select('ansible.builtin.equalto', _domain)
+                        | ansible.builtin.list -%}
+      {%-   if (_hits | ansible.builtin.length) > 1 -%}
+      {%-     set _ = duplicated.append(_domain) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ duplicated }}
+    __run_acmesh_unit_names_all: >-
+      {{
+        __run_acmesh_primary_domains_all
+        | map('ansible.builtin.lower')
+        | map('ansible.builtin.regex_replace', '[^a-z0-9.-]', '-')
+        | ansible.builtin.list
+      }}
+    __run_acmesh_unit_names_duplicated: >-
+      {%- set duplicated = [] -%}
+      {%- for _name in (__run_acmesh_unit_names_all | ansible.builtin.unique) -%}
+      {%-   set _hits = __run_acmesh_unit_names_all
+                        | ansible.builtin.select('ansible.builtin.equalto', _name)
+                        | ansible.builtin.list -%}
+      {%-   if (_hits | ansible.builtin.length) > 1 -%}
+      {%-     set _ = duplicated.append(_name) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ duplicated }}
+
+
 - name: "Init | Check every reloadcmd has an installed certificate file to watch and fail if unmet"
   # Reload commands run via root-side systemd path units watching the installed
   # certificate files (see vars/main.yml). A certificate with a "reloadcmd" but

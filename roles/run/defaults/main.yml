@@ -56,6 +56,7 @@ run_acmesh_autorenewal: true
 #
 # - Type: dict
 # - Required: No
+# - Sensitive: Yes (no_log, values are masked in logs)
 # - Default: {}
 run_acmesh_environment: {}
 
@@ -167,13 +168,18 @@ run_acmesh_git_version: ""
 #     certificate request, along with their challenge configurations. If
 #     multiple domains are defined, they will be included in the same
 #     certificate as Subject Alternative Names (SANs).
+#
+#     The first entry is the certificate's primary domain and identity: it names
+#     the `acme.sh` storage directory and the `acmesh-reload-*` systemd units,
+#     so it must be unique across all `run_acmesh_certs` entries (the role fails
+#     fast on duplicates).
 #     - Type: list
-#     - Required: No
+#     - Required: Yes
 #     - List elements: dict
 #     - Dict attributes:
 #       - name: The domain name to request a certificate for.
 #         - Type: str
-#         - Required: No
+#         - Required: Yes
 #       - challenge:
 #         Dictionary defining the ACME challenge parameters. The required
 #         parameters depend on the challenge type
@@ -391,6 +397,7 @@ run_acmesh_git_version: ""
 #     only the last-written set being saved for automatic renewals.
 #     - Type: dict
 #     - Required: No
+#     - Sensitive: Yes (no_log, values are masked in logs)
 #   - state:
 #     Optional. `present` (the default) issues and maintains the certificate.
 #

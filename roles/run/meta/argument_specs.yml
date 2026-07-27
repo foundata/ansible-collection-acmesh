@@ -172,13 +172,20 @@ argument_specs:
               certificate request, along with their challenge configurations. If multiple
               domains are defined, they will be included in the same certificate as
               Subject Alternative Names (SANs).
+
+              The first entry is the certificate's primary domain and identity: it
+              names the `acme.sh` storage directory and the `acmesh-reload-*` systemd
+              units, so it must be unique across all `run_acmesh_certs` entries (the
+              role fails fast on duplicates).
             type: "list"
             elements: "dict"
+            required: true
             options:
               name:
                 description: |
                   The domain name to request a certificate for.
                 type: "str"
+                required: true
               challenge:
                 description: |
                   Dictionary defining the ACME challenge parameters. The required

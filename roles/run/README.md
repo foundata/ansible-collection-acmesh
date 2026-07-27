@@ -373,7 +373,7 @@ The following variables can be configured for this role:
 | `run_acmesh_state` | `str` | No | `"present"` | Determines whether the managed resources should be `present` or `absent`.<br><br>`present` ensures that required components, such as software packages, are installed and configured.<br><br>`absent` reverts changes as much as possible, such as […](#variable-run_acmesh_state) |
 | `run_acmesh_autoupgrade` | `bool` | No | `false` | If set to `true`, all managed packages will be upgraded during each Ansible run (e.g., when the package provider detects a newer version than the currently installed one). |
 | `run_acmesh_autorenewal` | `bool` | No | `true` | Enables daily automatic certificate renewal via systemd timer (this role is not using acme.sh's cronjob function). |
-| `run_acmesh_environment` | `dict` | No | `{}` | Defines environment variables required for ACME DNS challenges.<br><br>This is typically needed for DNS challenge plugins, such as those requiring DNS API credentials (e.g., `HETZNER_Token`, `INWX_User`, `INWX_Password`). Multiple variables can be […](#variable-run_acmesh_environment) |
+| `run_acmesh_environment` 🔒 | `dict` | No | `{}` | Defines environment variables required for ACME DNS challenges.<br><br>This is typically needed for DNS challenge plugins, such as those requiring DNS API credentials (e.g., `HETZNER_Token`, `INWX_User`, `INWX_Password`). Multiple variables can be […](#variable-run_acmesh_environment) |
 | `run_acmesh_git_url` | `str` | No | `"https://github.com/acmesh-official/acme.sh.git"` | The Git repository URL for acme.sh. The role uses this URL to clone the source code during installation or updates and to query available version tags via `git ls-remote`.<br><br>Can be set to an internal Git mirror for air-gapped environments or to […](#variable-run_acmesh_git_url) |
 | `run_acmesh_git_fallback_version_branch` | `str` | No | `"master"` | The Git branch to clone when no version tag could be determined from the remote repository (e.g. because `git ls-remote` failed or returned no matching tags).<br><br>See https://github.com/acmesh-official/acme.sh/issues/1162 for why acme.sh uses […](#variable-run_acmesh_git_fallback_version_branch) |
 | `run_acmesh_git_version` | `str` | No | `""` | Overrides the automatically detected acme.sh version with a specific Git ref (tag, branch, or commit hash). When set (non-empty string), the role skips the upstream version tag detection via `git ls-remote` and uses this value directly for the […](#variable-run_acmesh_git_version) |
@@ -460,6 +460,7 @@ run_acmesh_environment:
 
 - **Type**: `dict`
 - **Required**: No
+- **Sensitive**: Yes (`no_log`, values are masked in logs)
 - **Default**: `{}`
 
 
@@ -596,8 +597,13 @@ certificate request, along with their challenge configurations. If multiple
 domains are defined, they will be included in the same certificate as
 Subject Alternative Names (SANs).
 
+The first entry is the certificate's primary domain and identity: it
+names the `acme.sh` storage directory and the `acmesh-reload-*` systemd
+units, so it must be unique across all `run_acmesh_certs` entries (the
+role fails fast on duplicates).
+
 - **Type**: `list`
-- **Required**: No
+- **Required**: Yes
 - **List Elements**: `dict`
 
 ##### `run_acmesh_certs['domains']['name']`<a id="variable-run_acmesh_certs-sub-domains-sub-name"></a>
@@ -607,7 +613,7 @@ Subject Alternative Names (SANs).
 The domain name to request a certificate for.
 
 - **Type**: `str`
-- **Required**: No
+- **Required**: Yes
 
 ##### `run_acmesh_certs['domains']['challenge']`<a id="variable-run_acmesh_certs-sub-domains-sub-challenge"></a>
 
@@ -964,6 +970,7 @@ only the last-written set being saved for automatic renewals.
 
 - **Type**: `dict`
 - **Required**: No
+- **Sensitive**: Yes (`no_log`, values are masked in logs)
 
 #### `run_acmesh_certs['state']`<a id="variable-run_acmesh_certs-sub-state"></a>
 

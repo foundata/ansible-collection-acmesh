@@ -1665,3 +1665,89 @@
             renew_hook: ""
             extra_flags: ""
             environment: {}
+
+
+## Regression tests: certificate identity validation (init-only)
+#
+# The first domain is a certificate's identity (acme.sh storage directory,
+# acmesh-reload-* unit names), so init must reject entries without usable
+# domain names and colliding identities with an actionable message instead of
+# failing midway with a templating error or silently skipping cleanups.
+
+- name: "Molecule | Verify | Validate rejection of certificates without usable domain names (init-only)"
+  block:
+
+    - name: "Molecule | Verify | Cert identity: include the role's init with unnamed certificates (must fail)"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+        tasks_from: "init"
+      vars:
+        run_acmesh_certs:
+          # entry without any "domains" key
+          - server: "letsencrypt_test"
+          # entry with an empty domain name
+          - domains:
+              - name: ""
+                challenge:
+                  type: "standalone"
+
+    - name: "Molecule | Verify | Cert identity: force a failure because init accepted unnamed certificates"
+      ansible.builtin.fail:
+        msg: "The role's init accepted run_acmesh_certs entries without usable domain names."
+
+  rescue:
+
+    - name: "Molecule | Verify | Cert identity: assert the run failed in the domain name check"
+      ansible.builtin.assert:
+        that:
+          - (ansible_failed_task['name'] | ansible.builtin.default('')) is ansible.builtin.search('non-empty domain names')
+        fail_msg: >-
+          The run failed, but not in the domain name check as expected
+          (failed task: '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
+        success_msg: "Certificates without usable domain names are rejected by the role's init."
+
+
+- name: "Molecule | Verify | Validate rejection of colliding certificate identities (init-only)"
+  block:
+
+    - name: "Molecule | Verify | Cert identity: include the role's init with colliding identities (must fail)"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+        tasks_from: "init"
+      vars:
+        run_acmesh_certs:
+          # duplicated primary domain (shared storage and reload units)
+          - domains:
+              - name: "duplicate.test"
+                challenge:
+                  type: "standalone"
+          - domains:
+              - name: "duplicate.test"
+                challenge:
+                  type: "webroot"
+                  webroot: "/var/www/duplicate.test"
+          # distinct primary domains collapsing to the same normalized
+          # acmesh-reload-* unit name
+          - domains:
+              - name: "Case.test"
+                challenge:
+                  type: "standalone"
+          - domains:
+              - name: "case.test"
+                challenge:
+                  type: "standalone"
+
+    - name: "Molecule | Verify | Cert identity: force a failure because init accepted colliding identities"
+      ansible.builtin.fail:
+        msg: "The role's init accepted run_acmesh_certs entries with colliding certificate identities."
+
+  rescue:
+
+    - name: "Molecule | Verify | Cert identity: assert the run failed in the uniqueness check"
+      ansible.builtin.assert:
+        that:
+          - (ansible_failed_task['name'] | ansible.builtin.default('')) is ansible.builtin.search('unique')
+        fail_msg: >-
+          The run failed, but not in the identity uniqueness check as expected
+          (failed task: '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
+        success_msg: "Colliding certificate identities are rejected by the role's init."

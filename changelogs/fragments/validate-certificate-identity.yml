@@ -1,0 +1,12 @@
+---
+
+bugfixes:
+  - >
+    ``run`` role - Certificate identities are validated early now:
+    ``run_acmesh_certs[]['domains']`` and each domain's ``name`` are required
+    and must be non-empty, primary domains must be unique and must stay
+    unique after unit-name normalization (lowercase, every character outside
+    ``a-z0-9.-`` becomes ``-``). Such entries previously failed midway with
+    an unhelpful templating error, were silently skipped by the
+    ``state: absent`` cleanup, or collided in the shared ``acme.sh`` storage
+    directory and ``acmesh-reload-*`` unit names (last writer wins).
