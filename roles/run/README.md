@@ -9,9 +9,9 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
 - [Features](#features)
 - [Example playbooks, using this role](#examples)
   - [Webroot challenge (single domain)](#examples-webroot)
+  - [DNS challenge (multiple domains and certificates)](#examples-dns)
   - [Certificate file access for other services](#examples-cert-access)
   - [Service reloads after certificate changes (reloadcmd)](#examples-reload-permissions)
-  - [DNS challenge (multiple domains and certificates)](#examples-dns)
   - [dns-persist-01 challenge (long-lived TXT record)](#examples-dns-persist)
   - [Removing certificates](#examples-remove)
   - [Uninstall](#examples-uninstall)
@@ -138,34 +138,6 @@ Using only one domain per certificate and the webroot challenge. `acme.sh` runs 
 
 The role clones acme.sh from GitHub by default. Use the [`run_acmesh_git_url`](#variable-run_acmesh_git_url) parameter to point it at an internal Git mirror instead (e.g. for air-gapped environments).
 
-### Certificate file access for other services<a id="examples-cert-access"></a>
-
-By default, other users and groups cannot read the certificate files managed by `acme.sh`. To allow access, add specific service users (e.g., `www-data` or `nginx`) to the group defined by `run_acmesh_group` (defaults to `acmesh`). [`ansible.builtin.user`](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/user_module.html) can help you with that:
-
-```yaml
-- name: "Grant the webserver's service user read access to certs by adding it to the acmesh group"
-  ansible.builtin.user:
-    name: "www-data"
-    groups:
-      - "acmesh" # the groupname get set via run_acmesh_group role variable, defaults to "acmesh"
-    append: true # do not remove existing group memberships
-```
-
-
-### Service reloads after certificate changes (reloadcmd)<a id="examples-reload-permissions"></a>
-
-The `reloadcmd` of a certificate is **not** executed by `acme.sh`. Instead, the role creates a systemd path unit (`acmesh-reload-<primary domain>.path`) which watches the installed certificate files and starts a companion service unit that runs the `reloadcmd` **as `root`** whenever the files change:
-
-- No sudo or polkit setup is needed; plain commands like `reloadcmd: "systemctl reload nginx.service"` just work. The unprivileged service user defined by `run_acmesh_user` does not get any privileges: it only writes the certificate files, root reacts to the change.
-- The behavior is identical no matter how the certificate files change: initial issuance through this role, automated renewal (`acmesh-renewal.service`, which runs unprivileged), manual `acme.sh` runs, or restoring [pre-seeded files](#examples-preseed).
-- A failing `reloadcmd` leaves `acmesh-reload-<primary domain>.service` in a failed state, visible via `systemctl --failed` and the journal (`journalctl -t acmesh-reload`), instead of being silently swallowed during renewal.
-- The command is inlined into the service unit's `ExecStart=` (systemd-escaped so the shell receives it exactly as configured, single line only); `systemctl cat acmesh-reload-<primary domain>.service` shows it.
-- The reload happens asynchronously (typically within milliseconds) after the certificate files were written, not synchronously as part of the Ansible task.
-
-Reload units of certificates that are no longer listed in `run_acmesh_certs` are kept by default, as `acme.sh` continues to renew and reinstall already issued certificates until they are actively removed. Remove a certificate cleanly with a `state: "absent"` entry, or enable `run_acmesh_certs_delete_unmanaged` to reap such leftovers (see [Removing certificates](#examples-remove)). All `acmesh-reload-*` resources get removed on `run_acmesh_state: "absent"`.
-
-The [`pre_hook`, `post_hook` and `renew_hook`](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) commands are different: they are executed by `acme.sh` itself and therefore always run as the unprivileged service user — consistently during issuance and automated renewal. Keep them free of privileged operations (or grant the needed permissions yourself, e.g. via [`foundata.linux.sudo`](https://github.com/foundata/ansible-collection-linux) or a polkit rule).
-
 
 ### DNS challenge (multiple domains and certificates)<a id="examples-dns"></a>
 
@@ -238,6 +210,35 @@ Multiple domains per certificate with DNS challenge and challenge alias:
           INWX_User: "exampleuser"
           INWX_Password: "{{ lookup('ansible.builtin.unvault', '...') | ansible.builtin.string | ansible.builtin.trim }}"
 ```
+
+
+### Certificate file access for other services<a id="examples-cert-access"></a>
+
+By default, other users and groups cannot read the certificate files managed by `acme.sh`. To allow access, add specific service users (e.g., `www-data` or `nginx`) to the group defined by `run_acmesh_group` (defaults to `acmesh`). [`ansible.builtin.user`](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/user_module.html) can help you with that:
+
+```yaml
+- name: "Grant the webserver's service user read access to certs by adding it to the acmesh group"
+  ansible.builtin.user:
+    name: "www-data"
+    groups:
+      - "acmesh" # the groupname get set via run_acmesh_group role variable, defaults to "acmesh"
+    append: true # do not remove existing group memberships
+```
+
+
+### Service reloads after certificate changes (reloadcmd)<a id="examples-reload-permissions"></a>
+
+The `reloadcmd` of a certificate is **not** executed by `acme.sh`. Instead, the role creates a systemd path unit (`acmesh-reload-<primary domain>.path`) which watches the installed certificate files and starts a companion service unit that runs the `reloadcmd` **as `root`** whenever the files change:
+
+- No sudo or polkit setup is needed; plain commands like `reloadcmd: "systemctl reload nginx.service"` just work. The unprivileged service user defined by `run_acmesh_user` does not get any privileges: it only writes the certificate files, root reacts to the change.
+- The behavior is identical no matter how the certificate files change: initial issuance through this role, automated renewal (`acmesh-renewal.service`, which runs unprivileged), manual `acme.sh` runs, or restoring [pre-seeded files](#examples-preseed).
+- A failing `reloadcmd` leaves `acmesh-reload-<primary domain>.service` in a failed state, visible via `systemctl --failed` and the journal (`journalctl -t acmesh-reload`), instead of being silently swallowed during renewal.
+- The command is inlined into the service unit's `ExecStart=` (systemd-escaped so the shell receives it exactly as configured, single line only); `systemctl cat acmesh-reload-<primary domain>.service` shows it.
+- The reload happens asynchronously (typically within milliseconds) after the certificate files were written, not synchronously as part of the Ansible task.
+
+Reload units of certificates that are no longer listed in `run_acmesh_certs` are kept by default, as `acme.sh` continues to renew and reinstall already issued certificates until they are actively removed. Remove a certificate cleanly with a `state: "absent"` entry, or enable `run_acmesh_certs_delete_unmanaged` to reap such leftovers (see [Removing certificates](#examples-remove)). All `acmesh-reload-*` resources get removed on `run_acmesh_state: "absent"`.
+
+The [`pre_hook`, `post_hook` and `renew_hook`](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd) commands are different: they are executed by `acme.sh` itself and therefore always run as the unprivileged service user — consistently during issuance and automated renewal. Keep them free of privileged operations (or grant the needed permissions yourself, e.g. via [`community.general.sudoers`](https://docs.ansible.com/projects/ansible/latest/collections/community/general/sudoers_module.html), [`foundata.linux.sudo`](https://github.com/foundata/ansible-collection-linux) or a polkit rule).
 
 
 ### dns-persist-01 challenge (long-lived TXT record)<a id="examples-dns-persist"></a>
@@ -1294,6 +1295,7 @@ See `min_ansible_version` in [`meta/main.yml`](./meta/main.yml) and `__run_acmes
 ## External requirements<a id="requirements"></a>
 
 * **Git repository access:** The role uses `git ls-remote` to query available version tags from the configured git repository. This works with any git remote (GitHub, GitLab, local mirrors), making it suitable for air-gapped environments with internal mirrors (see [`run_acmesh_git_url`](#variable-run_acmesh_git_url) parameter).
+* **systemd:** The role requires systemd as init system, there is no fallback for others. It automates renewals with its own `acmesh-renewal.timer` / `acmesh-renewal.service` pair (`acme.sh`'s built-in cron support is disabled with `--nocron` on purpose) and executes [`reloadcmd`](#examples-reload-permissions) via root-side systemd path units watching the installed certificate files.
 * **SELinux**: This role does not handle SELinux configurations. Please add additional tasks before or after this role to accommodate these changes (e.g. `cert_t` might be needed as context). The following Ansible modules may help with SELinux configuration:
   - [`ansible.posix.selinux`](https://docs.ansible.com/ansible/latest/collections/ansible/posix/selinux_module.html)
   - [`community.general.sefcontext_module`](https://docs.ansible.com/ansible/latest/collections/community/general/sefcontext_module.html)
