@@ -50,9 +50,9 @@ __run_acmesh_certs_managed: >-
 __run_acmesh_certs_no_secrets: >-
   {{
     __run_acmesh_certs_managed
-    | map('ansible.builtin.dict2items')
-    | map('ansible.builtin.rejectattr', 'key', 'eq', 'environment')
-    | map('ansible.builtin.items2dict')
+    | ansible.builtin.map('ansible.builtin.dict2items')
+    | ansible.builtin.map('ansible.builtin.rejectattr', 'key', 'ansible.builtin.eq', 'environment')
+    | ansible.builtin.map('ansible.builtin.items2dict')
     | ansible.builtin.list
   }}
 
@@ -82,7 +82,7 @@ __run_acmesh_certs_absent_cleanup: >-
   {%-     if ((_domain | ansible.builtin.length) > 0) -%}
   {%-       set _ = entries.append({
               'domain': _domain,
-              'unit_name': (_domain | lower | ansible.builtin.regex_replace('[^a-z0-9.-]', '-')),
+              'unit_name': (_domain | ansible.builtin.lower | ansible.builtin.regex_replace('[^a-z0-9.-]', '-')),
               'cert_dirs': [
                 (run_acmesh_cfg_cert_home ~ '/' ~ _domain),
                 (run_acmesh_cfg_cert_home ~ '/' ~ _domain ~ '_ecc'),
@@ -125,9 +125,9 @@ __run_acmesh_renewal_needs_net_bind: >-
   {%-   for _domain in (_cert['domains'] | ansible.builtin.default([])) -%}
   {%-     set _challenge = _domain['challenge'] | ansible.builtin.default({}) -%}
   {%-     set _type = _challenge['type'] | ansible.builtin.default('') -%}
-  {%-     if _type == 'standalone' and ((_challenge['httpport'] | ansible.builtin.default(80) | int) < 1024) -%}
+  {%-     if _type == 'standalone' and ((_challenge['httpport'] | ansible.builtin.default(80) | ansible.builtin.int) < 1024) -%}
   {%-       set ns.need = true -%}
-  {%-     elif _type == 'alpn' and ((_challenge['tlsport'] | ansible.builtin.default(443) | int) < 1024) -%}
+  {%-     elif _type == 'alpn' and ((_challenge['tlsport'] | ansible.builtin.default(443) | ansible.builtin.int) < 1024) -%}
   {%-       set ns.need = true -%}
   {%-     endif -%}
   {%-   endfor -%}
@@ -184,7 +184,7 @@ __run_acmesh_reload_units: >-
   {%-   if ((_reloadcmd | ansible.builtin.length) > 0) and ((_ns.watch | ansible.builtin.length) > 0) -%}
   {%-     set _domain = (_cert['domains'] | ansible.builtin.default([{}]))[0]['name'] | ansible.builtin.default('') -%}
   {%-     set _ = units.append({
-            'name': (_domain | lower | ansible.builtin.regex_replace('[^a-z0-9.-]', '-')),
+            'name': (_domain | ansible.builtin.lower | ansible.builtin.regex_replace('[^a-z0-9.-]', '-')),
             'domain': _domain,
             'watch_path': _ns.watch,
             'reloadcmd': _reloadcmd,

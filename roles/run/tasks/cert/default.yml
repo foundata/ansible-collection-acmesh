@@ -180,8 +180,10 @@
   when:
     - run_acmesh_certs is ansible.builtin.defined
   loop: >
-    {{ __run_acmesh_certs_managed | ansible.builtin.selectattr('domains', 'defined') | ansible.builtin.map(attribute='domains') |
-       flatten | ansible.builtin.selectattr('name', 'defined') | ansible.builtin.map(attribute='name') | ansible.builtin.unique }}
+    {{ __run_acmesh_certs_managed | ansible.builtin.selectattr('domains', 'ansible.builtin.defined')
+       | ansible.builtin.map(attribute='domains') | ansible.builtin.flatten
+       | ansible.builtin.selectattr('name', 'ansible.builtin.defined')
+       | ansible.builtin.map(attribute='name') | ansible.builtin.unique }}
   register: __run_acmesh_local_preseed_rsa_result
 
 
@@ -225,8 +227,10 @@
   when:
     - run_acmesh_certs is ansible.builtin.defined
   loop: >
-    {{ __run_acmesh_certs_managed | ansible.builtin.selectattr('domains', 'defined') | ansible.builtin.map(attribute='domains') |
-       flatten | ansible.builtin.selectattr('name', 'defined') | ansible.builtin.map(attribute='name') | ansible.builtin.unique }}
+    {{ __run_acmesh_certs_managed | ansible.builtin.selectattr('domains', 'ansible.builtin.defined')
+       | ansible.builtin.map(attribute='domains') | ansible.builtin.flatten
+       | ansible.builtin.selectattr('name', 'ansible.builtin.defined')
+       | ansible.builtin.map(attribute='name') | ansible.builtin.unique }}
   register: __run_acmesh_local_preseed_ecc_result
 
 
@@ -739,9 +743,9 @@
       {%- for _domain in (item['domains'] | ansible.builtin.default([])) -%}
       {%-   set _challenge = _domain['challenge'] | ansible.builtin.default({}) -%}
       {%-   set _type = _challenge['type'] | ansible.builtin.default('') -%}
-      {%-   if _type == 'standalone' and ((_challenge['httpport'] | ansible.builtin.default(80) | int) < 1024) -%}
+      {%-   if _type == 'standalone' and ((_challenge['httpport'] | ansible.builtin.default(80) | ansible.builtin.int) < 1024) -%}
       {%-     set ns.need = true -%}
-      {%-   elif _type == 'alpn' and ((_challenge['tlsport'] | ansible.builtin.default(443) | int) < 1024) -%}
+      {%-   elif _type == 'alpn' and ((_challenge['tlsport'] | ansible.builtin.default(443) | ansible.builtin.int) < 1024) -%}
       {%-     set ns.need = true -%}
       {%-   endif -%}
       {%- endfor -%}
@@ -780,9 +784,9 @@
   loop: >-
     {{
       __run_acmesh_certs_managed
-      | ansible.builtin.selectattr('install', 'defined')
+      | ansible.builtin.selectattr('install', 'ansible.builtin.defined')
       | ansible.builtin.map(attribute='install')
-      | ansible.builtin.selectattr('ca_file', 'defined')
+      | ansible.builtin.selectattr('ca_file', 'ansible.builtin.defined')
       | ansible.builtin.list
     }}
 
@@ -800,9 +804,9 @@
   loop: >-
     {{
       __run_acmesh_certs_managed
-      | ansible.builtin.selectattr('install', 'defined')
+      | ansible.builtin.selectattr('install', 'ansible.builtin.defined')
       | ansible.builtin.map(attribute='install')
-      | ansible.builtin.selectattr('cert_file', 'defined')
+      | ansible.builtin.selectattr('cert_file', 'ansible.builtin.defined')
       | ansible.builtin.list
     }}
 
@@ -820,9 +824,9 @@
   loop: >-
     {{
       __run_acmesh_certs_managed
-      | ansible.builtin.selectattr('install', 'defined')
+      | ansible.builtin.selectattr('install', 'ansible.builtin.defined')
       | ansible.builtin.map(attribute='install')
-      | ansible.builtin.selectattr('fullchain_file', 'defined')
+      | ansible.builtin.selectattr('fullchain_file', 'ansible.builtin.defined')
       | ansible.builtin.list
     }}
 
@@ -840,9 +844,9 @@
   loop: >-
     {{
       __run_acmesh_certs_managed
-      | ansible.builtin.selectattr('install', 'defined')
+      | ansible.builtin.selectattr('install', 'ansible.builtin.defined')
       | ansible.builtin.map(attribute='install')
-      | ansible.builtin.selectattr('key_file', 'defined')
+      | ansible.builtin.selectattr('key_file', 'ansible.builtin.defined')
       | ansible.builtin.list
     }}
 
@@ -927,7 +931,7 @@
       | ansible.builtin.map('dict2items')
       | ansible.builtin.list
       | ansible.builtin.flatten
-      | ansible.builtin.selectattr('key', 'in', ['ca_file', 'cert_file', 'fullchain_file', 'key_file'])
+      | ansible.builtin.selectattr('key', 'ansible.builtin.in', ['ca_file', 'cert_file', 'fullchain_file', 'key_file'])
       | ansible.builtin.map(attribute='value')
       | ansible.builtin.reject('equalto', '')
       | ansible.builtin.list
@@ -1136,7 +1140,7 @@
   loop: >-
     {{
       __run_acmesh_cmdupdates_result['results'] | ansible.builtin.default([])
-      | ansible.builtin.selectattr('stdout_lines', 'defined')
+      | ansible.builtin.selectattr('stdout_lines', 'ansible.builtin.defined')
       | ansible.builtin.selectattr('stdout_lines')
       | ansible.builtin.map(attribute='stdout_lines')
       | ansible.builtin.list

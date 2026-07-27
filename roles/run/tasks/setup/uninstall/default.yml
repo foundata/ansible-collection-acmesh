@@ -69,14 +69,14 @@
         ansible_facts['getent_group'][run_acmesh_group][2]
         | ansible.builtin.default('', true)
         | ansible.builtin.split(',')
-        | ansible.builtin.reject('equalto', run_acmesh_user)
-        | ansible.builtin.reject('equalto', '')
+        | ansible.builtin.reject('ansible.builtin.equalto', run_acmesh_user)
+        | ansible.builtin.reject('ansible.builtin.equalto', '')
         | ansible.builtin.list
       }}
   when:
     - run_acmesh_group != run_acmesh_user
     - ansible_facts['getent_group'] is ansible.builtin.defined
-    - ansible_facts['getent_group'][run_acmesh_group] is not none
+    - ansible_facts['getent_group'][run_acmesh_group] is not ansible.builtin.none
 
 
 - name: "Setup | Uninstall | Default | Delete group if no other members: {{ run_acmesh_group }}"

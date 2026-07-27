@@ -1,0 +1,8 @@
+---
+
+trivial:
+  - >
+    ``run`` role and molecule test code - style only, no functional change:
+    use FQCN for the remaining bare filter, test, and lookup plugin references
+    (e.g. ``ansible.builtin.lower``, ``is ansible.builtin.none``,
+    ``lookup('ansible.builtin.env', ...)``).

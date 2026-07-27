@@ -234,7 +234,7 @@
       # If the account already exists it must not be UID 0. getent stores the UID
       # at index 1 and yields "none" for an account that does not exist yet.
       - >-
-        (ansible_facts['getent_passwd'][run_acmesh_user] is none)
+        (ansible_facts['getent_passwd'][run_acmesh_user] is ansible.builtin.none)
         or ((ansible_facts['getent_passwd'][run_acmesh_user][1] | ansible.builtin.int) != 0)
     fail_msg: >-
       run_acmesh_user ('{{ run_acmesh_user }}') must be a dedicated account fully
@@ -320,8 +320,8 @@
     __run_acmesh_unit_names_all: >-
       {{
         __run_acmesh_primary_domains_all
-        | map('ansible.builtin.lower')
-        | map('ansible.builtin.regex_replace', '[^a-z0-9.-]', '-')
+        | ansible.builtin.map('ansible.builtin.lower')
+        | ansible.builtin.map('ansible.builtin.regex_replace', '[^a-z0-9.-]', '-')
         | ansible.builtin.list
       }}
     __run_acmesh_unit_names_duplicated: >-

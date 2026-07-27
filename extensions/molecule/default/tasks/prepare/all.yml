@@ -57,19 +57,19 @@
       set -e -o pipefail  # exit on (pipeline) errors
 
       # create container
-      {{ __testing_podman_exec | default('podman') }} create \
+      {{ __testing_podman_exec | ansible.builtin.default('podman') }} create \
         --name molecule-pebble-extract \
         ghcr.io/letsencrypt/pebble:latest > /dev/null 2>&1
 
       # copy files to from container
-      {{ __testing_podman_exec | default('podman') }} cp \
+      {{ __testing_podman_exec | ansible.builtin.default('podman') }} cp \
         "molecule-pebble-extract:/app" "{{ __testing_pebble_staging_dir }}/pebble"
 
-      {{ __testing_podman_exec | default('podman') }} cp \
+      {{ __testing_podman_exec | ansible.builtin.default('podman') }} cp \
         "molecule-pebble-extract:/test/certs" "{{ __testing_pebble_staging_dir }}/certs"
 
       # clean-up
-      {{ __testing_podman_exec | default('podman') }} rm \
+      {{ __testing_podman_exec | ansible.builtin.default('podman') }} rm \
         "molecule-pebble-extract" > /dev/null
 
       # allow reading for all on localhost
@@ -89,17 +89,17 @@
       set -e -o pipefail  # exit on (pipeline) errors
 
       # create container
-      {{ __testing_podman_exec | default('podman') }} create \
+      {{ __testing_podman_exec | ansible.builtin.default('podman') }} create \
         --name molecule-acmesh-pebble-challtestsrv-extract \
         ghcr.io/letsencrypt/pebble-challtestsrv:latest > /dev/null 2>&1
 
       # copy files to from container
-      {{ __testing_podman_exec | default('podman') }} cp \
+      {{ __testing_podman_exec | ansible.builtin.default('podman') }} cp \
         "molecule-acmesh-pebble-challtestsrv-extract:/app" \
         "{{ __testing_pebble_staging_dir }}/pebble-challtestsrv"
 
       # clean-up
-      {{ __testing_podman_exec | default('podman') }} rm \
+      {{ __testing_podman_exec | ansible.builtin.default('podman') }} rm \
         "molecule-acmesh-pebble-challtestsrv-extract" > /dev/null
 
       # allow reading for all on localhost
@@ -270,7 +270,9 @@
 
 - name: "Molecule | Prepare | Determine backend for webroot testing"
   ansible.builtin.set_fact:
-    __testing_webroot_backend: "{{ lookup('env', 'TEST_ACMESH_WEBROOT_BACKEND') | ansible.builtin.default('nginx', true) | ansible.builtin.lower }}"
+    __testing_webroot_backend: >-
+      {{ lookup('ansible.builtin.env', 'TEST_ACMESH_WEBROOT_BACKEND')
+         | ansible.builtin.default('nginx', true) | ansible.builtin.lower }}
 
 
 - name: "Molecule | Prepare | Show used webroot backend"
