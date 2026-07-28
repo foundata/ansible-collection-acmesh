@@ -1,0 +1,8 @@
+---
+
+trivial:
+  - >
+    molecule test code - style only, no functional change: use FQCN for the
+    remaining bare filter and test references in the shared playbooks
+    (``ansible.builtin.to_nice_yaml``, ``ansible.builtin.to_nice_json``,
+    ``is ansible.builtin.search``).
