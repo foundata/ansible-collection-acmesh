@@ -612,6 +612,7 @@ argument_specs:
               value.
             type: "str"
             required: true
+            no_log: true
       run_acmesh_dns_persist_pause:
         description: |
           Controls the pause duration (in seconds) after displaying dns-persist-01

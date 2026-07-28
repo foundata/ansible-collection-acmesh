@@ -598,6 +598,7 @@ run_acmesh_cfg_ca_path: ""
 #     value.
 #     - Type: str
 #     - Required: Yes
+#     - Sensitive: Yes (no_log, values are masked in logs)
 run_acmesh_cfg_account_keys: []
 
 # Controls the pause duration (in seconds) after displaying dns-persist-01 TXT

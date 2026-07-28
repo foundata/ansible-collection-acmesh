@@ -1256,6 +1256,7 @@ value.
 
 - **Type**: `str`
 - **Required**: Yes
+- **Sensitive**: Yes (`no_log`, values are masked in logs)
 
 
 

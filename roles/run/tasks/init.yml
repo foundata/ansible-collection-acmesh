@@ -130,9 +130,18 @@
 
 ### acme.sh specific
 
-- name: "Init | Show certificate settings"
+# Deliberately shows the credential-free views instead of run_acmesh_certs:
+# each certificate's "environment" mapping holds DNS API credentials which
+# must not end up in verbose (-vvv) output.
+- name: "Init | Show certificate settings (without credentials)"
   ansible.builtin.debug:
-    var: run_acmesh_certs
+    var: __run_acmesh_certs_no_secrets
+    verbosity: 3
+
+
+- name: "Init | Show certificate removal settings"
+  ansible.builtin.debug:
+    var: __run_acmesh_certs_absent_cleanup
     verbosity: 3
 
 
