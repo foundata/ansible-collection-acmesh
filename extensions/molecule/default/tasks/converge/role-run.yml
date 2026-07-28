@@ -58,6 +58,13 @@
           server: "letsencrypt_test"
           force: false # optional
           debug: false # optional
+          # Canary for the no-secret-leak check (extensions/molecule/
+          # check-no-secret-leaks.sh): a fake per-certificate credential that
+          # must never appear in the captured Ansible output, not even at
+          # -vvv / --diff. It rides along the real DNS API credentials
+          # through every code path that handles the "environment" mapping.
+          environment:
+            CANARY_LEAK_TEST: "molecule-canary-cred-do-not-print-1f9e"
 
         # second certificate: main domain with an additional www. SAN
         - domains:

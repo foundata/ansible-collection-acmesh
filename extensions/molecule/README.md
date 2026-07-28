@@ -93,6 +93,13 @@ molecule list
 molecule destroy
 ```
 
+For credential-bearing runs (`TEST_ACMESH_*` environment variables set), additionally check that no DNS API credential leaks into the Ansible output: the converge fixtures plant a canary credential (`CANARY_LEAK_TEST`) that rides along the real ones, and `check-no-secret-leaks.sh` greps a captured log for it. Callbacks print on the controller, so this cannot be asserted from within the scenario; capture the full output at maximum leak surface (`-vvv` plus forced diff) instead:
+
+```bash
+ANSIBLE_VERBOSITY=3 ANSIBLE_DIFF_ALWAYS=true molecule test > /tmp/molecule-acmesh.log 2>&1
+./extensions/molecule/check-no-secret-leaks.sh /tmp/molecule-acmesh.log
+```
+
 
 
 #### Scenario `ee`<a id="usage-testing-ee"></a>
