@@ -1,0 +1,12 @@
+---
+
+minor_changes:
+  - >
+    The Molecule ``default`` scenario now selects the test backend per
+    platform via a ``type`` key: ``podman`` (container, the default when
+    omitted) or ``libvirt`` (QEMU/KVM virtual machine from a vendor cloud
+    image via a session libvirt daemon, without root privileges). VM platforms
+    allow tests containers cannot cover; commented ``libvirt`` alternates for
+    every platform are included in ``molecule.yml``. ``molecule login`` now
+    works through a per-instance login command for both backends. See
+    ``extensions/molecule/README.md`` for requirements and usage.
