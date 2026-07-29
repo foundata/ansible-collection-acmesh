@@ -1771,3 +1771,37 @@
           The run failed, but not in the identity uniqueness check as expected
           (failed task: '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
         success_msg: "Colliding certificate identities are rejected by the role's init."
+
+
+## No-secret-leak check (manual)
+#
+# The per-certificate "environment" mapping holds DNS API credentials. Task
+# callbacks print on the controller, so no assertion inside the scenario can
+# observe what the output contains. The converge fixtures plant a canary
+# credential that rides along the real ones through every code path handling
+# that mapping; checking the captured output for it stays a manual step.
+
+- name: "Molecule | Verify | No-secret-leak check: show the manual verification steps"
+  ansible.builtin.debug:
+    # split() to improve readability for humans
+    msg: "{{ __testing_canary_msg.split('\n') }}"
+  vars:
+    __testing_canary_msg: |-
+      Manual check for leaked DNS API credentials:
+
+        ANSIBLE_VERBOSITY=3 ANSIBLE_DIFF_ALWAYS=true molecule test > /tmp/molecule-acmesh.log 2>&1
+        grep -n 'molecule-canary-cred-do-not-print-1f9e' /tmp/molecule-acmesh.log
+
+      Any hit is a leak: the canary is a fake credential from the converge
+      fixtures and must not appear in the output, not even at -vvv with diff.
+      The check is only meaningful for credential-bearing runs, so with the
+      TEST_ACMESH_* environment variables set.
+  run_once: true # noqa: run-once[task]
+
+
+- name: "Molecule | Verify | No-secret-leak check: pause so the hint is not scrolled away"
+  ansible.builtin.pause:
+    seconds: 10
+  when:
+    - (lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN1') | ansible.builtin.trim | ansible.builtin.length) > 0
+  run_once: true # noqa: run-once[task]
