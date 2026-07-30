@@ -4,6 +4,59 @@ foundata.acmesh Ansible collection Release Notes
 
 .. contents:: Topics
 
+v3.0.0
+======
+
+Release Summary
+---------------
+
+Release Date: 2026-07-30
+
+Maintenance and feature release.
+
+This release includes a *potentially* breaking change and therefore requires
+a major version bump according to Semantic Versioning. Most installations are
+expected to continue working without modification, but setups that rely on
+root privileges during certificate issuance may require adjustments and fix
+their permissions, e.g. to allow the acmesh service user to write into an
+installation target.
+
+Huge improvment: No more sudo or Polkit adjustment for reload cmds: The
+per-certificate ``reloadcmd`` is no longer executed by ``acme.sh`` but by a
+root-side systemd path unit (``acmesh-reload-<primary domain>.path``) watching
+the installed certificate files.
+
+The change aligns certificate issuance with automated renewal by running both
+under the same unprivileged service user. This makes permission-related issues
+visible during the Ansible run rather than weeks later during the first renewal.
+
+See the following and the updated role README.md for details.
+
+Minor Changes
+-------------
+
+- The Molecule ``default`` scenario now selects the test backend per platform via a ``type`` key: ``podman`` (container, the default when omitted) or ``libvirt`` (QEMU/KVM virtual machine from a vendor cloud image via a session libvirt daemon, without root privileges). VM platforms allow tests containers cannot cover; commented ``libvirt`` alternates for every platform are included in ``molecule.yml``. ``molecule login`` now works through a per-instance login command for both backends. See ``extensions/molecule/README.md`` for requirements and usage.
+- ``run`` role - Certificates can now be removed declaratively. A ``run_acmesh_certs`` entry with ``state: absent`` removes all data of that certificate: the ``acme.sh`` data below ``run_acmesh_cfg_cert_home`` (which also stops its automated renewal), its ``acmesh-reload-*`` systemd units and the installed certificate files (their directories are kept, as they may be shared with other software; the certificate is not revoked at the ACME CA).
+- ``run`` role - New ``run_acmesh_certs_delete_unmanaged`` option (default: ``false``). When enabled, certificate data below ``run_acmesh_cfg_cert_home`` that does not belong to any certificate listed in ``run_acmesh_certs`` gets removed (stopping its automated renewal), as do ``acmesh-reload-*`` units the current configuration does not define. Installed certificate files of unmanaged certificates are never touched, and nothing is removed while ``run_acmesh_certs`` is undefined. A full uninstall via ``run_acmesh_state: absent`` still preserves all certificate data.
+
+Breaking Changes / Porting Guide
+--------------------------------
+
+- ``run`` role - All ``acme.sh`` operations during the Ansible run (account registration, certificate issuance and installation) now run as the unprivileged service user defined by ``run_acmesh_user`` instead of ``root``, matching the automated renewal (``acmesh-renewal.service``). Issuance and renewal now behave identically, so permission problems surface during the Ansible run instead of weeks later at the first renewal. Migration notes: with the ``webroot`` challenge, the service user now needs write access to the configured webroot directory (``acme.sh`` creates ``.well-known/acme-challenge`` below it); the ``pre_hook``, ``post_hook`` and ``renew_hook`` commands now also run as the service user during issuance (previously only during renewal) and must not require root privileges - use ``reloadcmd`` for service reloads, which runs as root. Certificates using the ``standalone`` or ``alpn`` challenge on a privileged port (below 1024) automatically get ``CAP_NET_BIND_SERVICE`` granted for issuance (via ``setpriv`` ambient capabilities), exactly as the renewal service unit already does.
+- ``run`` role - The per-certificate ``reloadcmd`` is no longer executed by ``acme.sh`` but by a root-side systemd path unit (``acmesh-reload-<primary domain>.path``) watching the installed certificate files. Previously, the command ran as ``root`` only during the initial issuance and as the unprivileged service user during automated renewal, where privileged commands failed silently (``acme.sh`` tolerates reload errors during ``--cron``), leaving services on the old certificate. Now the command always runs as ``root`` whenever the installed files change, and a failing reload leaves the companion service unit in a failed state visible via ``systemctl --failed``. Migration notes: plain commands like ``systemctl reload nginx.service`` now work as-is; ``sudo -n`` prefixes are no longer needed (they keep working but should be removed along with the related sudoers rules). A certificate defining ``reloadcmd`` must now also define at least one install file path (``fullchain_file``, ``key_file``, ``ca_file`` or ``cert_file``), otherwise the role fails early. The reload happens asynchronously (typically within milliseconds) after the files were written, no longer synchronously within ``acme.sh``. Any ``Le_ReloadCmd`` stored in the ``acme.sh`` certificate configuration (by earlier versions of this role or manual runs) gets cleared.
+
+Security Fixes
+--------------
+
+- ``run`` role - The certificate settings shown at ``-vvv`` verbosity no longer include each certificate's ``environment`` mapping, which holds DNS provider API credentials. The debug output now uses the credential-free views of the certificate list.
+- ``run`` role - ``run_acmesh_cfg_account_keys[].account_key`` is now marked ``no_log`` in the argument specification, so a failing argument validation can no longer expose the PEM-encoded account private key.
+
+Bugfixes
+--------
+
+- ``run`` role - Certificate identities are validated early now: ``run_acmesh_certs[]['domains']`` and each domain's ``name`` are required and must be non-empty, primary domains must be unique and must stay unique after unit-name normalization (lowercase, every character outside ``a-z0-9.-`` becomes ``-``). Such entries previously failed midway with an unhelpful templating error, were silently skipped by the ``state: absent`` cleanup, or collided in the shared ``acme.sh`` storage directory and ``acmesh-reload-*`` unit names (last writer wins).
+- ``run`` role - Platform-specific task files are now guaranteed to run before the shared default tasks. The former single include loop did not preserve that order with several platforms in one play: Ansible batches the includes across hosts and the insertion order depends on when results arrive (non-deterministic), so default tasks could run before platform-specific ones. The includes are now two sequential tasks, which is a hard ordering barrier.
+
 v2.0.2
 ======
 

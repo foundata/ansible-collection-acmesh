@@ -1,0 +1,24 @@
+---
+
+release_summary: |
+  Release Date: 2026-07-30
+
+  Maintenance and feature release.
+
+  This release includes a *potentially* breaking change and therefore requires
+  a major version bump according to Semantic Versioning. Most installations are
+  expected to continue working without modification, but setups that rely on
+  root privileges during certificate issuance may require adjustments and fix
+  their permissions, e.g. to allow the acmesh service user to write into an
+  installation target.
+
+  Huge improvment: No more sudo or Polkit adjustment for reload cmds: The
+  per-certificate ``reloadcmd`` is no longer executed by ``acme.sh`` but by a
+  root-side systemd path unit (``acmesh-reload-<primary domain>.path``) watching
+  the installed certificate files.
+
+  The change aligns certificate issuance with automated renewal by running both
+  under the same unprivileged service user. This makes permission-related issues
+  visible during the Ansible run rather than weeks later during the first renewal.
+
+  See the following and the updated role README.md for details.
