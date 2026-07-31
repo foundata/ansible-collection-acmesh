@@ -14,7 +14,7 @@
 - name: "Setup | Install | Default | Install or upgrade packages"
   ansible.builtin.package:
     name: "{{ __run_acmesh_packages_install }}"
-    state: "{{ 'latest' if run_acmesh_autoupgrade else 'present' }}"
+    state: "{{ 'latest' if (run_acmesh_autoupgrade | ansible.builtin.bool) else 'present' }}"
     # work-around for conflicts with curl-minimal on Red Hat platforms
     allowerasing: "{{ true if (((ansible_facts['os_family'] | ansible.builtin.lower) == 'redhat') and ('curl' in __run_acmesh_packages_install)) else omit }}"
   when:
