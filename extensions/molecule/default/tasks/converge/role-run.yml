@@ -38,6 +38,10 @@
     file: "../tasks/state_update.yml"
   vars:
     __testing_state_update:
+      # A string on purpose (as delivered by "-e var=false" command line
+      # extra-vars): the role has to coerce boolean arguments, a truthiness
+      # evaluation would treat "false" as enabled.
+      run_acmesh_autoupgrade: "false"
       run_acmesh_cfg_accountemail: "{{ lookup('ansible.builtin.env', 'TEST_ACMESH_ACCOUNTEMAIL') }}"
       run_acmesh_certs:
         # first certificate: main domain only

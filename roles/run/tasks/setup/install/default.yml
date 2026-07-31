@@ -341,7 +341,7 @@
     - __run_acmesh_version_installed is ansible.builtin.defined
     - __run_acmesh_version_upstream is ansible.builtin.defined
     - run_acmesh_autoupgrade is ansible.builtin.defined
-    - run_acmesh_autoupgrade
+    - run_acmesh_autoupgrade | ansible.builtin.bool
     - (run_acmesh_git_version | ansible.builtin.default('', true) | ansible.builtin.trim | ansible.builtin.length) > 0 or
       __run_acmesh_version_installed is ansible.builtin.version(__run_acmesh_version_upstream, 'lt', version_type='semver')
   changed_when:

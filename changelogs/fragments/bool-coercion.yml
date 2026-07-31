@@ -1,0 +1,8 @@
+---
+
+bugfixes:
+  - >
+    boolean role arguments are now coerced with ``ansible.builtin.bool`` in
+    every conditional. String values, as delivered by ``-e var=false``
+    command line extra-vars, were evaluated by truthiness before, so
+    ``"false"`` enabled the gated behavior instead of disabling it.
