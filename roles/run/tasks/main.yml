@@ -63,6 +63,7 @@
     __run_acmesh_task_file: "{{ role_path }}/tasks/config/{{ __run_acmesh_loop_item }}"
   when:
     - run_acmesh_state == 'present'
+    - __run_acmesh_install_available | ansible.builtin.default(true) | ansible.builtin.bool
     - __run_acmesh_task_file is ansible.builtin.file
   loop: "{{ __run_acmesh_platform_filenames_most_specific_first }}"
   loop_control:
@@ -81,6 +82,7 @@
     __run_acmesh_task_file: "{{ role_path }}/tasks/config/default.yml"
   when:
     - run_acmesh_state == 'present'
+    - __run_acmesh_install_available | ansible.builtin.default(true) | ansible.builtin.bool
     - __run_acmesh_task_file is ansible.builtin.file
   tags:
     - "run_acmesh_config"
@@ -96,6 +98,7 @@
     __run_acmesh_task_file: "{{ role_path }}/tasks/cert/{{ __run_acmesh_loop_item }}"
   when:
     - run_acmesh_state == 'present'
+    - __run_acmesh_install_available | ansible.builtin.default(true) | ansible.builtin.bool
     - __run_acmesh_task_file is ansible.builtin.file
   loop: "{{ __run_acmesh_platform_filenames_most_specific_first }}"
   loop_control:
@@ -114,6 +117,7 @@
     __run_acmesh_task_file: "{{ role_path }}/tasks/cert/default.yml"
   when:
     - run_acmesh_state == 'present'
+    - __run_acmesh_install_available | ansible.builtin.default(true) | ansible.builtin.bool
     - __run_acmesh_task_file is ansible.builtin.file
   tags:
     - "run_acmesh_cert"

@@ -1,5 +1,42 @@
 # Execute the collection role "run" against all driver-created instances.
 
+## Fresh-system check mode (must run FIRST, before anything installs acme.sh)
+#
+# A check-mode run on a system without acme.sh must succeed without changing
+# anything (regression: the check-mode-skipped temporary directory made the
+# git clone task fail on an undefined path). Only meaningful while acme.sh is
+# absent, so the whole block is skipped on the idempotence re-run.
+
+- name: "Molecule | Converge | Check mode: get information about the acme.sh home (pre-check)"
+  ansible.builtin.stat:
+    path: "/opt/acme.sh"
+  register: __testing_acmesh_checkmode_pre_stat
+
+
+- name: "Molecule | Converge | Fresh-system check mode"
+  when:
+    - not __testing_acmesh_checkmode_pre_stat['stat']['exists']
+  block:
+
+    - name: "Molecule | Converge | Run the role in check mode on the fresh system"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+        apply:
+          check_mode: true
+
+    - name: "Molecule | Converge | Check mode: get information about the acme.sh home"
+      ansible.builtin.stat:
+        path: "/opt/acme.sh"
+      register: __testing_acmesh_checkmode_stat
+
+    - name: "Molecule | Converge | Check mode: assert nothing was installed"
+      ansible.builtin.assert:
+        that:
+          - not __testing_acmesh_checkmode_stat['stat']['exists']
+        fail_msg: "The check-mode run on the fresh system installed something below /opt/acme.sh."
+        success_msg: "The check-mode run on the fresh system succeeded without installing anything."
+
+
 - name: "Molecule | Converge | Check for environment variables needed to issue certificates via DNS challenge"
   ansible.builtin.set_fact:
     __testing_missing_envvars_dns01: "{{ __testing_missing_envvars_dns01 | ansible.builtin.default([]) + [item] }}"

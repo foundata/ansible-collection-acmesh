@@ -182,7 +182,24 @@
     - false
   when:
     - not __run_acmesh_is_installed
+    - not ansible_check_mode # the module does not support check mode
   register: __run_acmesh_tempdir
+
+
+# Check mode cannot predict the installation: ansible.builtin.tempfile does
+# not support check mode, so no temporary directory (and no clone) exists and
+# the whole fresh-install sequence below is skipped coherently. This covers a
+# global --check run as well as task-scoped check_mode (where the
+# ansible_check_mode variable stays false but the module still skips itself).
+- name: "Setup | Install | Default | Notify about the skipped installation (check mode)"
+  ansible.builtin.debug:
+    msg: >-
+      acme.sh is not installed yet. A real run would clone
+      {{ run_acmesh_git_url }} into a temporary directory and install it;
+      check mode skips this installation sequence entirely.
+  when:
+    - not __run_acmesh_is_installed
+    - __run_acmesh_tempdir['path'] is not ansible.builtin.defined
 
 
 - name: "Setup | Install | Default | Display the temporary working directory's path"
@@ -191,6 +208,9 @@
     verbosity: 2
   when:
     - not __run_acmesh_is_installed
+    # the temporary directory exists only outside check mode (tempfile does
+    # not support it); guards --check as well as task-scoped check_mode
+    - __run_acmesh_tempdir['path'] is ansible.builtin.defined
 
 
 - name: "Setup | Install | Default | git clone {{ run_acmesh_git_url }}"
@@ -202,6 +222,9 @@
     update: true
   when:
     - not __run_acmesh_is_installed
+    # the temporary directory exists only outside check mode (tempfile does
+    # not support it); guards --check as well as task-scoped check_mode
+    - __run_acmesh_tempdir['path'] is ansible.builtin.defined
 
 
 - name: "Setup | Install | Default | Hand the temporary working directory over to the service user"
@@ -215,6 +238,9 @@
     recurse: true
   when:
     - not __run_acmesh_is_installed
+    # the temporary directory exists only outside check mode (tempfile does
+    # not support it); guards --check as well as task-scoped check_mode
+    - __run_acmesh_tempdir['path'] is ansible.builtin.defined
 
 
 - name: "Setup | Install | Default | Ensure existence and permissions of main directories"
@@ -295,6 +321,9 @@
     HOME: "{{ run_acmesh_cfg_home }}"
   when:
     - not __run_acmesh_is_installed
+    # the temporary directory exists only outside check mode (tempfile does
+    # not support it); guards --check as well as task-scoped check_mode
+    - __run_acmesh_tempdir['path'] is ansible.builtin.defined
   notify:
     - "run_acmesh: set ownership and permissions"
 
@@ -467,3 +496,17 @@
   when:
     - __run_acmesh_tempdir is ansible.builtin.defined
     - __run_acmesh_tempdir['path'] is ansible.builtin.defined
+
+
+# Whether acme.sh is usable for the configuration and certificate phases:
+# either it was installed before this run or the fresh installation above
+# could actually happen (in check mode it cannot, see the notice task; the
+# later phases would fail on the missing installation, e.g. the chdir of
+# "Config | Default | Configure acme.sh" happens even in check mode).
+- name: "Setup | Install | Default | Determine whether acme.sh is available for the later phases"
+  ansible.builtin.set_fact:
+    __run_acmesh_install_available: >-
+      {{
+        (__run_acmesh_is_installed | ansible.builtin.bool)
+        or (__run_acmesh_tempdir['path'] is ansible.builtin.defined)
+      }}

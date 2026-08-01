@@ -1,0 +1,8 @@
+---
+
+bugfixes:
+  - >
+    ``run`` - a check-mode run against a host without acme.sh failed with an
+    undefined variable: the temporary clone directory task is skipped in
+    check mode but later tasks used its path. The installation sequence is
+    now skipped coherently in check mode with a notice.
