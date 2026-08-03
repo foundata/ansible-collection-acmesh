@@ -21,6 +21,34 @@
     }}
 
 
+## Check mode on the installed system
+#
+# A --check run against a host with acme.sh installed must succeed AND still
+# walk the configuration and certificate phases (regression: the skipped
+# version detection made the role conclude acme.sh was unavailable, so check
+# mode silently reconciled nothing and reported no drift).
+
+- name: "Molecule | Verify | Run the role in check mode on the installed system"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+    apply:
+      check_mode: true
+
+
+- name: "Molecule | Verify | Check mode: assert the installation was detected and the phases stayed enabled"
+  ansible.builtin.assert:
+    that:
+      - __run_acmesh_is_installed | ansible.builtin.bool
+      - __run_acmesh_install_available | ansible.builtin.bool
+    fail_msg: >-
+      The check-mode run did not detect the installed acme.sh (or skipped the
+      configuration and certificate phases): check mode would report no drift
+      at all.
+    success_msg: >-
+      The check-mode run detected the installed acme.sh and walked the
+      configuration and certificate phases.
+
+
 ## Files and directories
 
 - name: "Molecule | Verify | Gather stats for directory: {{ run_acmesh_cfg_home }}"

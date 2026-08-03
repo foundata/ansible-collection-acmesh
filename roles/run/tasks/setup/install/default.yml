@@ -414,6 +414,8 @@
     - false
   ignore_errors: true
   register: __run_acmesh_version_installed_result
+  # read-only probe; run it under "--check" too (see the init counterpart)
+  check_mode: false
 
 
 - name: "Setup | Install | Default | Update / overwrite installed version facts"

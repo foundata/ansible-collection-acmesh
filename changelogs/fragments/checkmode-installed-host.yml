@@ -1,0 +1,9 @@
+---
+
+bugfixes:
+  - >
+    ``run`` - a check-mode run against a host with acme.sh already installed
+    skipped the read-only version detection, concluded acme.sh was
+    unavailable and silently skipped the whole configuration and certificate
+    reconciliation, reporting no drift. The detection now runs in check mode
+    too.

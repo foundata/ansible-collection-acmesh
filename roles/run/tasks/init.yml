@@ -177,6 +177,10 @@
   ignore_errors: true
   changed_when:
     - false
+  # The probe is read-only; run it under "--check" too, otherwise an installed
+  # acme.sh is not detected and every later phase gets skipped (check mode
+  # would report no drift at all).
+  check_mode: false
 
 
 - name: "Init | Set installed version as facts"
