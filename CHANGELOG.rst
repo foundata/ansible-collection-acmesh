@@ -4,6 +4,23 @@ foundata.acmesh Ansible collection Release Notes
 
 .. contents:: Topics
 
+v3.0.1
+======
+
+Release Summary
+---------------
+
+Release Date: 2026-08-13
+
+Bugfix release.
+
+Bugfixes
+--------
+
+- ``run`` - a check-mode run against a host with acme.sh already installed skipped the read-only version detection, concluded acme.sh was unavailable and silently skipped the whole configuration and certificate reconciliation, reporting no drift. The detection now runs in check mode too.
+- ``run`` - a check-mode run against a host without acme.sh failed with an undefined variable: the temporary clone directory task is skipped in check mode but later tasks used its path. The installation sequence is now skipped coherently in check mode with a notice.
+- boolean role arguments are now coerced with ``ansible.builtin.bool`` in every conditional. String values, as delivered by ``-e var=false`` command line extra-vars, were evaluated by truthiness before, so ``"false"`` enabled the gated behavior instead of disabling it.
+
 v3.0.0
 ======
 
