@@ -879,6 +879,80 @@
           renewal: {{ __testing_acmesh_foreign_owned_files['stdout_lines'] | ansible.builtin.default([]) }}
 
 
+## Strict installation failure handling (issue #22)
+#
+# acme.sh prints "Installing ..." for every file before writing it, so a
+# partial installation (here: a private key below a parent directory the
+# service user cannot traverse) exits nonzero while still producing that
+# output. The role must fail on the nonzero exit status instead of treating
+# the partial installation as success, which would leave already deployed
+# files stale on every renewal.
+
+- name: "Molecule | Verify | Strict install failure handling (webroot challenge)"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+  block:
+
+    - name: "Molecule | Verify | Install failure: create a protected parent directory"
+      ansible.builtin.file:
+        path: "/etc/molecule-acmesh-protected-fail"
+        state: "directory"
+        owner: "root"
+        group: "root"
+        mode: "u=rwx,g=,o=" # 0700
+
+
+    - name: "Molecule | Verify | Install failure: reinstall with an inaccessible key destination (must fail)"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+      vars:
+        run_acmesh_certs:
+          - domains:
+              - name: "acmesh-webroot.test"
+                challenge:
+                  type: "webroot"
+                  webroot: "/var/www/acmesh-test"
+            install:
+              ca_file: "/etc/pki/tls/certs/acmesh-webroot.test/ca.cer"
+              cert_file: "/etc/pki/tls/certs/acmesh-webroot.test/cert.cer"
+              fullchain_file: "/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer"
+              key_file: "/etc/molecule-acmesh-protected-fail/acmesh-webroot.test/cert.key"
+              reloadcmd: ""
+            server: "https://localhost:14000/dir"
+
+
+    - name: "Molecule | Verify | Install failure: force a failure because the partial installation was accepted"
+      ansible.builtin.fail:
+        msg: "The role accepted a nonzero acme.sh --install-cert exit status (partial installation)."
+
+  rescue:
+
+    - name: "Molecule | Verify | Install failure: assert the run failed in the install task"
+      ansible.builtin.assert:
+        that:
+          - (ansible_failed_task['name'] | ansible.builtin.default('')) is ansible.builtin.search('Install certificate')
+        fail_msg: >-
+          The run failed, but not in the certificate installation task as
+          expected (failed task:
+          '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
+        success_msg: "A partially failing acme.sh --install-cert fails the role."
+
+
+- name: "Molecule | Verify | Install failure: restore the original installation settings"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+
+
+- name: "Molecule | Verify | Install failure: remove the protected parent directory"
+  ansible.builtin.file:
+    path: "/etc/molecule-acmesh-protected-fail"
+    state: "absent"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+
+
 ## Declarative certificate removal
 #
 # The run_acmesh_certs_delete_unmanaged sweep reaps certificate data and reload

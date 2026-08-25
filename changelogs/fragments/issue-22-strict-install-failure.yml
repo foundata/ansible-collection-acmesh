@@ -1,0 +1,12 @@
+---
+
+bugfixes:
+  - >
+    ``run`` - a failed ``acme.sh --install-cert`` is no longer treated as
+    successful just because its output contains ``Installing``. acme.sh prints
+    that line for every file before writing it, so a partial installation (for
+    example a private key that could not be written below a protected
+    directory) was reported as success while already deployed files went
+    stale on every renewal. A nonzero acme.sh exit status now always fails
+    the role
+    (`#22 <https://github.com/foundata/ansible-collection-acmesh/issues/22>`__).

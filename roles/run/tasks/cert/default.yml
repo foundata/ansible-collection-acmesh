@@ -906,9 +906,12 @@
   # No --reloadcmd is passed to acme.sh: reload commands run via root-side
   # acmesh-reload-* systemd path units watching the installed files (see
   # tasks/config/default.yml), so acme.sh reload errors cannot occur here.
-  failed_when: >
-    (run_acmesh_certs is not ansible.builtin.defined) or
-    ((__run_acmesh_install_result is ansible.builtin.failed) and ('Installing' not in __run_acmesh_install_result['stdout']))
+  # A nonzero exit status always fails the role: acme.sh prints "Installing"
+  # for every file before writing it, so a partial installation (e.g. a
+  # private key that cannot be written) still produces that output while
+  # leaving already deployed files stale.
+  failed_when:
+    - __run_acmesh_install_result is ansible.builtin.failed
   loop: "{{ __run_acmesh_certs_managed }}"
   register: __run_acmesh_install_result
   # As with issuing: the task environment carries the DNS API credentials and the
