@@ -100,20 +100,23 @@
     - "run_acmesh: systemd daemon-reload"
 
 
-# The reload units are searched on the target (instead of being derived from
-# run_acmesh_certs) so that uninstall also removes units belonging to
-# certificates that are no longer listed in the current configuration.
-- name: "Setup | Uninstall | Default | Find reload unit files (acmesh-reload-*)"
+# The reload and deploy units are searched on the target (instead of being
+# derived from run_acmesh_certs) so that uninstall also removes units
+# belonging to certificates that are no longer listed in the current
+# configuration.
+- name: "Setup | Uninstall | Default | Find reload and deploy unit files (acmesh-reload-*, acmesh-deploy-*)"
   ansible.builtin.find:
     paths: "{{ __run_acmesh_reload_unitfile_dir }}"
     patterns:
       - "{{ __run_acmesh_reload_unit_prefix }}*.path"
       - "{{ __run_acmesh_reload_unit_prefix }}*.service"
+      - "{{ __run_acmesh_deploy_unit_prefix }}*.path"
+      - "{{ __run_acmesh_deploy_unit_prefix }}*.service"
     file_type: "file"
   register: __run_acmesh_reload_unitfiles_found
 
 
-- name: "Setup | Uninstall | Default | Disable acmesh-reload-*.path unit(s) (best-effort)"
+- name: "Setup | Uninstall | Default | Disable acmesh-reload-*.path and acmesh-deploy-*.path unit(s) (best-effort)"
   ansible.builtin.systemd_service:
     name: "{{ item['path'] | ansible.builtin.basename }}"
     enabled: false
@@ -133,6 +136,9 @@
 
 
 - name: "Setup | Uninstall | Default | Delete files and directories (except certificates)"
+  # The staged deployment resources (staging base, manifests, helper) are
+  # removed as well; the installed (final) certificate files are kept, as
+  # before.
   ansible.builtin.file:
     path: "{{ item }}"
     state: "absent"
@@ -142,6 +148,9 @@
         run_acmesh_cfg_home,
         run_acmesh_cfg_config_home,
         run_acmesh_cfg_logfile,
+        run_acmesh_cfg_cert_deploy_base_dir,
+        __run_acmesh_deploy_manifest_dir_path,
+        __run_acmesh_deploy_helper_path,
         __run_acmesh_profiled_envfile_path,
         __run_acmesh_systemd_renewal_servicefile_path,
         __run_acmesh_systemd_renewal_timerfile_path,

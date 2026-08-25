@@ -36,7 +36,11 @@
       set -o pipefail # Fail if any pipe cmd fails
       set -e # Exit on errors (incl. tests in if/while)
 
-      # Set ownership of files and directories: service user and group
+      # Set ownership of files and directories: service user and group.
+      # Installed certificate files are NOT handled here: their effective
+      # ownership and modes come from the normalized install permissions and
+      # are reconciled in tasks/cert/default.yml (and, for the staged
+      # strategy, applied by the deploy helper).
       find \
         {{ run_acmesh_cfg_home | ansible.builtin.quote }} \
         {{ run_acmesh_cfg_config_home | ansible.builtin.quote }} \
@@ -45,16 +49,6 @@
       chown -c {{ (run_acmesh_user ~ ':' ~ run_acmesh_group) | ansible.builtin.quote }} {{ (run_acmesh_cfg_config_home ~ '/account.conf') |
                                                                                            ansible.builtin.quote }}
       chown -c {{ (run_acmesh_user ~ ':' ~ run_acmesh_group) | ansible.builtin.quote }} {{ run_acmesh_cfg_logfile | ansible.builtin.quote }}
-      {# Only managed certificates: installed files of certificates with
-         state "absent" were removed and must not be chmod'ed/chown'ed. #}
-      {% for _cert in __run_acmesh_certs_managed | ansible.builtin.default([]) %}
-        {% for _key in ['ca_file', 'cert_file', 'fullchain_file', 'key_file'] %}
-          {% if _cert['install'] is ansible.builtin.defined and _cert['install'][_key] is ansible.builtin.defined and _cert['install'][_key] %}
-            chmod -c 0640 {{ _cert['install'][_key] | ansible.builtin.quote }}
-            chown -c {{ (run_acmesh_user ~ ':' ~ run_acmesh_group) | ansible.builtin.quote }} {{ _cert['install'][_key] | ansible.builtin.quote }}
-          {% endif %}
-        {% endfor %}
-      {% endfor %}
 
       # Set permissions of directories: 0750 / u=rwx,g=rx,o=
       find \
@@ -89,11 +83,17 @@
       # Set permissions of sensitive files: 0600 / u=rw,g=,o=
       chmod -c 0600 {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }} # may contain credentials (e.g. DNS API or notify credentials)
       chmod -c 0600 {{ run_acmesh_cfg_logfile | ansible.builtin.quote }}
-      # handle ca/<ca-dir>/account.key files (especially sensitive with dns-persist-01, contains ACME private key)
-      find \
-        {{ (run_acmesh_cfg_config_home ~ '/ca') | ansible.builtin.quote }} \
-        -name 'account.key' \
-        -exec chmod -c 0600 {} \;
+      # handle ca/<ca-dir>/account.key files (especially sensitive with
+      # dns-persist-01, contains ACME private key). The ca directory only
+      # exists after an account was registered (an installation whose
+      # certificates need no renewal does not recreate it).
+      if [ -d {{ (run_acmesh_cfg_config_home ~ '/ca') | ansible.builtin.quote }} ]
+      then
+        find \
+          {{ (run_acmesh_cfg_config_home ~ '/ca') | ansible.builtin.quote }} \
+          -name 'account.key' \
+          -exec chmod -c 0600 {} \;
+      fi
 
       exit 0
     executable: "/bin/bash" # Support for other shells untested (so far)

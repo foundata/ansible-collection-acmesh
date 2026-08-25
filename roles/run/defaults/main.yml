@@ -268,13 +268,19 @@ run_acmesh_git_version: ""
 #             for details.
 #             - Type: int
 #             - Required: No
-#   - install: Dictionary defining where to install the issued certificates. The
-#     following keys specify file paths and a reload command:
+#   - install:
+#     Dictionary defining where and how to install the issued certificates. The
+#     following keys specify file paths, the installation strategy, ownership
+#     and permission overrides and a reload command:
 #
 #     - ca_file: String. Path to the certificate authority (CA) file.
 #     - cert_file: String. Path to the certificate file.
 #     - fullchain_file: String. Path to the full certificate chain file.
 #     - key_file: String. Path to the private key file.
+#     - strategy: String, `staged` (the default) or `direct`. See the suboption
+#       description for details.
+#     - permissions: Dictionary of partial ownership and mode overrides for the
+#       destination directory and the installed files.
 #     - reloadcmd: String. Command to reload or restart services after
 #       certificate installation and renewal (e.g., web server or mail server).
 #       It is executed as root by a systemd unit whenever the installed
@@ -301,6 +307,104 @@ run_acmesh_git_version: ""
 #       - key_file:
 #         - Type: str
 #         - Required: No
+#       - strategy: Installation strategy for the certificate files.
+#
+#         `staged` (the default, also used when this key is omitted): acme.sh
+#         installs the certificate into an internal, root-protected staging area
+#         below `run_acmesh_cfg_cert_deploy_base_dir` and a root-owned systemd
+#         service (`acmesh-deploy-<primary domain>.service`) validates and
+#         publishes the files to the final destinations. This supports
+#         destinations below protected parent directories (such as
+#         `/etc/ssl/private`) and full ownership and mode control via
+#         `permissions`, while acme.sh itself keeps running unprivileged. See
+#         the README of this role for details.
+#
+#         `direct`: acme.sh installs directly to the final paths as the
+#         unprivileged service user (the behavior of version 3.x and below of
+#         this role). This is a compatibility option, not the recommended
+#         default: every destination must be writable by `run_acmesh_user` -
+#         also during unattended renewal - and `permissions` ownership overrides
+#         are rejected because the service account could not maintain them.
+#         - Type: str
+#         - Required: No
+#         - Default: staged
+#         - Choices: staged, direct
+#       - permissions:
+#         Partial overrides for the ownership and permissions of the destination
+#         directory and the installed certificate files.
+#
+#         Effective values are calculated per key; later mappings override
+#         earlier mappings, unspecified keys inherit from the earlier ones:
+#
+#         1. role defaults (directory: `run_acmesh_user`: `run_acmesh_group`
+#            with mode `"2750"`; files: `run_acmesh_user`: `run_acmesh_group`
+#            with mode `"0640"`)
+#         2. `default` (applies to all certificate files)
+#         3. the per-artifact mapping (`ca_file`, `cert_file`, `fullchain_file`,
+#            `key_file`)
+#
+#         `mode` values must be quoted octal strings (such as `"0640"`).
+#         Certificate files must not be executable and must not carry
+#         setuid/setgid/sticky bits; private keys must additionally not be
+#         world-readable or group/world-writable (`"0600"`, `"0640"`, `"0400"`
+#         and `"0440"` are typical valid values). Directories may keep the
+#         setgid bit (the default directory mode is `"2750"`). `owner` and
+#         `group` accept names (recommended) or numeric ID strings and must
+#         exist on the target.
+#
+#         Example:
+#
+#         ```
+#         permissions:
+#           directory:
+#             owner: "root"
+#             group: "ssl-cert"
+#             mode: "0750"
+#           default:
+#             owner: "root"
+#             group: "ssl-cert"
+#             mode: "0640"
+#           fullchain_file:
+#             mode: "0644"
+#           key_file:
+#             group: "dovecot"
+#         ```
+#         - Type: dict
+#         - Required: No
+#         - Dict attributes:
+#           - directory:
+#             Ownership and mode overrides for the immediate destination
+#             directories of the certificate files. Only these directories are
+#             managed; existing ancestors (such as `/etc/ssl` or
+#             `/etc/ssl/private`) are never changed.
+#             - Type: dict
+#             - Required: No
+#             - Dict attributes: (omitted at this nesting depth, see meta/argument_specs.yml)
+#           - default:
+#             Ownership and mode overrides applied to all installed certificate
+#             files (overridable per artifact).
+#             - Type: dict
+#             - Required: No
+#             - Dict attributes: (omitted at this nesting depth, see meta/argument_specs.yml)
+#           - ca_file: Ownership and mode overrides for the installed `ca_file`.
+#             - Type: dict
+#             - Required: No
+#             - Dict attributes: (omitted at this nesting depth, see meta/argument_specs.yml)
+#           - cert_file:
+#             Ownership and mode overrides for the installed `cert_file`.
+#             - Type: dict
+#             - Required: No
+#             - Dict attributes: (omitted at this nesting depth, see meta/argument_specs.yml)
+#           - fullchain_file:
+#             Ownership and mode overrides for the installed `fullchain_file`.
+#             - Type: dict
+#             - Required: No
+#             - Dict attributes: (omitted at this nesting depth, see meta/argument_specs.yml)
+#           - key_file:
+#             Ownership and mode overrides for the installed `key_file`.
+#             - Type: dict
+#             - Required: No
+#             - Dict attributes: (omitted at this nesting depth, see meta/argument_specs.yml)
 #       - reloadcmd:
 #         Optional. Command to reload or restart services after the certificate
 #         was installed or renewed. It is not executed by `acme.sh` but by a
@@ -403,11 +507,12 @@ run_acmesh_git_version: ""
 #
 #     `absent` removes all data of this certificate: the acme.sh data below
 #     `run_acmesh_cfg_cert_home` (which also stops the automated renewal for
-#     it), the `acmesh-reload-*` systemd units and the installed certificate
-#     files listed under `install`. Directories holding installed files are
-#     kept, as they may be shared with other software. The certificate is not
-#     revoked at the ACME CA. This works independently of
-#     `run_acmesh_certs_delete_unmanaged`.
+#     it), the `acmesh-reload-*` and `acmesh-deploy-*` systemd units, the
+#     staging data and deployment manifest of the `staged` installation strategy
+#     and the installed certificate files listed under `install`. Directories
+#     holding installed files are kept, as they may be shared with other
+#     software. The certificate is not revoked at the ACME CA. This works
+#     independently of `run_acmesh_certs_delete_unmanaged`.
 #     - Type: str
 #     - Required: No
 #     - Default: present
@@ -416,9 +521,10 @@ run_acmesh_certs: []
 
 # If set to `true`, certificate data below `run_acmesh_cfg_cert_home` that does
 # not belong to any certificate listed in `run_acmesh_certs` gets removed (which
-# also stops the automated renewal for it), as do `acmesh-reload-*` systemd
-# units the current configuration does not define. Useful to declaratively clean
-# up certificates that were simply deleted from `run_acmesh_certs` (instead of
+# also stops the automated renewal for it), as do `acmesh-reload-*` and
+# `acmesh-deploy-*` systemd units, staging directories and deployment manifests
+# the current configuration does not define. Useful to declaratively clean up
+# certificates that were simply deleted from `run_acmesh_certs` (instead of
 # being listed with `state: absent`).
 #
 # Two safety properties: installed certificate files of unmanaged certificates
@@ -534,6 +640,21 @@ run_acmesh_cfg_config_home: "/etc/acme.sh"
 # - Required: No
 # - Default: /var/opt/acme.sh
 run_acmesh_cfg_cert_home: "/var/opt/acme.sh"
+
+# Base directory for the internal staging areas of certificates using the
+# `staged` installation strategy. The directory itself is root-owned and holds
+# one subdirectory per certificate which is writable by the service user:
+# acme.sh installs into that staging area and the root-owned `acmesh-deploy-*`
+# systemd units validate and publish the files to their final destinations.
+#
+# Must not be located below (or be a parent of) `run_acmesh_cfg_home`,
+# `run_acmesh_cfg_config_home` or `run_acmesh_cfg_cert_home`; the role fails
+# fast otherwise.
+#
+# - Type: str
+# - Required: No
+# - Default: /var/opt/acme.sh-deploy
+run_acmesh_cfg_cert_deploy_base_dir: "/var/opt/acme.sh-deploy"
 
 # Path to the log file where acme.sh logs its operations (relates to acme.sh
 # option --log).

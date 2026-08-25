@@ -67,10 +67,20 @@
 
 - name: "Molecule | Cleanup | Remove installed webroot test certificates"
   ansible.builtin.file:
-    path: "/etc/pki/tls/certs/acmesh-webroot.test"
+    path: "{{ item }}"
     state: "absent"
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+  loop:
+    - "/etc/pki/tls/certs/acmesh-webroot.test"
+    - "/etc/pki/tls/certs/acmesh-direct.test"
+    - "/etc/molecule-acmesh-protected"
+
+
+- name: "Molecule | Cleanup | Remove the install permission test group"
+  ansible.builtin.group:
+    name: "molecule-ssl-cert"
+    state: "absent"
 
 
 - name: "Molecule | Cleanup | Remove nginx via foundata.nginx.run role"

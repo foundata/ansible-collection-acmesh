@@ -61,17 +61,25 @@ __run_acmesh_certs_no_secrets: >-
 # (safe for loop labels). Per entry:
 #
 # - domain: the certificate's primary domain.
-# - unit_name: sanitized domain as used in the acmesh-reload-* unit names.
+# - unit_name: sanitized domain as used in the acmesh-reload-* and
+#   acmesh-deploy-* unit names.
 # - cert_dirs: possible acme.sh data directories of the certificate below
 #   run_acmesh_cfg_cert_home (plain, _ecc and _rsa variants). Removing them
 #   also stops the automated renewal for this certificate.
 # - installed_files: the configured install file paths. Only the files are
 #   removed, not their directories (those may be shared with other software).
+# - staging_dir: the staging directory of the "staged" installation strategy.
+# - manifest_path: the root-owned deployment manifest of the "staged"
+#   installation strategy.
+#
+# staging_dir and manifest_path are removed regardless of the configured
+# strategy: the certificate may have used "staged" before its removal.
 __run_acmesh_certs_absent_cleanup: >-
   {%- set entries = [] -%}
   {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
   {%-   if (_cert['state'] | ansible.builtin.default('present')) == 'absent' -%}
   {%-     set _domain = (_cert['domains'] | ansible.builtin.default([{}]))[0]['name'] | ansible.builtin.default('') -%}
+  {%-     set _unit_name = _domain | ansible.builtin.lower | ansible.builtin.regex_replace('[^a-z0-9.-]', '-') -%}
   {%-     set _install = _cert['install'] | ansible.builtin.default({}) -%}
   {%-     set _files = [] -%}
   {%-     for _key in ['ca_file', 'cert_file', 'fullchain_file', 'key_file'] -%}
@@ -82,13 +90,15 @@ __run_acmesh_certs_absent_cleanup: >-
   {%-     if ((_domain | ansible.builtin.length) > 0) -%}
   {%-       set _ = entries.append({
               'domain': _domain,
-              'unit_name': (_domain | ansible.builtin.lower | ansible.builtin.regex_replace('[^a-z0-9.-]', '-')),
+              'unit_name': _unit_name,
               'cert_dirs': [
                 (run_acmesh_cfg_cert_home ~ '/' ~ _domain),
                 (run_acmesh_cfg_cert_home ~ '/' ~ _domain ~ '_ecc'),
                 (run_acmesh_cfg_cert_home ~ '/' ~ _domain ~ '_rsa'),
               ],
               'installed_files': _files,
+              'staging_dir': (run_acmesh_cfg_cert_deploy_base_dir ~ '/' ~ _unit_name),
+              'manifest_path': (__run_acmesh_deploy_manifest_dir_path ~ '/' ~ _unit_name ~ '.json'),
             }) -%}
   {%-     endif -%}
   {%-   endif -%}
@@ -230,6 +240,255 @@ __run_acmesh_reload_units_missing_watch: >-
   {{ domains }}
 
 
+# Staged installation strategy: acme.sh installs into a root-protected staging
+# area (one subdirectory per certificate below the root-owned
+# run_acmesh_cfg_cert_deploy_base_dir) and a root-owned systemd path/service
+# pair per certificate (acmesh-deploy-*) validates and publishes the files to
+# their final destinations via a fixed helper program. Naming, locations and
+# modes shared by the tasks managing these resources. The unit names reuse the
+# certificate identity normalization of the acmesh-reload-* units.
+__run_acmesh_deploy_staging_base_dir_owner: "root"
+__run_acmesh_deploy_staging_base_dir_group: "root"
+__run_acmesh_deploy_staging_base_dir_mode: "u=rwx,g=rx,o=rx" # 0755
+# Per-certificate staging directory, owned run_acmesh_user:run_acmesh_group
+# (acme.sh writes the staged files there during installation and renewal).
+__run_acmesh_deploy_staging_dir_mode: "u=rwx,g=rx,o=" # 0750
+
+# Root-owned deployment manifests (one per staged certificate). They contain
+# no credentials, hooks or commands: only staging/destination paths, numeric
+# UID/GID values, modes and the certificate's domains. The deploy helper only
+# accepts manifests below this directory; keep the path in sync with the
+# MANIFEST_DIR constant in files/acmesh-deploy.py.
+__run_acmesh_deploy_manifest_dir_path: "/etc/acmesh-deploy.d"
+__run_acmesh_deploy_manifest_dir_owner: "root"
+__run_acmesh_deploy_manifest_dir_group: "root"
+__run_acmesh_deploy_manifest_dir_mode: "u=rwx,g=rx,o=rx" # 0755
+__run_acmesh_deploy_manifest_file_owner: "root"
+__run_acmesh_deploy_manifest_file_group: "root"
+__run_acmesh_deploy_manifest_file_mode: "u=rw,g=,o=" # 0600
+
+# The root-owned deploy helper program (Python, standard library only; see
+# files/acmesh-deploy.py).
+__run_acmesh_deploy_helper_path: "/usr/libexec/acmesh-deploy"
+__run_acmesh_deploy_helper_owner: "root"
+__run_acmesh_deploy_helper_group: "root"
+__run_acmesh_deploy_helper_mode: "u=rwx,g=rx,o=rx" # 0755
+
+# systemd path/service unit pairs watching the staged files and running the
+# deploy helper as root (acmesh-deploy-<unit name>.{path,service}).
+__run_acmesh_deploy_unit_prefix: "acmesh-deploy-"
+__run_acmesh_deploy_unitfile_dir: "/etc/systemd/system"
+__run_acmesh_deploy_unitfile_owner: "root"
+__run_acmesh_deploy_unitfile_group: "root"
+__run_acmesh_deploy_unitfile_mode: "u=rw,g=r,o=r" # 0644
+
+# The interpreter for the deploy helper: the Python which executes Ansible's
+# modules on this host. An Ansible-managed host always has one and reusing it
+# avoids an explicit python3 package dependency. The path is baked into the
+# ExecStart= of the acmesh-deploy-* service units; if it ever changes, the
+# next role run rewrites the units.
+__run_acmesh_deploy_python_exec_path: >-
+  {{ ansible_facts['python']['executable'] | ansible.builtin.default('/usr/bin/python3', true) }}
+
+# Fixed internal staging file names per install artifact (never the arbitrary
+# destination basenames).
+__run_acmesh_deploy_staging_filenames:
+  ca_file: "ca.cer"
+  cert_file: "cert.cer"
+  fullchain_file: "fullchain.cer"
+  key_file: "cert.key"
+
+
+# Internal defaults for the ownership and permissions of installed certificate
+# files and their destination directories. They preserve the pre-4.0.0
+# behavior and are the base layer of the per-certificate permission merge:
+# every run_acmesh_certs[]['install']['permissions'] mapping is a partial
+# override (see __run_acmesh_install_normalized below). Modes are quoted
+# octal strings because they end up in manifests and comparisons, not only in
+# module arguments.
+__run_acmesh_install_permissions_directory_defaults:
+  owner: "{{ run_acmesh_user }}"
+  group: "{{ run_acmesh_group }}"
+  mode: "2750" # u=rwx,g=rx,o=,g+s (new files inherit the directory group)
+__run_acmesh_install_permissions_file_defaults:
+  owner: "{{ run_acmesh_user }}"
+  group: "{{ run_acmesh_group }}"
+  mode: "0640" # u=rw,g=r,o=
+
+
+# Normalized installation data, one entry per managed certificate with at
+# least one configured install file path. This is the single source for
+# installation, manifest generation, directory management, reconciliation,
+# validation and cleanup; no task repeats the permission merge logic. Built
+# from the credential-free certificate view (safe for loop labels). Per entry:
+#
+# - domain: the certificate's primary domain.
+# - cert_id: sanitized domain, same normalization as the acmesh-reload-* unit
+#   names (uniqueness after normalization is asserted in tasks/init.yml).
+# - strategy: "staged" (default) or "direct".
+# - staging_dir: the certificate's staging directory ("staged" only).
+# - completion_key: the artifact acme.sh writes last (first configured one of
+#   fullchain_file, key_file, ca_file, cert_file; mirrors the watch file
+#   selection of __run_acmesh_reload_units). The deploy helper publishes this
+#   artifact last so the acmesh-reload-* path unit fires only after a
+#   complete deployment.
+# - directory: effective destination directory permissions
+#   (internal defaults combined with install.permissions.directory).
+# - directories: unique destination directories (dirname of every artifact).
+# - artifacts: mapping of configured artifact keys to their destination
+#   ("dest"), staging path ("staging") and effective owner/group/mode
+#   (internal defaults combined with install.permissions.default combined
+#   with install.permissions.<artifact>; later mappings override earlier
+#   ones per key).
+# - domains: all domain names of the certificate (for the deploy helper's
+#   certificate identity validation).
+__run_acmesh_install_normalized: >-
+  {%- set entries = [] -%}
+  {%- for _cert in __run_acmesh_certs_no_secrets -%}
+  {%-   set _install = _cert['install'] | ansible.builtin.default({}) -%}
+  {%-   set _artifact_keys = [] -%}
+  {%-   for _key in ['ca_file', 'cert_file', 'fullchain_file', 'key_file'] -%}
+  {%-     if (((_install[_key] | ansible.builtin.default('')) | ansible.builtin.length) > 0) -%}
+  {%-       set _ = _artifact_keys.append(_key) -%}
+  {%-     endif -%}
+  {%-   endfor -%}
+  {%-   if (_artifact_keys | ansible.builtin.length) > 0 -%}
+  {%-     set _domain = (_cert['domains'] | ansible.builtin.default([{}]))[0]['name'] | ansible.builtin.default('') -%}
+  {%-     set _cert_id = _domain | ansible.builtin.lower | ansible.builtin.regex_replace('[^a-z0-9.-]', '-') -%}
+  {%-     set _strategy = _install['strategy'] | ansible.builtin.default('staged') -%}
+  {%-     set _perms = _install['permissions'] | ansible.builtin.default({}, true) -%}
+  {%-     set _directory = __run_acmesh_install_permissions_directory_defaults
+            | ansible.builtin.combine(_perms['directory'] | ansible.builtin.default({}, true)) -%}
+  {%-     set _staging_dir = run_acmesh_cfg_cert_deploy_base_dir ~ '/' ~ _cert_id -%}
+  {%-     set _artifacts = {} -%}
+  {%-     set _dirs = [] -%}
+  {%-     set _ns = namespace(completion='') -%}
+  {%-     for _key in ['fullchain_file', 'key_file', 'ca_file', 'cert_file'] -%}
+  {%-       if ((_ns.completion | ansible.builtin.length) == 0) and (_key in _artifact_keys) -%}
+  {%-         set _ns.completion = _key -%}
+  {%-       endif -%}
+  {%-     endfor -%}
+  {%-     for _key in _artifact_keys -%}
+  {%-       set _effective = __run_acmesh_install_permissions_file_defaults
+              | ansible.builtin.combine(_perms['default'] | ansible.builtin.default({}, true))
+              | ansible.builtin.combine(_perms[_key] | ansible.builtin.default({}, true)) -%}
+  {%-       set _ = _artifacts.update({_key: {
+              'dest': _install[_key],
+              'staging': (_staging_dir ~ '/' ~ __run_acmesh_deploy_staging_filenames[_key]),
+              'owner': _effective['owner'] | ansible.builtin.string,
+              'group': _effective['group'] | ansible.builtin.string,
+              'mode': _effective['mode'] | ansible.builtin.string,
+            }}) -%}
+  {%-       if (_install[_key] | ansible.builtin.dirname) not in _dirs -%}
+  {%-         set _ = _dirs.append(_install[_key] | ansible.builtin.dirname) -%}
+  {%-       endif -%}
+  {%-     endfor -%}
+  {%-     set _ = entries.append({
+            'domain': _domain,
+            'cert_id': _cert_id,
+            'strategy': _strategy,
+            'staging_dir': _staging_dir,
+            'completion_key': _ns.completion,
+            'directory': {
+              'owner': _directory['owner'] | ansible.builtin.string,
+              'group': _directory['group'] | ansible.builtin.string,
+              'mode': _directory['mode'] | ansible.builtin.string,
+            },
+            'directories': _dirs,
+            'artifacts': _artifacts,
+            'domains': (_cert['domains'] | ansible.builtin.default([])
+                        | ansible.builtin.map(attribute='name') | ansible.builtin.list),
+          }) -%}
+  {%-   endif -%}
+  {%- endfor -%}
+  {{ entries }}
+
+
+# Strategy-filtered views of __run_acmesh_install_normalized: deploy units,
+# manifests and staging directories exist exactly for the staged entries;
+# deploy resources of managed direct entries are actively removed (strategy
+# transition, see tasks/config/default.yml).
+__run_acmesh_install_normalized_staged: >-
+  {{
+    __run_acmesh_install_normalized
+    | ansible.builtin.selectattr('strategy', 'ansible.builtin.equalto', 'staged')
+    | ansible.builtin.list
+  }}
+__run_acmesh_install_normalized_direct: >-
+  {{
+    __run_acmesh_install_normalized
+    | ansible.builtin.selectattr('strategy', 'ansible.builtin.equalto', 'direct')
+    | ansible.builtin.list
+  }}
+
+
+# Flattened per-artifact and per-directory views for loops (destination
+# directory creation and final file reconciliation).
+__run_acmesh_install_directories_flat: >-
+  {%- set pairs = [] -%}
+  {%- for _entry in __run_acmesh_install_normalized -%}
+  {%-   for _dir in _entry['directories'] -%}
+  {%-     set _ = pairs.append({
+            'domain': _entry['domain'],
+            'path': _dir,
+            'owner': _entry['directory']['owner'],
+            'group': _entry['directory']['group'],
+            'mode': _entry['directory']['mode'],
+          }) -%}
+  {%-   endfor -%}
+  {%- endfor -%}
+  {{ pairs }}
+__run_acmesh_install_artifacts_flat: >-
+  {%- set items = [] -%}
+  {%- for _entry in __run_acmesh_install_normalized -%}
+  {%-   for _key, _artifact in _entry['artifacts'].items() -%}
+  {%-     set _ = items.append({
+            'domain': _entry['domain'],
+            'artifact': _key,
+            'dest': _artifact['dest'],
+            'owner': _artifact['owner'],
+            'group': _artifact['group'],
+            'mode': _artifact['mode'],
+          }) -%}
+  {%-   endfor -%}
+  {%- endfor -%}
+  {{ items }}
+
+
+# Unique owner and group names referenced by the effective install
+# permissions of staged certificates. tasks/config/default.yml resolves them
+# to numeric UID/GID values (getent, after the setup phase created the
+# service account) so the root-owned deployment manifests only contain
+# trusted numeric values. The "direct" strategy needs no resolution: its
+# ownership is fixed to the service account and applied by name.
+__run_acmesh_install_staged_owner_names: >-
+  {%- set names = [] -%}
+  {%- for _entry in __run_acmesh_install_normalized_staged -%}
+  {%-   if _entry['directory']['owner'] not in names -%}
+  {%-     set _ = names.append(_entry['directory']['owner']) -%}
+  {%-   endif -%}
+  {%-   for _key, _artifact in _entry['artifacts'].items() -%}
+  {%-     if _artifact['owner'] not in names -%}
+  {%-       set _ = names.append(_artifact['owner']) -%}
+  {%-     endif -%}
+  {%-   endfor -%}
+  {%- endfor -%}
+  {{ names }}
+__run_acmesh_install_staged_group_names: >-
+  {%- set names = [] -%}
+  {%- for _entry in __run_acmesh_install_normalized_staged -%}
+  {%-   if _entry['directory']['group'] not in names -%}
+  {%-     set _ = names.append(_entry['directory']['group']) -%}
+  {%-   endif -%}
+  {%-   for _key, _artifact in _entry['artifacts'].items() -%}
+  {%-     if _artifact['group'] not in names -%}
+  {%-       set _ = names.append(_artifact['group']) -%}
+  {%-     endif -%}
+  {%-   endfor -%}
+  {%- endfor -%}
+  {{ names }}
+
+
 # List of platforms this role supports and was designed for.
 #
 # A warning will be issued if the list contains values and the role is executed
@@ -359,6 +618,7 @@ __run_acmesh_base64_exec_path: "/usr/bin/base64"
 __run_acmesh_sed_exec_path: "/usr/bin/sed"
 __run_acmesh_grep_exec_path: "/usr/bin/grep"
 __run_acmesh_setpriv_exec_path: "/usr/bin/setpriv"
+__run_acmesh_systemctl_exec_path: "/usr/bin/systemctl"
 
 
 # Command prefix that switches to the unprivileged service user before running

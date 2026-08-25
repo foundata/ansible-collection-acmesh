@@ -520,3 +520,164 @@
             {%- endif -%}
           {%- endfor -%}
           {{ _certs | ansible.builtin.to_json }}
+
+
+# Installation strategy and permission validation. This runs after the
+# fullcain_file normalization above so __run_acmesh_install_normalized (see
+# vars/main.yml) sees the canonical key names.
+
+- name: "Init | Show normalized certificate installation settings"
+  ansible.builtin.debug:
+    var: __run_acmesh_install_normalized
+    verbosity: 3
+
+
+- name: "Init | Check the deploy base directory is disjoint from the acme.sh directories and fail if unmet"
+  ansible.builtin.assert:
+    that:
+      - run_acmesh_cfg_cert_deploy_base_dir is ansible.builtin.match('^/.')
+      - "(__run_acmesh_deploy_base_dir_conflicts | ansible.builtin.length) == 0"
+    fail_msg: >-
+      run_acmesh_cfg_cert_deploy_base_dir ('{{ run_acmesh_cfg_cert_deploy_base_dir }}')
+      must be an absolute path and must not be located below (or be a parent
+      of) the acme.sh directories (conflicting:
+      {{ __run_acmesh_deploy_base_dir_conflicts | ansible.builtin.join(', ') | ansible.builtin.default('none', true) }}).
+      The staging base must stay root-owned; below the acme.sh directories it
+      would be re-owned to the service user and swept as unmanaged
+      certificate data.
+    quiet: true
+  vars:
+    __run_acmesh_deploy_base_dir_conflicts: >-
+      {%- set conflicts = [] -%}
+      {%- set _base = run_acmesh_cfg_cert_deploy_base_dir -%}
+      {%- for _dir in [run_acmesh_cfg_home, run_acmesh_cfg_config_home, run_acmesh_cfg_cert_home] -%}
+      {%-   if (_base == _dir) or (_base is ansible.builtin.match('^' ~ (_dir ~ '/') | ansible.builtin.regex_escape)) or
+             (_dir is ansible.builtin.match('^' ~ (_base ~ '/') | ansible.builtin.regex_escape)) -%}
+      {%-     set _ = conflicts.append(_dir) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ conflicts }}
+
+
+- name: "Init | Check certificate install strategies and permission keys and fail if unmet"
+  ansible.builtin.assert:
+    that:
+      - "(__run_acmesh_install_structure_offenders | ansible.builtin.length) == 0"
+    fail_msg: >-
+      Invalid run_acmesh_certs[]['install'] settings:
+      {{ __run_acmesh_install_structure_offenders | ansible.builtin.join('; ') }}.
+      Valid strategies are "staged" and "direct"; valid permissions keys are
+      directory, default, ca_file, cert_file, fullchain_file and key_file
+      (each a mapping with optional owner, group and mode); an install with
+      "strategy" or "permissions" needs at least one install file path.
+    quiet: true
+  vars:
+    __run_acmesh_install_structure_offenders: >-
+      {%- set offenders = [] -%}
+      {%- for _cert in __run_acmesh_certs_no_secrets -%}
+      {%-   set _domain = (_cert['domains'] | ansible.builtin.default([{}]))[0]['name'] | ansible.builtin.default('unknown') -%}
+      {%-   set _install = _cert['install'] | ansible.builtin.default({}) -%}
+      {%-   set _strategy = _install['strategy'] | ansible.builtin.default('staged') -%}
+      {%-   set _perms = _install['permissions'] | ansible.builtin.default({}, true) -%}
+      {%-   set _file_keys = [] -%}
+      {%-   for _key in ['ca_file', 'cert_file', 'fullchain_file', 'key_file'] -%}
+      {%-     if (((_install[_key] | ansible.builtin.default('')) | ansible.builtin.length) > 0) -%}
+      {%-       set _ = _file_keys.append(_key) -%}
+      {%-     endif -%}
+      {%-   endfor -%}
+      {%-   if _strategy not in ['staged', 'direct'] -%}
+      {%-     set _ = offenders.append(_domain ~ ': unknown strategy "' ~ _strategy ~ '"') -%}
+      {%-   endif -%}
+      {%-   if _perms is not ansible.builtin.mapping -%}
+      {%-     set _ = offenders.append(_domain ~ ': permissions must be a mapping') -%}
+      {%-   else -%}
+      {%-     for _pkey in _perms.keys() -%}
+      {%-       if _pkey not in ['directory', 'default', 'ca_file', 'cert_file', 'fullchain_file', 'key_file'] -%}
+      {%-         set _ = offenders.append(_domain ~ ': unknown permissions key "' ~ _pkey ~ '"') -%}
+      {%-       elif (_perms[_pkey] | ansible.builtin.default({}, true)) is not ansible.builtin.mapping -%}
+      {%-         set _ = offenders.append(_domain ~ ': permissions.' ~ _pkey ~ ' must be a mapping') -%}
+      {%-       else -%}
+      {%-         for _akey in (_perms[_pkey] | ansible.builtin.default({}, true)).keys() -%}
+      {%-           if _akey not in ['owner', 'group', 'mode'] -%}
+      {%-             set _ = offenders.append(_domain ~ ': unknown permissions.' ~ _pkey ~ ' key "' ~ _akey ~ '"') -%}
+      {%-           endif -%}
+      {%-         endfor -%}
+      {%-       endif -%}
+      {%-     endfor -%}
+      {%-   endif -%}
+      {%-   if (((_install['strategy'] is ansible.builtin.defined) or (_install['permissions'] is ansible.builtin.defined)) and
+               ((_file_keys | ansible.builtin.length) == 0)) -%}
+      {%-     set _ = offenders.append(_domain ~ ': install.strategy/install.permissions without any install file path') -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ offenders }}
+
+
+- name: "Init | Check effective certificate install permissions and fail if unmet"
+  ansible.builtin.assert:
+    that:
+      - "(__run_acmesh_install_permission_offenders | ansible.builtin.length) == 0"
+    fail_msg: >-
+      Invalid effective install permissions:
+      {{ __run_acmesh_install_permission_offenders | ansible.builtin.join('; ') }}.
+      Modes must be quoted octal strings; certificate files must not be
+      executable, group/world-writable or carry setuid/setgid/sticky bits;
+      private keys must not be world-readable; directories may only add the
+      setgid bit. The "direct" strategy does not allow owner/group overrides
+      because the unprivileged service account could not maintain them during
+      unattended renewal.
+    quiet: true
+  vars:
+    __run_acmesh_install_permission_offenders: >-
+      {%- set offenders = [] -%}
+      {%- for _entry in __run_acmesh_install_normalized -%}
+      {%-   set _dir_mode = _entry['directory']['mode'] -%}
+      {%-   if not (_dir_mode is ansible.builtin.match('^[0-7]{3,4}$')) -%}
+      {%-     set _ = offenders.append(_entry['domain'] ~ ': directory mode "' ~ _dir_mode ~ '" is not a quoted octal string') -%}
+      {%-   elif ((_dir_mode | ansible.builtin.length) == 4) and (_dir_mode[0] not in ['0', '2']) -%}
+      {%-     set _ = offenders.append(_entry['domain'] ~ ': directory mode "' ~ _dir_mode ~ '" sets setuid or sticky bits') -%}
+      {%-   endif -%}
+      {%-   for _pair in [['directory owner', _entry['directory']['owner']], ['directory group', _entry['directory']['group']]] -%}
+      {%-     if ((_pair[1] | ansible.builtin.trim | ansible.builtin.length) == 0) -%}
+      {%-       set _ = offenders.append(_entry['domain'] ~ ': empty ' ~ _pair[0]) -%}
+      {%-     endif -%}
+      {%-   endfor -%}
+      {%-   for _key, _artifact in _entry['artifacts'].items() -%}
+      {%-     set _mode = _artifact['mode'] -%}
+      {%-     if not (_mode is ansible.builtin.match('^[0-7]{3,4}$')) -%}
+      {%-       set _ = offenders.append(_entry['domain'] ~ ': ' ~ _key ~ ' mode "' ~ _mode ~ '" is not a quoted octal string') -%}
+      {%-     else -%}
+      {%-       if ((_mode | ansible.builtin.length) == 4) and (_mode[0] != '0') -%}
+      {%-         set _ = offenders.append(_entry['domain'] ~ ': ' ~ _key ~ ' mode "' ~ _mode ~ '" sets setuid/setgid/sticky bits') -%}
+      {%-       endif -%}
+      {%-       if (_mode[-3] in ['1', '3', '5', '7']) or (_mode[-2] in ['1', '3', '5', '7']) or (_mode[-1] in ['1', '3', '5', '7']) -%}
+      {%-         set _ = offenders.append(_entry['domain'] ~ ': ' ~ _key ~ ' mode "' ~ _mode ~ '" sets execute bits') -%}
+      {%-       endif -%}
+      {%-       if (_mode[-2] in ['2', '3', '6', '7']) or (_mode[-1] in ['2', '3', '6', '7']) -%}
+      {%-         set _ = offenders.append(_entry['domain'] ~ ': ' ~ _key ~ ' mode "' ~ _mode ~ '" is group- or world-writable') -%}
+      {%-       endif -%}
+      {%-       if (_key == 'key_file') and (_mode[-1] != '0') -%}
+      {%-         set _ = offenders.append(_entry['domain'] ~ ': key_file mode "' ~ _mode ~ '" grants world access to the private key') -%}
+      {%-       endif -%}
+      {%-     endif -%}
+      {%-     for _pair in [['owner', _artifact['owner']], ['group', _artifact['group']]] -%}
+      {%-       if ((_pair[1] | ansible.builtin.trim | ansible.builtin.length) == 0) -%}
+      {%-         set _ = offenders.append(_entry['domain'] ~ ': empty ' ~ _key ~ ' ' ~ _pair[0]) -%}
+      {%-       endif -%}
+      {%-     endfor -%}
+      {%-     if (_entry['strategy'] == 'direct') and
+               ((_artifact['owner'] != (run_acmesh_user | ansible.builtin.string)) or
+                (_artifact['group'] != (run_acmesh_group | ansible.builtin.string))) -%}
+      {%-       set _ = offenders.append(_entry['domain'] ~ ': ' ~ _key ~ ' ownership override with strategy "direct"') -%}
+      {%-     endif -%}
+      {%-   endfor -%}
+      {%-   if (_entry['strategy'] == 'direct') and
+             ((_entry['directory']['owner'] != (run_acmesh_user | ansible.builtin.string)) or
+              (_entry['directory']['group'] != (run_acmesh_group | ansible.builtin.string))) -%}
+      {%-     set _ = offenders.append(_entry['domain'] ~ ': directory ownership override with strategy "direct"') -%}
+      {%-   endif -%}
+      {%-   if ((_entry['cert_id'] | ansible.builtin.length) > 200) -%}
+      {%-     set _ = offenders.append(_entry['domain'] ~ ': primary domain too long for the derived systemd unit names') -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ offenders }}

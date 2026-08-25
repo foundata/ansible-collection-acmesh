@@ -222,3 +222,306 @@
   loop: "{{ __run_acmesh_reload_units }}"
   loop_control:
     label: "{{ item['name'] }}"
+
+
+# Staged certificate deployment (install strategy "staged", the default):
+# acme.sh installs into a per-certificate staging directory below the
+# root-owned staging base; a root-owned path/service unit pair per certificate
+# (acmesh-deploy-*) runs a fixed helper program which validates the staged
+# files and publishes them to the final destinations with the configured
+# ownership and modes. This keeps acme.sh unprivileged while supporting
+# destinations below protected directories such as /etc/ssl/private. The unit
+# naming and lifecycle mirror the acmesh-reload-* units above; the initial
+# (synchronous) deployment happens in tasks/cert/default.yml.
+
+- name: "Config | Default | Create the staging base directory (staged deployment)"
+  ansible.builtin.file:
+    path: "{{ run_acmesh_cfg_cert_deploy_base_dir }}"
+    state: "directory"
+    owner: "{{ __run_acmesh_deploy_staging_base_dir_owner }}"
+    group: "{{ __run_acmesh_deploy_staging_base_dir_group }}"
+    mode: "{{ __run_acmesh_deploy_staging_base_dir_mode }}"
+  when:
+    - (__run_acmesh_install_normalized_staged | ansible.builtin.length) > 0
+
+
+- name: "Config | Default | Create the certificate staging directories (staged deployment)"
+  ansible.builtin.file:
+    path: "{{ item['staging_dir'] }}"
+    state: "directory"
+    owner: "{{ run_acmesh_user }}"
+    group: "{{ run_acmesh_group }}"
+    mode: "{{ __run_acmesh_deploy_staging_dir_mode }}"
+  loop: "{{ __run_acmesh_install_normalized_staged }}"
+  loop_control:
+    label: "{{ item['domain'] }}"
+
+
+- name: "Config | Default | Install the deploy helper (staged deployment)"
+  ansible.builtin.copy:
+    src: "acmesh-deploy.py"
+    dest: "{{ __run_acmesh_deploy_helper_path }}"
+    owner: "{{ __run_acmesh_deploy_helper_owner }}"
+    group: "{{ __run_acmesh_deploy_helper_group }}"
+    mode: "{{ __run_acmesh_deploy_helper_mode }}"
+  when:
+    - (__run_acmesh_install_normalized_staged | ansible.builtin.length) > 0
+
+
+- name: "Config | Default | Create the deployment manifest directory (staged deployment)"
+  ansible.builtin.file:
+    path: "{{ __run_acmesh_deploy_manifest_dir_path }}"
+    state: "directory"
+    owner: "{{ __run_acmesh_deploy_manifest_dir_owner }}"
+    group: "{{ __run_acmesh_deploy_manifest_dir_group }}"
+    mode: "{{ __run_acmesh_deploy_manifest_dir_mode }}"
+  when:
+    - (__run_acmesh_install_normalized_staged | ansible.builtin.length) > 0
+
+
+# The manifests must only contain trusted numeric UID/GID values, so the
+# effective owner/group names are resolved here (after the setup phase
+# created the service account, which is the default owner).
+- name: "Config | Default | Look up the numeric UID of every staged install owner"
+  ansible.builtin.getent:
+    database: "passwd"
+    key: "{{ item }}"
+    fail_key: false
+  loop: "{{ __run_acmesh_install_staged_owner_names }}"
+  register: __run_acmesh_install_owner_getent
+
+
+- name: "Config | Default | Look up the numeric GID of every staged install group"
+  ansible.builtin.getent:
+    database: "group"
+    key: "{{ item }}"
+    fail_key: false
+  loop: "{{ __run_acmesh_install_staged_group_names }}"
+  register: __run_acmesh_install_group_getent
+
+
+- name: "Config | Default | Resolve staged install owner and group names to numeric IDs"
+  ansible.builtin.set_fact:
+    # getent keys its result by the entry name, so a numeric lookup (e.g.
+    # owner "0") is keyed "root"; each loop result contains exactly the one
+    # queried entry, so the first value belongs to the looped name.
+    __run_acmesh_install_uid_map: >-
+      {%- set map = {} -%}
+      {%- for _res in (__run_acmesh_install_owner_getent['results'] | ansible.builtin.default([])) -%}
+      {%-   set _values = ((_res['ansible_facts'] | ansible.builtin.default({}))['getent_passwd']
+                          | ansible.builtin.default({})).values() | ansible.builtin.list -%}
+      {%-   if ((_values | ansible.builtin.length) > 0) and (_values[0] is not ansible.builtin.none) -%}
+      {%-     set _ = map.update({(_res['item'] | ansible.builtin.string): (_values[0][1] | ansible.builtin.int)}) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ map }}
+    __run_acmesh_install_gid_map: >-
+      {%- set map = {} -%}
+      {%- for _res in (__run_acmesh_install_group_getent['results'] | ansible.builtin.default([])) -%}
+      {%-   set _values = ((_res['ansible_facts'] | ansible.builtin.default({}))['getent_group']
+                          | ansible.builtin.default({})).values() | ansible.builtin.list -%}
+      {%-   if ((_values | ansible.builtin.length) > 0) and (_values[0] is not ansible.builtin.none) -%}
+      {%-     set _ = map.update({(_res['item'] | ansible.builtin.string): (_values[0][1] | ansible.builtin.int)}) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ map }}
+  when:
+    - (__run_acmesh_install_normalized_staged | ansible.builtin.length) > 0
+
+
+- name: "Config | Default | Determine unresolved staged install owners and groups"
+  ansible.builtin.set_fact:
+    __run_acmesh_install_ids_unresolved: >-
+      {%- set missing = [] -%}
+      {%- for _name in __run_acmesh_install_staged_owner_names -%}
+      {%-   if (_name | ansible.builtin.string) not in __run_acmesh_install_uid_map -%}
+      {%-     set _ = missing.append('owner ' ~ _name) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {%- for _name in __run_acmesh_install_staged_group_names -%}
+      {%-   if (_name | ansible.builtin.string) not in __run_acmesh_install_gid_map -%}
+      {%-     set _ = missing.append('group ' ~ _name) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ missing }}
+  when:
+    - (__run_acmesh_install_normalized_staged | ansible.builtin.length) > 0
+
+
+- name: "Config | Default | Check every staged install owner and group exists and fail if unmet"
+  # In check mode a missing owner/group is only reported (see the next task):
+  # it may be created by an earlier step of the same play which check mode did
+  # not really execute.
+  ansible.builtin.assert:
+    that:
+      - "(__run_acmesh_install_ids_unresolved | ansible.builtin.length) == 0"
+    fail_msg: >-
+      The following install.permissions owner(s)/group(s) do not exist on the
+      target: {{ __run_acmesh_install_ids_unresolved | ansible.builtin.join(', ') }}.
+      Create them before running this role (or fix the permission settings).
+    quiet: true
+  when:
+    - (__run_acmesh_install_normalized_staged | ansible.builtin.length) > 0
+    - not ansible_check_mode
+
+
+- name: "Config | Default | Notify about unresolved install owners and groups (check mode)"
+  ansible.builtin.debug:
+    msg: >-
+      Check mode: the following install.permissions owner(s)/group(s) do not
+      exist (yet): {{ __run_acmesh_install_ids_unresolved | ansible.builtin.join(', ') }}.
+      The deployment manifests cannot be rendered without them; a real run
+      fails unless they exist by the time this role runs.
+  when:
+    - (__run_acmesh_install_normalized_staged | ansible.builtin.length) > 0
+    - ansible_check_mode
+    - (__run_acmesh_install_ids_unresolved | ansible.builtin.default([]) | ansible.builtin.length) > 0
+
+
+- name: "Config | Default | Create deployment manifest(s) (staged deployment)"
+  ansible.builtin.template:
+    src: "acmesh-deploy-manifest.json.j2"
+    dest: "{{ __run_acmesh_deploy_manifest_dir_path }}/{{ item['cert_id'] }}.json"
+    owner: "{{ __run_acmesh_deploy_manifest_file_owner }}"
+    group: "{{ __run_acmesh_deploy_manifest_file_group }}"
+    mode: "{{ __run_acmesh_deploy_manifest_file_mode }}"
+  vars:
+    tpl_manifest: >-
+      {%- set _artifacts = {} -%}
+      {%- for _key, _artifact in item['artifacts'].items() -%}
+      {%-   set _ = _artifacts.update({_key: {
+              'staging': _artifact['staging'],
+              'destination': _artifact['dest'],
+              'uid': (__run_acmesh_install_uid_map[_artifact['owner']] | ansible.builtin.int),
+              'gid': (__run_acmesh_install_gid_map[_artifact['group']] | ansible.builtin.int),
+              'mode': _artifact['mode'],
+            }}) -%}
+      {%- endfor -%}
+      {{ {
+        'version': 1,
+        'certificate_id': item['cert_id'],
+        'domains': item['domains'],
+        'staging_dir': item['staging_dir'],
+        'completion_artifact': item['completion_key'],
+        'artifacts': _artifacts,
+      } }}
+  when:
+    - (__run_acmesh_install_ids_unresolved | ansible.builtin.default([]) | ansible.builtin.length) == 0
+  loop: "{{ __run_acmesh_install_normalized_staged }}"
+  loop_control:
+    label: "{{ item['domain'] }}"
+
+
+- name: "Config | Default | Create systemd unit file(s) (acmesh-deploy-*.service)"
+  ansible.builtin.copy:
+    dest: "{{ __run_acmesh_deploy_unitfile_dir }}/{{ __run_acmesh_deploy_unit_prefix }}{{ item['cert_id'] }}.service"
+    content: |
+      [Unit]
+      Description=acme.sh - deploy staged certificate files ({{ item['domain'] }})
+
+      [Service]
+      Type=oneshot
+      # No explicit User=/Group=: the system manager runs services as root
+      # anyway and an explicit User= makes systemd retain CAP_SYS_ADMIN
+      # across the user transition for the sandboxing below, which fails in
+      # unprivileged containers.
+      UMask=0077
+      ExecStart={{ __run_acmesh_deploy_python_exec_path }} {{ __run_acmesh_deploy_helper_path }} {{ __run_acmesh_deploy_manifest_file }}
+      NoNewPrivileges=true
+      PrivateTmp=true
+      PrivateDevices=true
+      PrivateNetwork=true
+      ProtectSystem=strict
+      ProtectHome=read-only
+      ProtectKernelTunables=true
+      ProtectKernelModules=true
+      ProtectKernelLogs=true
+      ProtectControlGroups=true
+      ProtectClock=true
+      ProtectHostname=true
+      RestrictSUIDSGID=true
+      RestrictRealtime=true
+      RestrictNamespaces=true
+      LockPersonality=true
+      SystemCallArchitectures=native
+      {% for _dir in item['directories'] %}
+      ReadWritePaths={{ _dir }}
+      {% endfor %}
+      StandardError=journal
+      SyslogIdentifier=acmesh-deploy
+    force: true
+    owner: "{{ __run_acmesh_deploy_unitfile_owner }}"
+    group: "{{ __run_acmesh_deploy_unitfile_group }}"
+    mode: "{{ __run_acmesh_deploy_unitfile_mode }}"
+  vars:
+    __run_acmesh_deploy_manifest_file: "{{ __run_acmesh_deploy_manifest_dir_path }}/{{ item['cert_id'] }}.json"
+  loop: "{{ __run_acmesh_install_normalized_staged }}"
+  loop_control:
+    label: "{{ item['cert_id'] }}"
+  notify:
+    - "run_acmesh: systemd daemon-reload"
+
+
+- name: "Config | Default | Create systemd unit file(s) (acmesh-deploy-*.path)"
+  ansible.builtin.copy:
+    dest: "{{ __run_acmesh_deploy_unitfile_dir }}/{{ __run_acmesh_deploy_unit_prefix }}{{ item['cert_id'] }}.path"
+    content: |
+      [Unit]
+      Description=acme.sh - watch staged certificate files ({{ item['domain'] }})
+
+      [Path]
+      # PathChanged= triggers when the watched file gets closed after writing
+      # or renamed into place, not on every write and not on permission or
+      # ownership changes. acme.sh writes this staged artifact last, and the
+      # deploy helper publishes its final counterpart last, so both watchers
+      # only fire on complete sets.
+      PathChanged={{ item['artifacts'][item['completion_key']]['staging'] }}
+      Unit={{ __run_acmesh_deploy_unit_prefix }}{{ item['cert_id'] }}.service
+
+      [Install]
+      WantedBy=multi-user.target
+    force: true
+    owner: "{{ __run_acmesh_deploy_unitfile_owner }}"
+    group: "{{ __run_acmesh_deploy_unitfile_group }}"
+    mode: "{{ __run_acmesh_deploy_unitfile_mode }}"
+  loop: "{{ __run_acmesh_install_normalized_staged }}"
+  loop_control:
+    label: "{{ item['cert_id'] }}"
+  notify:
+    - "run_acmesh: systemd daemon-reload"
+
+
+# Strategy transition staged -> direct: a managed certificate with strategy
+# "direct" must not keep deploy resources. (Deploy resources of certificates
+# that are no longer listed at all are kept, exactly like the acmesh-reload-*
+# units: acme.sh keeps renewing unlisted certificates into their staging area
+# until they are removed via state "absent" or the delete-unmanaged sweep.)
+- name: "Config | Default | Disable deploy units of certificates with strategy 'direct' (best-effort)"
+  ansible.builtin.systemd_service:
+    name: "{{ __run_acmesh_deploy_unit_prefix }}{{ item[0]['cert_id'] }}.{{ item[1] }}"
+    enabled: false
+    state: "stopped"
+  failed_when:
+    - false # the unit might not exist (e.g. certificate was never staged)
+  loop: "{{ __run_acmesh_install_normalized_direct | ansible.builtin.product(['path', 'service']) }}"
+  loop_control:
+    label: "{{ item[0]['cert_id'] }} ({{ item[1] }})"
+  notify:
+    - "run_acmesh: systemd daemon-reload"
+
+
+- name: "Config | Default | Delete deploy resources of certificates with strategy 'direct'"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: "absent"
+  loop: >-
+    {%- set paths = [] -%}
+    {%- for _entry in __run_acmesh_install_normalized_direct -%}
+    {%-   set _ = paths.append(__run_acmesh_deploy_unitfile_dir ~ '/' ~ __run_acmesh_deploy_unit_prefix ~ _entry['cert_id'] ~ '.path') -%}
+    {%-   set _ = paths.append(__run_acmesh_deploy_unitfile_dir ~ '/' ~ __run_acmesh_deploy_unit_prefix ~ _entry['cert_id'] ~ '.service') -%}
+    {%-   set _ = paths.append(__run_acmesh_deploy_manifest_dir_path ~ '/' ~ _entry['cert_id'] ~ '.json') -%}
+    {%-   set _ = paths.append(_entry['staging_dir']) -%}
+    {%- endfor -%}
+    {{ paths }}
+  notify:
+    - "run_acmesh: systemd daemon-reload"

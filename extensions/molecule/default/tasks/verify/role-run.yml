@@ -19,6 +19,10 @@
       | ansible.builtin.selectattr('key', 'ansible.builtin.match', '^(run_acmesh_|__testing_)')
       | ansible.builtin.list
     }}
+  loop_control:
+    # Label with the variable name only: the values include the DNS API
+    # credentials (run_acmesh_environment, per-certificate environment).
+    label: "{{ item['key'] }}"
 
 
 ## Check mode on the installed system
@@ -555,34 +559,91 @@
         fail_msg: "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc/ does not exist or has incorrect permissions/ownership"
 
 
-    - name: "Molecule | Verify | Gather stats for installed certificate files (webroot challenge)"
+    # The webroot certificate uses the (default) "staged" strategy with
+    # partial install.permissions overrides: directory and files root-owned
+    # with the "molecule-ssl-cert" group, files 0640 via permissions.default,
+    # the fullchain overridden to 0644 and the key below a parent directory
+    # the service user cannot traverse.
+    - name: "Molecule | Verify | Gather stats for installed certificate files (webroot challenge, staged)"
+      ansible.builtin.stat:
+        path: "{{ item['path'] }}"
+        get_checksum: false
+        get_mime: false
+      loop:
+        - path: "/etc/pki/tls/certs/acmesh-webroot.test/ca.cer"
+          mode: "0640"
+        - path: "/etc/pki/tls/certs/acmesh-webroot.test/cert.cer"
+          mode: "0640"
+        - path: "/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer"
+          mode: "0644"
+        - path: "/etc/molecule-acmesh-protected/acmesh-webroot.test/cert.key"
+          mode: "0640"
+      loop_control:
+        label: "{{ item['path'] }}"
+      register: __testing_acmesh_webroot_cert_files_stat
+
+
+    - name: "Molecule | Verify | Check existence, permissions and ownership: installed certificate files (webroot challenge, staged)"
+      ansible.builtin.assert:
+        that:
+          - item['stat']['exists']
+          - item['stat']['isreg']
+          - item['stat']['mode'] == item['item']['mode']
+          - item['stat']['pw_name'] == 'root'
+          - item['stat']['gr_name'] == 'molecule-ssl-cert'
+        fail_msg: >-
+          {{ item['stat']['path'] | ansible.builtin.default(item['item']['path']) }}
+          does not exist or has incorrect permissions/ownership (expected
+          root:molecule-ssl-cert {{ item['item']['mode'] }})
+      loop: "{{ __testing_acmesh_webroot_cert_files_stat['results'] | ansible.builtin.default([]) }}"
+      loop_control:
+        label: "{{ item['item']['path'] }}"
+      when:
+        - __testing_acmesh_webroot_cert_files_stat['results'] is ansible.builtin.defined
+        - __testing_acmesh_webroot_cert_files_stat['results'] | ansible.builtin.length > 0
+
+
+    - name: "Molecule | Verify | Gather stats for the destination directories (webroot challenge, staged)"
       ansible.builtin.stat:
         path: "{{ item }}"
         get_checksum: false
         get_mime: false
       loop:
-        - "/etc/pki/tls/certs/acmesh-webroot.test/ca.cer"
-        - "/etc/pki/tls/certs/acmesh-webroot.test/cert.cer"
-        - "/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer"
-        - "/etc/pki/tls/certs/acmesh-webroot.test/cert.key"
-      register: __testing_acmesh_webroot_cert_files_stat
+        - "/etc/pki/tls/certs/acmesh-webroot.test"
+        - "/etc/molecule-acmesh-protected/acmesh-webroot.test"
+      register: __testing_acmesh_webroot_cert_dirs_stat
 
 
-    - name: "Molecule | Verify | Check existence, permissions and ownership: installed certificate files (webroot challenge)"
+    - name: "Molecule | Verify | Check permissions and ownership: destination directories (webroot challenge, staged)"
       ansible.builtin.assert:
         that:
           - item['stat']['exists']
-          - item['stat']['isreg']
-          - item['stat']['mode'] == '0640'
-          - item['stat']['pw_name'] == run_acmesh_user
-          - item['stat']['gr_name'] == run_acmesh_group
-        fail_msg: "{{ item['stat']['path'] }} does not exist or has incorrect permissions/ownership"
-      loop: "{{ __testing_acmesh_webroot_cert_files_stat['results'] | ansible.builtin.default([]) }}"
+          - item['stat']['isdir']
+          - item['stat']['mode'] == '0750'
+          - item['stat']['pw_name'] == 'root'
+          - item['stat']['gr_name'] == 'molecule-ssl-cert'
+        fail_msg: >-
+          {{ item['item'] }} does not exist or has incorrect
+          permissions/ownership (expected root:molecule-ssl-cert 0750)
+      loop: "{{ __testing_acmesh_webroot_cert_dirs_stat['results'] | ansible.builtin.default([]) }}"
       loop_control:
-        label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
-      when:
-        - __testing_acmesh_webroot_cert_files_stat['results'] is ansible.builtin.defined
-        - __testing_acmesh_webroot_cert_files_stat['results'] | ansible.builtin.length > 0
+        label: "{{ item['item'] }}"
+
+
+    - name: "Molecule | Verify | Try to read the protected private key as the service user (must fail)"
+      ansible.builtin.command:
+        argv:
+          - "runuser"
+          - "-u"
+          - "{{ run_acmesh_user }}"
+          - "--"
+          - "cat"
+          - "/etc/molecule-acmesh-protected/acmesh-webroot.test/cert.key"
+      changed_when:
+        - false
+      failed_when:
+        - __testing_acmesh_protected_key_read is ansible.builtin.success
+      register: __testing_acmesh_protected_key_read
 
 
     - name: "Molecule | Verify | Read certificate SAN (Subject Alternative Name) (webroot challenge)"
@@ -609,6 +670,259 @@
         success_msg: "Webroot certificate SAN matches: {{ __testing_acmesh_webroot_cert_san['stdout'] }}"
       when:
         - __testing_acmesh_webroot_cert_san is ansible.builtin.defined
+
+
+## Staged deployment resources (acmesh-deploy-*, staging area, manifest)
+
+- name: "Molecule | Verify | Staged deployment resources (webroot challenge)"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+  block:
+
+    - name: "Molecule | Verify | Gather stats for the staging base and certificate staging directory"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        get_checksum: false
+        get_mime: false
+      loop:
+        - "{{ run_acmesh_cfg_cert_deploy_base_dir }}"
+        - "{{ run_acmesh_cfg_cert_deploy_base_dir }}/acmesh-webroot.test"
+      register: __testing_acmesh_staging_dirs_stat
+
+
+    - name: "Molecule | Verify | Assert the staging base is root-owned and the staging directory service-user owned"
+      ansible.builtin.assert:
+        that:
+          - __testing_acmesh_staging_dirs_stat['results'][0]['stat']['exists']
+          - __testing_acmesh_staging_dirs_stat['results'][0]['stat']['isdir']
+          - __testing_acmesh_staging_dirs_stat['results'][0]['stat']['mode'] == '0755'
+          - __testing_acmesh_staging_dirs_stat['results'][0]['stat']['pw_name'] == 'root'
+          - __testing_acmesh_staging_dirs_stat['results'][0]['stat']['gr_name'] == 'root'
+          - __testing_acmesh_staging_dirs_stat['results'][1]['stat']['exists']
+          - __testing_acmesh_staging_dirs_stat['results'][1]['stat']['isdir']
+          - __testing_acmesh_staging_dirs_stat['results'][1]['stat']['mode'] == '0750'
+          - __testing_acmesh_staging_dirs_stat['results'][1]['stat']['pw_name'] == run_acmesh_user
+          - __testing_acmesh_staging_dirs_stat['results'][1]['stat']['gr_name'] == run_acmesh_group
+        fail_msg: >-
+          The staging base or the certificate staging directory does not exist
+          or has incorrect permissions/ownership.
+
+
+    - name: "Molecule | Verify | Gather stats for the staged certificate files"
+      ansible.builtin.stat:
+        path: "{{ run_acmesh_cfg_cert_deploy_base_dir }}/acmesh-webroot.test/{{ item }}"
+        get_checksum: false
+        get_mime: false
+      loop:
+        - "ca.cer"
+        - "cert.cer"
+        - "fullchain.cer"
+        - "cert.key"
+      register: __testing_acmesh_staging_files_stat
+
+
+    - name: "Molecule | Verify | Assert the staged certificate files exist and are service-user owned"
+      ansible.builtin.assert:
+        that:
+          - item['stat']['exists']
+          - item['stat']['isreg']
+          - item['stat']['pw_name'] == run_acmesh_user
+        fail_msg: >-
+          Staged file {{ item['item'] }} does not exist or is not owned by the
+          service user (acme.sh writes the staging area during installation
+          and renewal).
+      loop: "{{ __testing_acmesh_staging_files_stat['results'] }}"
+      loop_control:
+        label: "{{ item['item'] }}"
+
+
+    - name: "Molecule | Verify | Gather stats for the deployment manifest and unit files"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        get_checksum: false
+        get_mime: false
+      loop:
+        - "/etc/acmesh-deploy.d/acmesh-webroot.test.json"
+        - "/etc/systemd/system/acmesh-deploy-acmesh-webroot.test.path"
+        - "/etc/systemd/system/acmesh-deploy-acmesh-webroot.test.service"
+        - "/usr/libexec/acmesh-deploy"
+      register: __testing_acmesh_deploy_files_stat
+
+
+    - name: "Molecule | Verify | Assert manifest, units and helper are root-owned and not group/world-writable"
+      ansible.builtin.assert:
+        that:
+          - item['stat']['exists']
+          - item['stat']['isreg']
+          - item['stat']['pw_name'] == 'root'
+          - item['stat']['gr_name'] == 'root'
+          - item['stat']['wgrp'] is ansible.builtin.falsy
+          - item['stat']['woth'] is ansible.builtin.falsy
+        fail_msg: "{{ item['item'] }} does not exist or has unsafe ownership/permissions"
+      loop: "{{ __testing_acmesh_deploy_files_stat['results'] }}"
+      loop_control:
+        label: "{{ item['item'] }}"
+
+
+    - name: "Molecule | Verify | Read the deployment manifest"
+      ansible.builtin.slurp:
+        src: "/etc/acmesh-deploy.d/acmesh-webroot.test.json"
+      register: __testing_acmesh_manifest_slurp
+
+
+    - name: "Molecule | Verify | Get the GID of the install permission group"
+      ansible.builtin.getent:
+        database: "group"
+        key: "molecule-ssl-cert"
+
+
+    - name: "Molecule | Verify | Assert the manifest holds the expected normalized, numeric deployment data"
+      ansible.builtin.assert:
+        that:
+          - __testing_acmesh_manifest['version'] == 1
+          - __testing_acmesh_manifest['certificate_id'] == 'acmesh-webroot.test'
+          - __testing_acmesh_manifest['completion_artifact'] == 'fullchain_file'
+          - __testing_acmesh_manifest['domains'] == ['acmesh-webroot.test']
+          - __testing_acmesh_manifest['staging_dir'] == run_acmesh_cfg_cert_deploy_base_dir ~ '/acmesh-webroot.test'
+          - __testing_acmesh_manifest['artifacts']['key_file']['uid'] == 0
+          - __testing_acmesh_manifest['artifacts']['key_file']['gid'] == (ansible_facts['getent_group']['molecule-ssl-cert'][1] | ansible.builtin.int)
+          - __testing_acmesh_manifest['artifacts']['key_file']['mode'] == '0640'
+          - __testing_acmesh_manifest['artifacts']['key_file']['destination'] == '/etc/molecule-acmesh-protected/acmesh-webroot.test/cert.key'
+          - __testing_acmesh_manifest['artifacts']['fullchain_file']['mode'] == '0644'
+        fail_msg: >-
+          The deployment manifest does not contain the expected normalized
+          values: {{ __testing_acmesh_manifest }}
+      vars:
+        __testing_acmesh_manifest: "{{ __testing_acmesh_manifest_slurp['content'] | ansible.builtin.b64decode | ansible.builtin.from_json }}"
+
+
+    - name: "Molecule | Verify | Get acmesh-deploy path unit state"
+      ansible.builtin.command:
+        argv:
+          - "systemctl"
+          - "show"
+          - "acmesh-deploy-acmesh-webroot.test.path"
+          - "--property=ActiveState,UnitFileState"
+      changed_when:
+        - false
+      register: __testing_acmesh_deploy_path_state
+
+
+    - name: "Molecule | Verify | Assert the acmesh-deploy path unit is active and enabled"
+      ansible.builtin.assert:
+        that:
+          - "'ActiveState=active' in __testing_acmesh_deploy_path_state['stdout']"
+          - "'UnitFileState=enabled' in __testing_acmesh_deploy_path_state['stdout']"
+        fail_msg: >-
+          The acmesh-deploy path unit is not active/enabled:
+          {{ __testing_acmesh_deploy_path_state['stdout'] }}
+
+
+    - name: "Molecule | Verify | Verify all acmesh-* systemd units with systemd-analyze"
+      # The command or shell module is used intentionally:
+      # Ansible provides no dedicated module to perform this operation.
+      ansible.builtin.shell:
+        cmd: |
+          set -u              # no uninitialized vars
+          set -e -o pipefail  # exit on (pipeline) errors
+          systemd-analyze verify /etc/systemd/system/acmesh-*.service /etc/systemd/system/acmesh-*.path /etc/systemd/system/acmesh-*.timer
+        executable: "/bin/bash"
+      changed_when:
+        - false
+
+
+    - name: "Molecule | Verify | Check the deploy helper reports the deployment as in sync"
+      ansible.builtin.command:
+        argv:
+          - "{{ __run_acmesh_deploy_python_exec_path }}"
+          - "{{ __run_acmesh_deploy_helper_path }}"
+          - "--check"
+          - "/etc/acmesh-deploy.d/acmesh-webroot.test.json"
+      changed_when:
+        - false
+
+
+    - name: "Molecule | Verify | Search the acmesh-deploy journal for private key material and the canary credential"
+      # The command or shell module is used intentionally:
+      # Ansible provides no dedicated module to perform this operation.
+      ansible.builtin.shell:
+        cmd: |
+          set -u # no uninitialized vars
+          set -o pipefail
+          journalctl -t acmesh-deploy --no-pager 2>/dev/null \
+            | grep -E -e 'PRIVATE KEY' -e 'molecule-canary-cred-do-not-print-1f9e' || true
+        executable: "/bin/bash"
+      changed_when:
+        - false
+      register: __testing_acmesh_deploy_journal_leaks
+
+
+    - name: "Molecule | Verify | Assert the acmesh-deploy journal contains no private key material or credentials"
+      ansible.builtin.assert:
+        that:
+          - (__testing_acmesh_deploy_journal_leaks['stdout'] | ansible.builtin.trim | ansible.builtin.length) == 0
+        fail_msg: >-
+          The acmesh-deploy journal leaked sensitive content:
+          {{ __testing_acmesh_deploy_journal_leaks['stdout_lines'] | ansible.builtin.default([]) }}
+
+
+## Direct installation strategy (pre-4.0.0 behavior, explicit opt-in)
+
+- name: "Molecule | Verify | Direct installation strategy (webroot challenge)"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+  block:
+
+    - name: "Molecule | Verify | Gather stats for installed certificate files (direct strategy)"
+      ansible.builtin.stat:
+        path: "/etc/pki/tls/certs/acmesh-direct.test/{{ item }}"
+        get_checksum: false
+        get_mime: false
+      loop:
+        - "ca.cer"
+        - "cert.cer"
+        - "fullchain.cer"
+        - "cert.key"
+      register: __testing_acmesh_direct_cert_files_stat
+
+
+    - name: "Molecule | Verify | Check existence, permissions and ownership: installed certificate files (direct strategy)"
+      # The direct strategy keeps the pre-4.0.0 defaults: files written by the
+      # unprivileged service user, run_acmesh_user:run_acmesh_group with 0640.
+      ansible.builtin.assert:
+        that:
+          - item['stat']['exists']
+          - item['stat']['isreg']
+          - item['stat']['mode'] == '0640'
+          - item['stat']['pw_name'] == run_acmesh_user
+          - item['stat']['gr_name'] == run_acmesh_group
+        fail_msg: "{{ item['item'] }} does not exist or has incorrect permissions/ownership"
+      loop: "{{ __testing_acmesh_direct_cert_files_stat['results'] }}"
+      loop_control:
+        label: "{{ item['item'] }}"
+
+
+    - name: "Molecule | Verify | Gather stats for deploy resources of the direct certificate (must not exist)"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        get_checksum: false
+        get_mime: false
+      loop:
+        - "{{ run_acmesh_cfg_cert_deploy_base_dir }}/acmesh-direct.test"
+        - "/etc/acmesh-deploy.d/acmesh-direct.test.json"
+        - "/etc/systemd/system/acmesh-deploy-acmesh-direct.test.path"
+        - "/etc/systemd/system/acmesh-deploy-acmesh-direct.test.service"
+      register: __testing_acmesh_direct_deploy_stat
+
+
+    - name: "Molecule | Verify | Assert the direct certificate has no staged deployment resources"
+      ansible.builtin.assert:
+        that:
+          - not item['stat']['exists']
+        fail_msg: "{{ item['item'] }} exists although the certificate uses the 'direct' strategy"
+      loop: "{{ __testing_acmesh_direct_deploy_stat['results'] }}"
+      loop_control:
+        label: "{{ item['item'] }}"
 
 
 ## Reload decoupling: root-side acmesh-reload-* path/service units
@@ -702,18 +1016,42 @@
           certificate files did not trigger the acmesh-reload path unit.
 
 
-    # Functional round-trip: an unprivileged write to the watched file (as done
-    # by the renewal service) must trigger the root-side reload. "dd" with
+    # Functional round-trip, negative direction: an unprivileged write to the
+    # STAGED completion file with unchanged content (as done by acme.sh on
+    # every --install-cert run) must trigger the deploy service via the
+    # acmesh-deploy-*.path unit, but the helper must not replace the final
+    # files (content is identical) and therefore no reload may fire. "dd" with
     # "conv=notrunc" and zero blocks opens the file for writing and closes it
-    # again without altering its content, firing the close-after-write event
-    # the path unit watches.
+    # again without altering its content, firing the close-after-write event.
     - name: "Molecule | Verify | Remove the reload marker file (webroot challenge)"
       ansible.builtin.file:
         path: "/var/tmp/acmesh-reload-webroot-marker"
         state: "absent"
 
 
-    - name: "Molecule | Verify | Touch the watched certificate file as the service user (webroot challenge)"
+    - name: "Molecule | Verify | Record the final fullchain file state before the staging touch (webroot challenge)"
+      ansible.builtin.stat:
+        path: "/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer"
+        get_checksum: false
+        get_mime: false
+      register: __testing_acmesh_fullchain_before
+
+
+    - name: "Molecule | Verify | Count previous in-sync deploy runs in the journal (webroot challenge)"
+      # The command or shell module is used intentionally:
+      # Ansible provides no dedicated module to perform this operation.
+      ansible.builtin.shell:
+        cmd: |
+          set -u # no uninitialized vars
+          set -o pipefail
+          journalctl -t acmesh-deploy --no-pager 2>/dev/null | grep -c 'already in sync' || true
+        executable: "/bin/bash"
+      changed_when:
+        - false
+      register: __testing_acmesh_insync_count_before
+
+
+    - name: "Molecule | Verify | Touch the staged completion file as the service user (webroot challenge)"
       ansible.builtin.command:
         argv:
           - "runuser"
@@ -722,48 +1060,62 @@
           - "--"
           - "dd"
           - "if=/dev/null"
-          - "of=/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer"
+          - "of={{ run_acmesh_cfg_cert_deploy_base_dir }}/acmesh-webroot.test/fullchain.cer"
           - "conv=notrunc"
       changed_when:
         - true
 
 
-    - name: "Molecule | Verify | Wait for the reload marker file to reappear (webroot challenge)"
-      ansible.builtin.stat:
-        path: "/var/tmp/acmesh-reload-webroot-marker"
-        get_checksum: false
-        get_mime: false
-      register: __testing_acmesh_reload_marker_stat_retrigger
+    - name: "Molecule | Verify | Wait for the path-triggered deploy service run (webroot challenge)"
+      # The command or shell module is used intentionally:
+      # Ansible provides no dedicated module to perform this operation.
+      ansible.builtin.shell:
+        cmd: |
+          set -u # no uninitialized vars
+          set -o pipefail
+          journalctl -t acmesh-deploy --no-pager 2>/dev/null | grep -c 'already in sync' || true
+        executable: "/bin/bash"
+      changed_when:
+        - false
+      register: __testing_acmesh_insync_count_after
       until:
-        - __testing_acmesh_reload_marker_stat_retrigger['stat']['exists']
+        - (__testing_acmesh_insync_count_after['stdout'] | ansible.builtin.trim | ansible.builtin.int)
+          > (__testing_acmesh_insync_count_before['stdout'] | ansible.builtin.trim | ansible.builtin.int)
       retries: 15
       delay: 2
 
 
-    - name: "Molecule | Verify | Read the reload marker file (webroot challenge)"
-      ansible.builtin.slurp:
-        src: "/var/tmp/acmesh-reload-webroot-marker"
-      register: __testing_acmesh_reload_marker_content
+    - name: "Molecule | Verify | Record the final fullchain file state after the staging touch (webroot challenge)"
+      ansible.builtin.stat:
+        path: "/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer"
+        get_checksum: false
+        get_mime: false
+      register: __testing_acmesh_fullchain_after
 
 
-    - name: "Molecule | Verify | Assert the reload command ran as root and unaltered after an unprivileged file write (webroot challenge)"
-      # The expected value starts with "root" (the executing username) and
-      # continues with the escaping-torture characters of the configured
-      # reloadcmd, so this proves the root context and the byte-identical
-      # command round-trip through the systemd unit in one comparison.
+    - name: "Molecule | Verify | Gather stats for the reload marker after the unchanged-content deployment (webroot challenge)"
+      ansible.builtin.stat:
+        path: "/var/tmp/acmesh-reload-webroot-marker"
+        get_checksum: false
+        get_mime: false
+      register: __testing_acmesh_reload_marker_stat_unchanged
+
+
+    - name: "Molecule | Verify | Assert unchanged content neither replaced the final files nor triggered a reload"
       ansible.builtin.assert:
         that:
-          - >-
-            (__testing_acmesh_reload_marker_content['content'] | ansible.builtin.b64decode | ansible.builtin.trim)
-            == __testing_reload_marker_expected
+          - __testing_acmesh_fullchain_after['stat']['inode'] == __testing_acmesh_fullchain_before['stat']['inode']
+          - __testing_acmesh_fullchain_after['stat']['mtime'] == __testing_acmesh_fullchain_before['stat']['mtime']
+          - not __testing_acmesh_reload_marker_stat_unchanged['stat']['exists']
         fail_msg: >-
-          The reload command did not run as root or was altered by the systemd
-          escaping (marker content:
-          {{ __testing_acmesh_reload_marker_content['content'] | ansible.builtin.b64decode | ansible.builtin.trim }};
-          expected: {{ __testing_reload_marker_expected }}).
+          A staged deployment with unchanged content replaced the final files
+          or triggered the reload command (inode before/after:
+          {{ __testing_acmesh_fullchain_before['stat']['inode'] }}/{{ __testing_acmesh_fullchain_after['stat']['inode'] }};
+          marker exists:
+          {{ __testing_acmesh_reload_marker_stat_unchanged['stat']['exists'] }}).
         success_msg: >-
-          An unprivileged write to the watched certificate file triggered the
-          reload command, which ran as root with byte-identical content.
+          The path-triggered deploy service ran on the staging touch but left
+          the identical final files untouched and did not trigger a reload.
 
 
 ## Renewal parity
@@ -853,7 +1205,9 @@
     # The renewal ran without any Ansible ownership fixups afterwards, so this
     # is a meaningful check that the whole acme.sh runtime operates as the
     # service user (a root-owned file here would mean some step still runs
-    # with too many privileges).
+    # with too many privileges). The staging directory is included: acme.sh
+    # writes it during renewal. The final destinations are NOT included, they
+    # are legitimately root-owned per the install.permissions fixture.
     - name: "Molecule | Verify | Find files not owned by the service user after the unprivileged renewal"
       ansible.builtin.command:
         argv:
@@ -861,7 +1215,7 @@
           - "{{ run_acmesh_cfg_home }}"
           - "{{ run_acmesh_cfg_config_home }}"
           - "{{ run_acmesh_cfg_cert_home }}"
-          - "/etc/pki/tls/certs/acmesh-webroot.test"
+          - "{{ run_acmesh_cfg_cert_deploy_base_dir }}/acmesh-webroot.test"
           - "!"
           - "-user"
           - "{{ run_acmesh_user }}"
@@ -903,6 +1257,10 @@
 
 
     - name: "Molecule | Verify | Install failure: reinstall with an inaccessible key destination (must fail)"
+      # Uses the "direct" strategy on purpose: only there does the
+      # unprivileged acme.sh write the final paths itself and hit the
+      # inaccessible destination (the staged strategy exists precisely to
+      # avoid this failure mode).
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
       vars:
@@ -913,6 +1271,7 @@
                   type: "webroot"
                   webroot: "/var/www/acmesh-test"
             install:
+              strategy: "direct"
               ca_file: "/etc/pki/tls/certs/acmesh-webroot.test/ca.cer"
               cert_file: "/etc/pki/tls/certs/acmesh-webroot.test/cert.cer"
               fullchain_file: "/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer"
@@ -951,6 +1310,415 @@
     state: "absent"
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+
+
+## Strategy transitions (direct -> staged -> direct)
+
+- name: "Molecule | Verify | Installation strategy transitions (webroot challenge)"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+  block:
+
+    - name: "Molecule | Verify | Transitions: switch the direct certificate to the staged strategy"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+      vars:
+        run_acmesh_certs:
+          - domains:
+              - name: "acmesh-direct.test"
+                challenge:
+                  type: "webroot"
+                  webroot: "/var/www/acmesh-test"
+            install:
+              strategy: "staged"
+              ca_file: "/etc/pki/tls/certs/acmesh-direct.test/ca.cer"
+              cert_file: "/etc/pki/tls/certs/acmesh-direct.test/cert.cer"
+              fullchain_file: "/etc/pki/tls/certs/acmesh-direct.test/fullchain.cer"
+              key_file: "/etc/pki/tls/certs/acmesh-direct.test/cert.key"
+              reloadcmd: ""
+            server: "https://localhost:14000/dir"
+
+
+    - name: "Molecule | Verify | Transitions: gather stats for the staged deployment resources"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        get_checksum: false
+        get_mime: false
+      loop:
+        - "{{ run_acmesh_cfg_cert_deploy_base_dir }}/acmesh-direct.test"
+        - "{{ run_acmesh_cfg_cert_deploy_base_dir }}/acmesh-direct.test/fullchain.cer"
+        - "/etc/acmesh-deploy.d/acmesh-direct.test.json"
+        - "/etc/systemd/system/acmesh-deploy-acmesh-direct.test.path"
+        - "/etc/systemd/system/acmesh-deploy-acmesh-direct.test.service"
+      register: __testing_acmesh_transition_staged_stat
+
+
+    - name: "Molecule | Verify | Transitions: assert the staged deployment resources were created"
+      ansible.builtin.assert:
+        that:
+          - item['stat']['exists']
+        fail_msg: "{{ item['item'] }} does not exist after the direct -> staged transition"
+      loop: "{{ __testing_acmesh_transition_staged_stat['results'] }}"
+      loop_control:
+        label: "{{ item['item'] }}"
+
+
+    - name: "Molecule | Verify | Transitions: switch the certificate back to the direct strategy"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+      vars:
+        run_acmesh_certs:
+          - domains:
+              - name: "acmesh-direct.test"
+                challenge:
+                  type: "webroot"
+                  webroot: "/var/www/acmesh-test"
+            install:
+              strategy: "direct"
+              ca_file: "/etc/pki/tls/certs/acmesh-direct.test/ca.cer"
+              cert_file: "/etc/pki/tls/certs/acmesh-direct.test/cert.cer"
+              fullchain_file: "/etc/pki/tls/certs/acmesh-direct.test/fullchain.cer"
+              key_file: "/etc/pki/tls/certs/acmesh-direct.test/cert.key"
+              reloadcmd: ""
+            server: "https://localhost:14000/dir"
+
+
+    - name: "Molecule | Verify | Transitions: gather stats for the staged deployment resources again"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        get_checksum: false
+        get_mime: false
+      loop:
+        - "{{ run_acmesh_cfg_cert_deploy_base_dir }}/acmesh-direct.test"
+        - "/etc/acmesh-deploy.d/acmesh-direct.test.json"
+        - "/etc/systemd/system/acmesh-deploy-acmesh-direct.test.path"
+        - "/etc/systemd/system/acmesh-deploy-acmesh-direct.test.service"
+      register: __testing_acmesh_transition_direct_stat
+
+
+    - name: "Molecule | Verify | Transitions: assert the staged deployment resources were removed again"
+      ansible.builtin.assert:
+        that:
+          - not item['stat']['exists']
+        fail_msg: "{{ item['item'] }} still exists after the staged -> direct transition"
+      loop: "{{ __testing_acmesh_transition_direct_stat['results'] }}"
+      loop_control:
+        label: "{{ item['item'] }}"
+
+
+    - name: "Molecule | Verify | Transitions: gather stats for the final certificate files"
+      ansible.builtin.stat:
+        path: "/etc/pki/tls/certs/acmesh-direct.test/{{ item }}"
+        get_checksum: false
+        get_mime: false
+      loop:
+        - "fullchain.cer"
+        - "cert.key"
+      register: __testing_acmesh_transition_files_stat
+
+
+    - name: "Molecule | Verify | Transitions: assert the final certificate files survived both transitions"
+      ansible.builtin.assert:
+        that:
+          - item['stat']['exists']
+          - item['stat']['isreg']
+        fail_msg: "{{ item['item'] }} vanished during the strategy transitions"
+      loop: "{{ __testing_acmesh_transition_files_stat['results'] }}"
+      loop_control:
+        label: "{{ item['item'] }}"
+
+
+## Deploy helper hardening (validation, attacks, concurrency, rollback)
+#
+# Focused tests of /usr/libexec/acmesh-deploy with crafted fixtures, run as
+# root with an own manifest so they cannot interfere with the certificates
+# managed by the role.
+
+- name: "Molecule | Verify | Deploy helper hardening"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+  block:
+
+    - name: "Molecule | Verify | Helper: fixtures, initial deployment, idempotence and metadata reconciliation"
+      # The command or shell module is used intentionally: this exercises the
+      # helper binary end-to-end with openssl-crafted fixtures; dedicated
+      # modules cannot cover these interactions.
+      ansible.builtin.shell:
+        cmd: |
+          set -u              # no uninitialized vars
+          set -e -o pipefail  # exit on (pipeline) errors
+          FIX='/root/acmesh-helper-fixtures'
+          STAGE={{ (run_acmesh_cfg_cert_deploy_base_dir ~ '/helper-fixture') | ansible.builtin.quote }}
+          DESTDIR='/var/tmp/acmesh-helper-dest'
+          MANIFEST='/etc/acmesh-deploy.d/helper-fixture.json'
+          PY={{ __run_acmesh_deploy_python_exec_path | ansible.builtin.quote }}
+          HELPER={{ __run_acmesh_deploy_helper_path | ansible.builtin.quote }}
+
+          rm -rf "${FIX}" "${STAGE}" "${DESTDIR}"
+          mkdir -p "${FIX}" "${STAGE}" "${DESTDIR}"
+          chmod 0750 "${STAGE}"
+
+          # matching key/cert pair A, foreign key B, matching-key cert with wrong domain
+          openssl ecparam -name prime256v1 -genkey -noout -out "${FIX}/keyA.pem"
+          openssl req -x509 -new -key "${FIX}/keyA.pem" -days 2 -subj '/CN=helper-fixture.test' \
+            -addext 'subjectAltName=DNS:helper-fixture.test' -out "${FIX}/certA.pem"
+          openssl ecparam -name prime256v1 -genkey -noout -out "${FIX}/keyB.pem"
+          openssl req -x509 -new -key "${FIX}/keyA.pem" -days 2 -subj '/CN=other.test' \
+            -addext 'subjectAltName=DNS:other.test' -out "${FIX}/cert_wrongdomain.pem"
+          cp "${FIX}/keyA.pem" "${STAGE}/cert.key"
+          cp "${FIX}/certA.pem" "${STAGE}/fullchain.cer"
+
+          cat > "${MANIFEST}" <<EOF
+          {
+            "version": 1,
+            "certificate_id": "helper-fixture",
+            "domains": ["helper-fixture.test"],
+            "staging_dir": "${STAGE}",
+            "completion_artifact": "fullchain_file",
+            "artifacts": {
+              "fullchain_file": {"staging": "${STAGE}/fullchain.cer", "destination": "${DESTDIR}/fullchain.cer", "uid": 0, "gid": 0, "mode": "0644"},
+              "key_file": {"staging": "${STAGE}/cert.key", "destination": "${DESTDIR}/cert.key", "uid": 0, "gid": 0, "mode": "0600"}
+            }
+          }
+          EOF
+          chmod 0600 "${MANIFEST}"
+
+          # initial deployment publishes with the configured metadata
+          "${PY}" "${HELPER}" "${MANIFEST}"
+          test "$(stat -c '%a %U %G' "${DESTDIR}/fullchain.cer")" = '644 root root'
+          test "$(stat -c '%a %U %G' "${DESTDIR}/cert.key")" = '600 root root'
+          cmp -s "${FIX}/certA.pem" "${DESTDIR}/fullchain.cer"
+          cmp -s "${FIX}/keyA.pem" "${DESTDIR}/cert.key"
+
+          # in sync now
+          "${PY}" "${HELPER}" --check "${MANIFEST}"
+
+          # metadata-only drift: reported (rc 3), then fixed without replacing the inode
+          __inode_before="$(stat -c '%i' "${DESTDIR}/fullchain.cer")"
+          chmod 0600 "${DESTDIR}/fullchain.cer"
+          "${PY}" "${HELPER}" --check "${MANIFEST}" && exit 1 || test "$?" = '3'
+          "${PY}" "${HELPER}" "${MANIFEST}"
+          test "$(stat -c '%a' "${DESTDIR}/fullchain.cer")" = '644'
+          test "$(stat -c '%i' "${DESTDIR}/fullchain.cer")" = "${__inode_before}"
+          printf 'helper-basic: PASS\n'
+        executable: "/bin/bash"
+      changed_when:
+        - false
+
+
+    - name: "Molecule | Verify | Helper: staged content attacks are rejected and preserve the previous deployment"
+      # The command or shell module is used intentionally: this exercises the
+      # helper binary end-to-end with crafted attack inputs.
+      ansible.builtin.shell:
+        cmd: |
+          set -u # no uninitialized vars
+          FIX='/root/acmesh-helper-fixtures'
+          STAGE={{ (run_acmesh_cfg_cert_deploy_base_dir ~ '/helper-fixture') | ansible.builtin.quote }}
+          DESTDIR='/var/tmp/acmesh-helper-dest'
+          MANIFEST='/etc/acmesh-deploy.d/helper-fixture.json'
+          PY={{ __run_acmesh_deploy_python_exec_path | ansible.builtin.quote }}
+          HELPER={{ __run_acmesh_deploy_helper_path | ansible.builtin.quote }}
+
+          run_expect_fail() {
+            "${PY}" "${HELPER}" "${MANIFEST}" >/dev/null 2>&1
+            __rc=$?
+            if [ "${__rc}" -eq 0 ]; then
+              printf 'FAIL: %s was accepted\n' "${1}" 1>&2
+              exit 1
+            fi
+            if ! cmp -s "${FIX}/certA.pem" "${DESTDIR}/fullchain.cer" \
+              || ! cmp -s "${FIX}/keyA.pem" "${DESTDIR}/cert.key"; then
+              printf 'FAIL: %s modified the previous deployment\n' "${1}" 1>&2
+              exit 1
+            fi
+            printf 'ok: %s rejected (rc=%s)\n' "${1}" "${__rc}"
+          }
+
+          cp "${FIX}/keyB.pem" "${STAGE}/cert.key"
+          run_expect_fail 'key/certificate mismatch'
+          cp "${FIX}/keyA.pem" "${STAGE}/cert.key"
+
+          printf 'garbage' > "${STAGE}/fullchain.cer"
+          run_expect_fail 'malformed certificate'
+          cp "${FIX}/certA.pem" "${STAGE}/fullchain.cer"
+
+          cp "${FIX}/cert_wrongdomain.pem" "${STAGE}/fullchain.cer"
+          run_expect_fail 'unexpected certificate domains'
+          cp "${FIX}/certA.pem" "${STAGE}/fullchain.cer"
+
+          dd if=/dev/zero of="${STAGE}/fullchain.cer" bs=1024 count=2048 2>/dev/null
+          run_expect_fail 'oversized source file'
+          cp "${FIX}/certA.pem" "${STAGE}/fullchain.cer"
+
+          rm -f "${STAGE}/cert.key" && ln -s /etc/hostname "${STAGE}/cert.key"
+          run_expect_fail 'staging symlink'
+          rm -f "${STAGE}/cert.key" && cp "${FIX}/keyA.pem" "${STAGE}/cert.key"
+
+          rm -f "${STAGE}/cert.key" && mkfifo "${STAGE}/cert.key"
+          run_expect_fail 'non-regular staging file'
+          rm -f "${STAGE}/cert.key" && cp "${FIX}/keyA.pem" "${STAGE}/cert.key"
+
+          "${PY}" "${HELPER}" --check "${MANIFEST}" || exit 1
+          printf 'helper-content-attacks: PASS\n'
+        executable: "/bin/bash"
+      changed_when:
+        - false
+
+
+    - name: "Molecule | Verify | Helper: malformed and untrusted manifests are rejected"
+      # The command or shell module is used intentionally: this exercises the
+      # helper binary end-to-end with crafted attack inputs.
+      ansible.builtin.shell:
+        cmd: |
+          set -u # no uninitialized vars
+          STAGE={{ (run_acmesh_cfg_cert_deploy_base_dir ~ '/helper-fixture') | ansible.builtin.quote }}
+          DESTDIR='/var/tmp/acmesh-helper-dest'
+          MANIFEST='/etc/acmesh-deploy.d/helper-fixture.json'
+          BADMANIFEST='/etc/acmesh-deploy.d/helper-bad.json'
+          PY={{ __run_acmesh_deploy_python_exec_path | ansible.builtin.quote }}
+          HELPER={{ __run_acmesh_deploy_helper_path | ansible.builtin.quote }}
+
+          expect_reject() {
+            "${PY}" "${HELPER}" --check "${2}" >/dev/null 2>&1
+            __rc=$?
+            if [ "${__rc}" -eq 0 ] || [ "${__rc}" -eq 3 ]; then
+              printf 'FAIL: %s was accepted\n' "${1}" 1>&2
+              exit 1
+            fi
+            printf 'ok: %s rejected (rc=%s)\n' "${1}" "${__rc}"
+          }
+
+          write_bad() {
+            # ${1}: artifacts JSON fragment; ${2}: optional extra top-level JSON
+            cat > "${BADMANIFEST}" <<EOF
+          {
+            "version": 1,${2:-}
+            "certificate_id": "helper-fixture",
+            "domains": ["helper-fixture.test"],
+            "staging_dir": "${STAGE}",
+            "completion_artifact": "fullchain_file",
+            "artifacts": {${1}}
+          }
+          EOF
+            chmod 0600 "${BADMANIFEST}"
+            chown root:root "${BADMANIFEST}"
+          }
+
+          __fullchain_ok="\"fullchain_file\": {\"staging\": \"${STAGE}/fullchain.cer\",
+            \"destination\": \"${DESTDIR}/fullchain.cer\", \"uid\": 0, \"gid\": 0, \"mode\": \"0644\"}"
+
+          write_bad "\"fullchain_file\": {\"staging\": \"${STAGE}/fullchain.cer\",
+            \"destination\": \"${DESTDIR}/same.cer\", \"uid\": 0, \"gid\": 0, \"mode\": \"0644\"},
+            \"key_file\": {\"staging\": \"${STAGE}/cert.key\",
+            \"destination\": \"${DESTDIR}/same.cer\", \"uid\": 0, \"gid\": 0, \"mode\": \"0600\"}"
+          expect_reject 'duplicate destinations' "${BADMANIFEST}"
+
+          write_bad "${__fullchain_ok}" ' "unexpected": true,'
+          expect_reject 'unknown manifest key' "${BADMANIFEST}"
+
+          write_bad "\"fullchain_file\": {\"staging\": \"${STAGE}/fullchain.cer\",
+            \"destination\": \"relative/fullchain.cer\", \"uid\": 0, \"gid\": 0, \"mode\": \"0644\"}"
+          expect_reject 'relative destination path' "${BADMANIFEST}"
+
+          write_bad "\"fullchain_file\": {\"staging\": \"${STAGE}/../traversal/fullchain.cer\",
+            \"destination\": \"${DESTDIR}/fullchain.cer\", \"uid\": 0, \"gid\": 0, \"mode\": \"0644\"}"
+          expect_reject 'staging path traversal' "${BADMANIFEST}"
+
+          cp "${MANIFEST}" '/var/tmp/acmesh-helper-outside.json'
+          expect_reject 'manifest outside the manifest directory' '/var/tmp/acmesh-helper-outside.json'
+          rm -f '/var/tmp/acmesh-helper-outside.json'
+
+          cp "${MANIFEST}" "${BADMANIFEST}"
+          chmod 0600 "${BADMANIFEST}"
+          chown {{ run_acmesh_user | ansible.builtin.quote }} "${BADMANIFEST}"
+          expect_reject 'non-root-owned manifest' "${BADMANIFEST}"
+          rm -f "${BADMANIFEST}"
+          printf 'helper-manifest-attacks: PASS\n'
+        executable: "/bin/bash"
+      changed_when:
+        - false
+
+
+    - name: "Molecule | Verify | Helper: concurrent invocations serialize on the lock, publish failures roll back"
+      # The command or shell module is used intentionally: this exercises the
+      # helper binary end-to-end, including an injected rename failure via a
+      # Python import (no production code paths are patched on disk).
+      ansible.builtin.shell:
+        cmd: |
+          set -u              # no uninitialized vars
+          set -e -o pipefail  # exit on (pipeline) errors
+          FIX='/root/acmesh-helper-fixtures'
+          STAGE={{ (run_acmesh_cfg_cert_deploy_base_dir ~ '/helper-fixture') | ansible.builtin.quote }}
+          DESTDIR='/var/tmp/acmesh-helper-dest'
+          MANIFEST='/etc/acmesh-deploy.d/helper-fixture.json'
+          PY={{ __run_acmesh_deploy_python_exec_path | ansible.builtin.quote }}
+          HELPER={{ __run_acmesh_deploy_helper_path | ansible.builtin.quote }}
+
+          # concurrency: a held manifest lock delays the helper instead of
+          # letting two deployments race
+          flock "${MANIFEST}" -c 'sleep 3' &
+          __lock_pid=$!
+          sleep 0.5
+          "${PY}" "${HELPER}" --check "${MANIFEST}"
+          wait "${__lock_pid}"
+
+          # rollback: both artifacts get new content, the completion
+          # artifact's final rename is made to fail; the already published
+          # key must be restored to the previous deployment
+          openssl ecparam -name prime256v1 -genkey -noout -out "${FIX}/keyC.pem"
+          openssl req -x509 -new -key "${FIX}/keyC.pem" -days 2 -subj '/CN=helper-fixture.test' \
+            -addext 'subjectAltName=DNS:helper-fixture.test' -out "${FIX}/certC.pem"
+          cp "${FIX}/keyC.pem" "${STAGE}/cert.key"
+          cp "${FIX}/certC.pem" "${STAGE}/fullchain.cer"
+
+          "${PY}" - "${MANIFEST}" "${HELPER}" <<'PYEOF'
+          import importlib.util
+          import os
+          import sys
+          from importlib.machinery import SourceFileLoader
+
+          # SourceFileLoader: the installed helper has no .py suffix, so
+          # spec_from_file_location cannot infer a loader on its own.
+          manifest, helper = sys.argv[1], sys.argv[2]
+          loader = SourceFileLoader("acmesh_deploy", helper)
+          spec = importlib.util.spec_from_loader("acmesh_deploy", loader)
+          module = importlib.util.module_from_spec(spec)
+          loader.exec_module(module)
+          real_rename = os.rename
+
+          def failing_rename(src, dst, **kwargs):
+              if dst == "fullchain.cer":
+                  raise OSError(5, "injected publish failure")
+              return real_rename(src, dst, **kwargs)
+
+          os.rename = failing_rename
+          return_code = module.main([manifest])
+          os.rename = real_rename
+          sys.exit(0 if return_code != 0 else 1)
+          PYEOF
+
+          cmp -s "${FIX}/keyA.pem" "${DESTDIR}/cert.key"
+          cmp -s "${FIX}/certA.pem" "${DESTDIR}/fullchain.cer"
+
+          # without the injected failure the same deployment succeeds
+          "${PY}" "${HELPER}" "${MANIFEST}"
+          cmp -s "${FIX}/keyC.pem" "${DESTDIR}/cert.key"
+          cmp -s "${FIX}/certC.pem" "${DESTDIR}/fullchain.cer"
+          printf 'helper-rollback: PASS\n'
+        executable: "/bin/bash"
+      changed_when:
+        - false
+
+
+    - name: "Molecule | Verify | Helper: remove the fixtures"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: "absent"
+      loop:
+        - "/root/acmesh-helper-fixtures"
+        - "{{ run_acmesh_cfg_cert_deploy_base_dir }}/helper-fixture"
+        - "/var/tmp/acmesh-helper-dest"
+        - "/etc/acmesh-deploy.d/helper-fixture.json"
 
 
 ## Declarative certificate removal
@@ -1015,6 +1783,56 @@
         mode: "u=rw,g=r,o=r" # 0644
 
 
+    - name: "Molecule | Verify | Plant stray deploy path unit file"
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/acmesh-deploy-stray-reap.test.path"
+        content: |
+          [Unit]
+          Description=stray deploy unit for reap testing
+
+          [Path]
+          PathChanged=/var/tmp/nonexistent-stray-deploy-watch
+
+          [Install]
+          WantedBy=multi-user.target
+        owner: "root"
+        group: "root"
+        mode: "u=rw,g=r,o=r" # 0644
+
+
+    - name: "Molecule | Verify | Plant stray deploy service unit file"
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/acmesh-deploy-stray-reap.test.service"
+        content: |
+          [Unit]
+          Description=stray deploy unit for reap testing
+
+          [Service]
+          Type=oneshot
+          ExecStart=/bin/true
+        owner: "root"
+        group: "root"
+        mode: "u=rw,g=r,o=r" # 0644
+
+
+    - name: "Molecule | Verify | Plant stray deployment manifest and staging directory"
+      ansible.builtin.file:
+        path: "{{ run_acmesh_cfg_cert_deploy_base_dir }}/stray-reap.test"
+        state: "directory"
+        owner: "root"
+        group: "root"
+        mode: "u=rwx,g=rx,o=" # 0750
+
+
+    - name: "Molecule | Verify | Plant stray deployment manifest"
+      ansible.builtin.copy:
+        dest: "/etc/acmesh-deploy.d/stray-reap.test.json"
+        content: "{}\n"
+        owner: "root"
+        group: "root"
+        mode: "u=rw,g=,o=" # 0600
+
+
     - name: "Molecule | Verify | Include the foundata.acmesh.run role (with run_acmesh_certs_delete_unmanaged)"
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
@@ -1024,35 +1842,50 @@
 
     - name: "Molecule | Verify | Gather stats for stray and managed resources after the sweep"
       ansible.builtin.stat:
-        path: "{{ item }}"
+        path: "{{ item['path'] }}"
         get_checksum: false
         get_mime: false
       loop:
-        - "{{ run_acmesh_cfg_cert_home }}/stray-reap.test_ecc"
-        - "/etc/systemd/system/acmesh-reload-stray-reap.test.path"
-        - "/etc/systemd/system/acmesh-reload-stray-reap.test.service"
-        - "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc"
-        - "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.path"
+        - path: "{{ run_acmesh_cfg_cert_home }}/stray-reap.test_ecc"
+          expect: false
+        - path: "/etc/systemd/system/acmesh-reload-stray-reap.test.path"
+          expect: false
+        - path: "/etc/systemd/system/acmesh-reload-stray-reap.test.service"
+          expect: false
+        - path: "/etc/systemd/system/acmesh-deploy-stray-reap.test.path"
+          expect: false
+        - path: "/etc/systemd/system/acmesh-deploy-stray-reap.test.service"
+          expect: false
+        - path: "/etc/acmesh-deploy.d/stray-reap.test.json"
+          expect: false
+        - path: "{{ run_acmesh_cfg_cert_deploy_base_dir }}/stray-reap.test"
+          expect: false
+        - path: "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc"
+          expect: true
+        - path: "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.path"
+          expect: true
+        - path: "/etc/systemd/system/acmesh-deploy-acmesh-webroot.test.path"
+          expect: true
+        - path: "/etc/acmesh-deploy.d/acmesh-webroot.test.json"
+          expect: true
+        - path: "{{ run_acmesh_cfg_cert_deploy_base_dir }}/acmesh-webroot.test"
+          expect: true
+      loop_control:
+        label: "{{ item['path'] }}"
       register: __testing_acmesh_sweep_stat
 
 
     - name: "Molecule | Verify | Assert the sweep removed stray resources and kept managed ones"
       ansible.builtin.assert:
         that:
-          - not __testing_acmesh_sweep_stat['results'][0]['stat']['exists']
-          - not __testing_acmesh_sweep_stat['results'][1]['stat']['exists']
-          - not __testing_acmesh_sweep_stat['results'][2]['stat']['exists']
-          - __testing_acmesh_sweep_stat['results'][3]['stat']['exists']
-          - __testing_acmesh_sweep_stat['results'][4]['stat']['exists']
+          - item['stat']['exists'] == item['item']['expect']
         fail_msg: >-
-          run_acmesh_certs_delete_unmanaged did not remove exactly the stray
-          resources: {{ __testing_acmesh_sweep_stat['results']
-                        | ansible.builtin.map(attribute='stat.exists') | ansible.builtin.list }}
-          for {{ __testing_acmesh_sweep_stat['results']
-                 | ansible.builtin.map(attribute='item') | ansible.builtin.list }}
-        success_msg: >-
-          The sweep removed the stray certificate data and reload units while
-          keeping the managed webroot certificate untouched.
+          run_acmesh_certs_delete_unmanaged handled {{ item['item']['path'] }}
+          incorrectly (exists: {{ item['stat']['exists'] }}, expected:
+          {{ item['item']['expect'] }})
+      loop: "{{ __testing_acmesh_sweep_stat['results'] }}"
+      loop_control:
+        label: "{{ item['item']['path'] }}"
 
 
 - name: "Molecule | Verify | Per-certificate removal (state 'absent', webroot challenge)"
@@ -1086,10 +1919,14 @@
         - "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_rsa"
         - "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.path"
         - "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.service"
+        - "/etc/systemd/system/acmesh-deploy-acmesh-webroot.test.path"
+        - "/etc/systemd/system/acmesh-deploy-acmesh-webroot.test.service"
+        - "/etc/acmesh-deploy.d/acmesh-webroot.test.json"
+        - "{{ run_acmesh_cfg_cert_deploy_base_dir }}/acmesh-webroot.test"
         - "/etc/pki/tls/certs/acmesh-webroot.test/ca.cer"
         - "/etc/pki/tls/certs/acmesh-webroot.test/cert.cer"
         - "/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer"
-        - "/etc/pki/tls/certs/acmesh-webroot.test/cert.key"
+        - "/etc/molecule-acmesh-protected/acmesh-webroot.test/cert.key"
       register: __testing_acmesh_certabsent_stat
 
 
@@ -2005,6 +2842,256 @@
           The run failed, but not in the identity uniqueness check as expected
           (failed task: '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
         success_msg: "Colliding certificate identities are rejected by the role's init."
+
+
+## Regression tests: install strategy and permission normalization (init-only)
+#
+# __run_acmesh_install_normalized (vars/main.yml) is the single source for
+# installation, manifests, directory management, reconciliation and cleanup;
+# these tests pin its merge semantics: staged as default when strategy is
+# omitted, internal defaults, partial directory/default/per-artifact
+# overrides and their precedence.
+
+- name: "Molecule | Verify | Normalization: set a crafted certificate configuration as fact"
+  # A fact (not include vars) on purpose: the lazily evaluated normalization
+  # is dereferenced after the init include below and must see this input.
+  ansible.builtin.set_fact:
+    run_acmesh_certs:
+      - domains:
+          - name: "Normalize.Example.test"
+            challenge:
+              type: "dns"
+              dns_provider: "dns_inwx"
+        install:
+          key_file: "/tmp/norm/key.pem"
+          fullchain_file: "/tmp/norm/fullchain.pem"
+          permissions:
+            directory:
+              group: "root"
+            default:
+              owner: "root"
+            key_file:
+              mode: "0600"
+      - domains:
+          - name: "direct.example.test"
+            challenge:
+              type: "dns"
+              dns_provider: "dns_inwx"
+        install:
+          strategy: "direct"
+          cert_file: "/tmp/direct/cert.pem"
+
+
+- name: "Molecule | Verify | Normalization: initialize the role with the crafted configuration"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+    tasks_from: "init"
+    public: true
+
+
+- name: "Molecule | Verify | Normalization: assert defaults, partial overrides and precedence"
+  ansible.builtin.assert:
+    that:
+      - __run_acmesh_install_normalized == __testing_normalized_expected
+    fail_msg: >-
+      The normalized install data does not match the expected merge result.
+      Got: {{ __run_acmesh_install_normalized }}
+    success_msg: >-
+      Omitted strategy defaults to staged, internal permission defaults apply
+      and partial directory/default/per-artifact overrides merge with the
+      documented precedence.
+  vars:
+    __testing_normalized_expected:
+      - domain: "Normalize.Example.test"
+        cert_id: "normalize.example.test"
+        strategy: "staged"
+        staging_dir: "{{ run_acmesh_cfg_cert_deploy_base_dir }}/normalize.example.test"
+        completion_key: "fullchain_file"
+        directory:
+          owner: "{{ run_acmesh_user }}"
+          group: "root"
+          mode: "2750"
+        directories:
+          - "/tmp/norm"
+        artifacts:
+          fullchain_file:
+            dest: "/tmp/norm/fullchain.pem"
+            staging: "{{ run_acmesh_cfg_cert_deploy_base_dir }}/normalize.example.test/fullchain.cer"
+            owner: "root"
+            group: "{{ run_acmesh_group }}"
+            mode: "0640"
+          key_file:
+            dest: "/tmp/norm/key.pem"
+            staging: "{{ run_acmesh_cfg_cert_deploy_base_dir }}/normalize.example.test/cert.key"
+            owner: "root"
+            group: "{{ run_acmesh_group }}"
+            mode: "0600"
+        domains:
+          - "Normalize.Example.test"
+      - domain: "direct.example.test"
+        cert_id: "direct.example.test"
+        strategy: "direct"
+        staging_dir: "{{ run_acmesh_cfg_cert_deploy_base_dir }}/direct.example.test"
+        completion_key: "cert_file"
+        directory:
+          owner: "{{ run_acmesh_user }}"
+          group: "{{ run_acmesh_group }}"
+          mode: "2750"
+        directories:
+          - "/tmp/direct"
+        artifacts:
+          cert_file:
+            dest: "/tmp/direct/cert.pem"
+            staging: "{{ run_acmesh_cfg_cert_deploy_base_dir }}/direct.example.test/cert.cer"
+            owner: "{{ run_acmesh_user }}"
+            group: "{{ run_acmesh_group }}"
+            mode: "0640"
+        domains:
+          - "direct.example.test"
+
+
+- name: "Molecule | Verify | Normalization: restore the converged certificate configuration"
+  ansible.builtin.set_fact:
+    run_acmesh_certs: "{{ __testing_state['run_acmesh_certs'] | ansible.builtin.default([]) }}"
+
+
+- name: "Molecule | Verify | Validate rejection of unknown permission keys (init-only)"
+  block:
+
+    - name: "Molecule | Verify | Permissions: include the role's init with an unknown permissions key (must fail)"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+        tasks_from: "init"
+      vars:
+        run_acmesh_certs:
+          - domains:
+              - name: "reject.example.test"
+                challenge:
+                  type: "dns"
+                  dns_provider: "dns_inwx"
+            install:
+              key_file: "/tmp/reject/key.pem"
+              permissions:
+                bogus:
+                  mode: "0640"
+
+    - name: "Molecule | Verify | Permissions: force a failure because an unknown permissions key was accepted"
+      ansible.builtin.fail:
+        msg: "The role's init accepted an unknown install.permissions key."
+
+  rescue:
+
+    - name: "Molecule | Verify | Permissions: assert the run failed in the structure check"
+      ansible.builtin.assert:
+        that:
+          - (ansible_failed_task['name'] | ansible.builtin.default('')) is ansible.builtin.search('strategies and permission keys')
+        fail_msg: >-
+          The run failed, but not in the install structure check as expected
+          (failed task:
+          '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
+        success_msg: "Unknown install.permissions keys are rejected by the role's init."
+
+
+- name: "Molecule | Verify | Validate rejection of unsafe private key modes (init-only)"
+  block:
+
+    - name: "Molecule | Verify | Permissions: include the role's init with a world-readable key mode (must fail)"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+        tasks_from: "init"
+      vars:
+        run_acmesh_certs:
+          - domains:
+              - name: "reject.example.test"
+                challenge:
+                  type: "dns"
+                  dns_provider: "dns_inwx"
+            install:
+              key_file: "/tmp/reject/key.pem"
+              permissions:
+                key_file:
+                  mode: "0644"
+
+    - name: "Molecule | Verify | Permissions: force a failure because a world-readable key mode was accepted"
+      ansible.builtin.fail:
+        msg: "The role's init accepted a world-readable private key mode."
+
+  rescue:
+
+    - name: "Molecule | Verify | Permissions: assert the run failed in the permission value check"
+      ansible.builtin.assert:
+        that:
+          - (ansible_failed_task['name'] | ansible.builtin.default('')) is ansible.builtin.search('effective certificate install permissions')
+        fail_msg: >-
+          The run failed, but not in the permission value check as expected
+          (failed task:
+          '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
+        success_msg: "World-readable private key modes are rejected by the role's init."
+
+
+- name: "Molecule | Verify | Validate rejection of ownership overrides with the direct strategy (init-only)"
+  block:
+
+    - name: "Molecule | Verify | Permissions: include the role's init with a direct-strategy ownership override (must fail)"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+        tasks_from: "init"
+      vars:
+        run_acmesh_certs:
+          - domains:
+              - name: "reject.example.test"
+                challenge:
+                  type: "dns"
+                  dns_provider: "dns_inwx"
+            install:
+              strategy: "direct"
+              key_file: "/tmp/reject/key.pem"
+              permissions:
+                default:
+                  owner: "root"
+
+    - name: "Molecule | Verify | Permissions: force a failure because a direct-strategy ownership override was accepted"
+      ansible.builtin.fail:
+        msg: "The role's init accepted an ownership override with strategy 'direct'."
+
+  rescue:
+
+    - name: "Molecule | Verify | Permissions: assert the run failed in the permission value check (direct strategy)"
+      ansible.builtin.assert:
+        that:
+          - (ansible_failed_task['name'] | ansible.builtin.default('')) is ansible.builtin.search('effective certificate install permissions')
+        fail_msg: >-
+          The run failed, but not in the permission value check as expected
+          (failed task:
+          '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
+        success_msg: "Ownership overrides with the direct strategy are rejected by the role's init."
+
+
+- name: "Molecule | Verify | Validate rejection of a nested deploy base directory (init-only)"
+  block:
+
+    - name: "Molecule | Verify | Deploy base: include the role's init with a nested staging base (must fail)"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+        tasks_from: "init"
+      vars:
+        run_acmesh_cfg_cert_deploy_base_dir: "{{ run_acmesh_cfg_cert_home }}/deploy"
+
+    - name: "Molecule | Verify | Deploy base: force a failure because a nested staging base was accepted"
+      ansible.builtin.fail:
+        msg: "The role's init accepted a staging base below run_acmesh_cfg_cert_home."
+
+  rescue:
+
+    - name: "Molecule | Verify | Deploy base: assert the run failed in the deploy base directory check"
+      ansible.builtin.assert:
+        that:
+          - (ansible_failed_task['name'] | ansible.builtin.default('')) is ansible.builtin.search('deploy base directory')
+        fail_msg: >-
+          The run failed, but not in the deploy base directory check as
+          expected (failed task:
+          '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
+        success_msg: "A staging base below the acme.sh directories is rejected by the role's init."
 
 
 ## No-secret-leak check (manual)

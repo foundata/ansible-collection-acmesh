@@ -10,12 +10,14 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
 - [Example playbooks, using this role](#examples)
   - [Webroot challenge (single domain)](#examples-webroot)
   - [DNS challenge (multiple domains and certificates)](#examples-dns)
+  - [Installation strategies, ownership and permissions](#examples-install-strategies)
   - [Certificate file access for other services](#examples-cert-access)
   - [Service reloads after certificate changes (reloadcmd)](#examples-reload-permissions)
   - [dns-persist-01 challenge (long-lived TXT record)](#examples-dns-persist)
   - [Removing certificates](#examples-remove)
   - [Uninstall](#examples-uninstall)
   - [Pre-seeding certificate files](#examples-preseed)
+  - [Migration from 3.x and downgrades](#examples-migration)
 - [Supported tags](#tags)<!-- ANSIBLE DOCSMITH TOC START -->
 - [Role variables](#variables)
   - [`run_acmesh_state`](#variable-run_acmesh_state)
@@ -45,6 +47,14 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
       - [`run_acmesh_certs['install']['fullchain_file']`](#variable-run_acmesh_certs-sub-install-sub-fullchain_file)
       - [`run_acmesh_certs['install']['fullcain_file']`](#variable-run_acmesh_certs-sub-install-sub-fullcain_file)
       - [`run_acmesh_certs['install']['key_file']`](#variable-run_acmesh_certs-sub-install-sub-key_file)
+      - [`run_acmesh_certs['install']['strategy']`](#variable-run_acmesh_certs-sub-install-sub-strategy)
+      - [`run_acmesh_certs['install']['permissions']`](#variable-run_acmesh_certs-sub-install-sub-permissions)
+        - [`run_acmesh_certs['install']['permissions']['directory']`](#variable-run_acmesh_certs-sub-install-sub-permissions-sub-directory)
+        - [`run_acmesh_certs['install']['permissions']['default']`](#variable-run_acmesh_certs-sub-install-sub-permissions-sub-default)
+        - [`run_acmesh_certs['install']['permissions']['ca_file']`](#variable-run_acmesh_certs-sub-install-sub-permissions-sub-ca_file)
+        - [`run_acmesh_certs['install']['permissions']['cert_file']`](#variable-run_acmesh_certs-sub-install-sub-permissions-sub-cert_file)
+        - [`run_acmesh_certs['install']['permissions']['fullchain_file']`](#variable-run_acmesh_certs-sub-install-sub-permissions-sub-fullchain_file)
+        - [`run_acmesh_certs['install']['permissions']['key_file']`](#variable-run_acmesh_certs-sub-install-sub-permissions-sub-key_file)
       - [`run_acmesh_certs['install']['reloadcmd']`](#variable-run_acmesh_certs-sub-install-sub-reloadcmd)
     - [`run_acmesh_certs['server']`](#variable-run_acmesh_certs-sub-server)
     - [`run_acmesh_certs['force']`](#variable-run_acmesh_certs-sub-force)
@@ -64,6 +74,7 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
   - [`run_acmesh_cfg_home`](#variable-run_acmesh_cfg_home)
   - [`run_acmesh_cfg_config_home`](#variable-run_acmesh_cfg_config_home)
   - [`run_acmesh_cfg_cert_home`](#variable-run_acmesh_cfg_cert_home)
+  - [`run_acmesh_cfg_cert_deploy_base_dir`](#variable-run_acmesh_cfg_cert_deploy_base_dir)
   - [`run_acmesh_cfg_logfile`](#variable-run_acmesh_cfg_logfile)
   - [`run_acmesh_cfg_log_level`](#variable-run_acmesh_cfg_log_level)
   - [`run_acmesh_cfg_syslog`](#variable-run_acmesh_cfg_syslog)
@@ -89,6 +100,7 @@ Main features:
   - All `acme.sh` operations (account registration, issuance, installation, renewal) run as this unprivileged account, so issuance and renewal behave identically and permission problems surface during the Ansible run instead of weeks later at the first renewal. Privileged ports for `standalone`/`alpn` challenges are covered by an automatically granted `CAP_NET_BIND_SERVICE` capability.
   - By default, other users cannot read certificates managed by `acme.sh`. See the [usage examples](#examples-cert-access) for ways to grant access if needed.
   - The `reloadcmd` of each certificate runs as `root` via a systemd path unit watching the installed certificate files, so services get reloaded reliably after issuance and renewal without granting the service user any privileges. See the [usage examples](#examples-reload-permissions) for details.
+- **Staged certificate installation (default since version 4.0.0)**: `acme.sh` installs into a root-protected staging area and a root-owned, sandboxed systemd service validates and publishes the files to their final destinations. This supports destinations below protected directories such as `/etc/ssl/private` and full ownership and mode control per certificate file via `install.permissions`, while `acme.sh` itself keeps running unprivileged. See [Installation strategies](#examples-install-strategies) for details and the `direct` compatibility strategy.
 - **Automatic certificate renewal via systemd timer.**
 - Support for multiple [ACME challenge types](https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert): `alpn`, `dns` (including alias mode), `standalone`, and `webroot`
 - Global `acme.sh` shell alias for easy execution.
@@ -213,9 +225,70 @@ Multiple domains per certificate with DNS challenge and challenge alias:
 ```
 
 
+### Installation strategies, ownership and permissions<a id="examples-install-strategies"></a>
+
+Since version 4.0.0, every certificate's `install` supports a `strategy` (default: `staged`) and partial `permissions` overrides:
+
+- **`staged` (the default, also used when `strategy` is omitted):** `acme.sh` installs into an internal, root-protected staging area (one service-user writable directory per certificate below [`run_acmesh_cfg_cert_deploy_base_dir`](#variable-run_acmesh_cfg_cert_deploy_base_dir)). A root-owned, heavily sandboxed systemd service (`acmesh-deploy-<primary domain>.service`, triggered by a path unit watching the staged files and started synchronously during the Ansible run) validates the staged files and publishes them to the final destinations with the configured ownership and modes. Because root performs the final copy, destinations below protected parent directories such as `/etc/ssl/private` (commonly `root:ssl-cert` with mode `0710`) work without granting the service user any additional group memberships.
+- **`direct`:** the pre-4.0.0 behavior; `acme.sh` writes the final paths directly as the unprivileged service user. This is a compatibility option, not the recommended default: every destination must be writable by `run_acmesh_user` — also during unattended renewal — and ownership overrides are rejected (the service account could not maintain them). Mode overrides are allowed (renewals preserve the mode because `acme.sh` truncates files in place).
+
+The deployment chain of the staged strategy is an extension of the [reload mechanism](#examples-reload-permissions):
+
+```
+renewal (unprivileged acme.sh) → staging files
+  → acmesh-deploy-<id>.path → acmesh-deploy-<id>.service (root helper, validates + publishes)
+  → final files (completion artifact last)
+  → acmesh-reload-<id>.path → reloadcmd (root)
+```
+
+The helper (`/usr/libexec/acmesh-deploy`) validates all staged input before publishing anything: PEM parsing, private key/certificate match, certificate domain coverage, size limits, rejection of symlinks and non-regular files. Ownership and modes are applied before atomic renames, the artifact `acme.sh` writes last is published last (so the reload only fires on complete sets), unchanged files are not replaced, and metadata-only reconciliation does not trigger reloads. On a publish failure the already published artifacts of that run are restored best-effort. Remaining limitation: a hard system crash while publishing files that live on different filesystems can leave a mixed set — a fully atomic transaction across filesystems is not possible.
+
+`install.permissions` is a set of **partial** overrides. Effective values are calculated per key with later mappings overriding earlier ones (unspecified keys inherit):
+
+1. Role defaults: directory `run_acmesh_user`:`run_acmesh_group` mode `"2750"`; files `run_acmesh_user`:`run_acmesh_group` mode `"0640"` (unchanged from 3.x).
+2. `permissions.default` (all certificate files).
+3. `permissions.<artifact>` (`ca_file`, `cert_file`, `fullchain_file`, `key_file`).
+
+Example (key below `/etc/ssl/private`, readable by `ssl-cert`, the fullchain world-readable):
+
+```yaml
+run_acmesh_certs:
+  - domains:
+      - name: "example.org"
+        challenge:
+          type: "webroot"
+          webroot: "/var/www/example.org"
+    install:
+      strategy: "staged" # the default, shown for clarity
+      key_file: "/etc/ssl/private/example.org/cert.key"
+      fullchain_file: "/etc/ssl/certs/example.org/fullchain.cer"
+      reloadcmd: "systemctl reload nginx.service"
+      permissions:
+        directory:
+          owner: "root"
+          group: "ssl-cert"
+          mode: "0750"
+        default:
+          owner: "root"
+          group: "ssl-cert"
+          mode: "0640"
+        fullchain_file:
+          mode: "0644"
+```
+
+Notes:
+
+- Modes are quoted octal strings. Certificate files must not be executable or carry setuid/setgid/sticky bits; private keys must not be world-readable or group/world-writable (`"0600"`, `"0640"`, `"0400"`, `"0440"` are typical values); directories may keep the setgid bit (default `"2750"`).
+- Only the **immediate** destination directories are managed; existing ancestors such as `/etc/ssl` or `/etc/ssl/private` are never changed.
+- The role **reconciles** the final files and their metadata on every run. Playbooks which change certificate ownership or modes after applying the role must move those requirements into `install.permissions` — the role may overwrite such external changes.
+- Troubleshooting: a failed deployment leaves `acmesh-deploy-<primary domain>.service` in a failed state (`systemctl --failed`); the helper logs concisely to the journal (`journalctl -t acmesh-deploy`, never private key material). `systemctl cat acmesh-deploy-<primary domain>.service` shows the unit, `systemd-analyze verify` checks it. The helper reuses the Python interpreter Ansible discovered on the host; if that interpreter is removed, deployments fail visibly until the next role run rewrites the units.
+
+
 ### Certificate file access for other services<a id="examples-cert-access"></a>
 
-By default, other users and groups cannot read the certificate files managed by `acme.sh`. To allow access, add specific service users (e.g., `www-data` or `nginx`) to the group defined by `run_acmesh_group` (defaults to `acmesh`). [`ansible.builtin.user`](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/user_module.html) can help you with that:
+The preferred way to grant services access to certificate files is the `staged` installation strategy with explicit [`install.permissions`](#examples-install-strategies) (e.g. `group: "ssl-cert"` plus a fitting mode), as shown above.
+
+Alternatively — and as the only option for the `direct` strategy — add specific service users (e.g., `www-data` or `nginx`) to the group defined by `run_acmesh_group` (defaults to `acmesh`). [`ansible.builtin.user`](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/user_module.html) can help you with that:
 
 ```yaml
 - name: "Grant the webserver's service user read access to certs by adding it to the acmesh group"
@@ -225,6 +298,8 @@ By default, other users and groups cannot read the certificate files managed by 
       - "acmesh" # the groupname get set via run_acmesh_group role variable, defaults to "acmesh"
     append: true # do not remove existing group memberships
 ```
+
+The reverse direction also works: [`run_acmesh_user_supplementary_groups`](#variable-run_acmesh_user_supplementary_groups) adds the service user to existing groups (e.g. `ssl-cert` for `direct` installations below `/etc/ssl/private`, or a webroot group). ⚠️ Note that privileged groups such as `ssl-cert` may grant the service user read access to unrelated private keys; with the `staged` strategy this should not be needed merely to deploy a certificate.
 
 
 ### Service reloads after certificate changes (reloadcmd)<a id="examples-reload-permissions"></a>
@@ -297,7 +372,7 @@ On the first run the role prints the exact `_validation-persist.<domain>` TXT re
 
 ### Removing certificates<a id="examples-remove"></a>
 
-Set `state: "absent"` on a certificate entry to remove all of its data: the acme.sh data below `run_acmesh_cfg_cert_home` (this also stops the automated renewal for it), its `acmesh-reload-*` systemd units and the installed files listed under `install` (their directories are kept, as they may be shared with other software). The certificate is not revoked at the ACME CA:
+Set `state: "absent"` on a certificate entry to remove all of its data: the acme.sh data below `run_acmesh_cfg_cert_home` (this also stops the automated renewal for it), its `acmesh-reload-*` and `acmesh-deploy-*` systemd units, its staging data and deployment manifest, and the installed files listed under `install` (their directories are kept, as they may be shared with other software). The certificate is not revoked at the ACME CA:
 
 ```yaml
 run_acmesh_certs:
@@ -314,7 +389,7 @@ run_acmesh_certs:
     state: "absent"
 ```
 
-Certificates that are simply deleted from `run_acmesh_certs` keep their data and continue to be renewed by `acme.sh`. Set `run_acmesh_certs_delete_unmanaged: true` to reap such unmanaged leftovers declaratively (acme.sh data and reload units; installed files of unmanaged certificates are never touched because their paths are unknown to the role).
+Certificates that are simply deleted from `run_acmesh_certs` keep their data and continue to be renewed (and, with the `staged` strategy, deployed) by the existing units. Set `run_acmesh_certs_delete_unmanaged: true` to reap such unmanaged leftovers declaratively (acme.sh data, reload units, deploy units, staging directories and manifests; installed files of unmanaged certificates are never touched because their paths are unknown to the role).
 
 A full uninstall via `run_acmesh_state: "absent"` intentionally preserves all certificate data (see below).
 
@@ -346,6 +421,16 @@ This role supports **uploading backed-up acme.sh certificate folders from the An
 
 1. Back up a certificate directory such as `www.example.com_ecc` or `example.org_rsa` from acme.sh's certificate home (`run_acmesh_cfg_cert_home`, default: `/var/opt/acme.sh`).
 2. Place the backup under `files/acme.sh/certhome` in your playbook directory on the control node.
+
+
+### Migration from 3.x and downgrades<a id="examples-migration"></a>
+
+Version 4.0.0 changes the default installation strategy to `staged`:
+
+- **The first run may report `changed` for an existing installation.** It migrates the acme.sh installation paths (`Le_Real*Path`) to the staging area, creates the staged deployment resources (staging directories, helper, manifests, `acmesh-deploy-*` units) and reconciles the final files and their metadata. Subsequent runs are idempotent when certificate content, configuration, strategy, destinations and permissions are unchanged.
+- **Move post-role permission fixes into `install.permissions`.** The role now reconciles final certificate ownership and modes on every run and may overwrite external changes (`chmod`/`chown` tasks after the role, relocation workarounds). Supplementary `ssl-cert` group membership that was only needed for direct installation below `/etc/ssl/private` can usually be removed as well.
+- **Keeping the old behavior:** set `strategy: "direct"` per certificate. Switching a certificate between the strategies is supported in both directions; the role re-points acme.sh and creates or removes the staged deployment resources accordingly.
+- **Downgrading to 3.x after the migration** requires an explicit direct reinstallation: 3.x does not understand the staging paths, so renewals would keep updating the staging area while the final destinations go stale. Re-run the 3.x role (its `--install-cert` re-points acme.sh at the final paths) and remove the `acmesh-deploy-*` units, `/etc/acmesh-deploy.d`, `/usr/libexec/acmesh-deploy` and the staging base directory (default `/var/opt/acme.sh-deploy`) manually.
 
 
 
@@ -380,7 +465,7 @@ The following variables can be configured for this role:
 | `run_acmesh_git_fallback_version_branch` | `str` | No | `"master"` | The Git branch to clone when no version tag could be determined from the remote repository (e.g. because `git ls-remote` failed or returned no matching tags).<br><br>See https://github.com/acmesh-official/acme.sh/issues/1162 for why acme.sh uses […](#variable-run_acmesh_git_fallback_version_branch) |
 | `run_acmesh_git_version` | `str` | No | `""` | Overrides the automatically detected acme.sh version with a specific Git ref (tag, branch, or commit hash). When set (non-empty string), the role skips the upstream version tag detection via `git ls-remote` and uses this value directly for the […](#variable-run_acmesh_git_version) |
 | `run_acmesh_certs` | `list` | No | `[]` | Defines certificates to be requested, their associated domains, challenge methods, and installation details. Each item in the list is a dictionary with suboptions / keys.<br><br>Example:<br><br>``` run_acmesh_certs: # first certificate: "example.org" […](#variable-run_acmesh_certs) |
-| `run_acmesh_certs_delete_unmanaged` | `bool` | No | `false` | If set to `true`, certificate data below `run_acmesh_cfg_cert_home` that does not belong to any certificate listed in `run_acmesh_certs` gets removed (which also stops the automated renewal for it), as do `acmesh-reload-*` systemd units the current […](#variable-run_acmesh_certs_delete_unmanaged) |
+| `run_acmesh_certs_delete_unmanaged` | `bool` | No | `false` | If set to `true`, certificate data below `run_acmesh_cfg_cert_home` that does not belong to any certificate listed in `run_acmesh_certs` gets removed (which also stops the automated renewal for it), as do `acmesh-reload-*` and `acmesh-deploy-*` […](#variable-run_acmesh_certs_delete_unmanaged) |
 | `run_acmesh_user` | `str` | No | `"acmesh"` | Specifies the service user account that runs acme.sh and owns relevant files and directories.<br><br>All acme.sh operations run as this account: account registration, certificate issuance and installation during the Ansible run as well as the […](#variable-run_acmesh_user) |
 | `run_acmesh_group` | `str` | No | `"acmesh"` | Specifies the group associated with the service user for managing acme.sh and the corresponding file permissions. |
 | `run_acmesh_user_supplementary_groups` | `list` | No | `[]` | Exact list of supplementary groups for the service user account (`run_acmesh_user`) beyond `run_acmesh_group`. The role manages the account's supplementary groups as the exact unique union of `run_acmesh_group` and this list; group memberships added […](#variable-run_acmesh_user_supplementary_groups) |
@@ -388,6 +473,7 @@ The following variables can be configured for this role:
 | `run_acmesh_cfg_home` | `str` | No | `"/opt/acme.sh"` | Specifies the installation directory for the acme.sh software (relates to acme.sh option --home). Will also be used as home directory of the service user defined (see `run_acmesh_user`). |
 | `run_acmesh_cfg_config_home` | `str` | No | `"/etc/acme.sh"` | Defines where configuration files are stored (relates to acme.sh option --config-home). |
 | `run_acmesh_cfg_cert_home` | `str` | No | `"/var/opt/acme.sh"` | Specifies the directory where certificates are maintained by acme.sh (relates to acme.sh option --certhome). ⚠️ Do not rely on the files in this directory directly. Instead, copy the certificates where needed using the "install" key of […](#variable-run_acmesh_cfg_cert_home) |
+| `run_acmesh_cfg_cert_deploy_base_dir` | `str` | No | `"/var/opt/acme.sh-deploy"` | Base directory for the internal staging areas of certificates using the `staged` installation strategy. The directory itself is root-owned and holds one subdirectory per certificate which is writable by the service user: acme.sh installs into that […](#variable-run_acmesh_cfg_cert_deploy_base_dir) |
 | `run_acmesh_cfg_logfile` | `str` | No | `"/var/log/acme.sh.log"` | Path to the log file where acme.sh logs its operations (relates to acme.sh option --log). |
 | `run_acmesh_cfg_log_level` | `int` | No | `1` | Specifies the log level (relates to acme.sh option --log-level). Possible values are 1 (less logging) and 2 (more logging). |
 | `run_acmesh_cfg_syslog` | `int` | No | `3` | Specifies what to log (relates to acme.sh option --syslog). Possible values are 0 (disable syslog), 3 (errors), 6 (info) and 7 (debug) |
@@ -764,12 +850,18 @@ for details.
 
 [*⇑ Back to ToC ⇑*](#toc)
 
-Dictionary defining where to install the issued certificates.
-The following keys specify file paths and a reload command:
+Dictionary defining where and how to install the issued
+certificates. The following keys specify file paths, the
+installation strategy, ownership and permission overrides and a
+reload command:
 - ca_file: String. Path to the certificate authority (CA) file.
 - cert_file: String. Path to the certificate file.
 - fullchain_file: String. Path to the full certificate chain file.
 - key_file: String. Path to the private key file.
+- strategy: String, `staged` (the default) or `direct`. See the
+  suboption description for details.
+- permissions: Dictionary of partial ownership and mode overrides
+  for the destination directory and the installed files.
 - reloadcmd: String. Command to reload or restart services after certificate
   installation and renewal (e.g., web server or mail server). It is
   executed as root by a systemd unit whenever the installed certificate
@@ -824,6 +916,156 @@ Deprecated alias of `fullchain_file` (typo, "cain" instead of "chain"). Do not u
 
 - **Type**: `str`
 - **Required**: No
+
+##### `run_acmesh_certs['install']['strategy']`<a id="variable-run_acmesh_certs-sub-install-sub-strategy"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Installation strategy for the certificate files.
+
+`staged` (the default, also used when this key is omitted):
+acme.sh installs the certificate into an internal,
+root-protected staging area below
+`run_acmesh_cfg_cert_deploy_base_dir` and a root-owned
+systemd service (`acmesh-deploy-<primary domain>.service`)
+validates and publishes the files to the final destinations.
+This supports destinations below protected parent directories
+(such as `/etc/ssl/private`) and full ownership and mode
+control via `permissions`, while acme.sh itself keeps running
+unprivileged. See the README of this role for details.
+
+`direct`: acme.sh installs directly to the final paths as the
+unprivileged service user (the behavior of version 3.x and
+below of this role). This is a compatibility option, not the
+recommended default: every destination must be writable by
+`run_acmesh_user` - also during unattended renewal - and
+`permissions` ownership overrides are rejected because the
+service account could not maintain them.
+
+- **Type**: `str`
+- **Required**: No
+- **Default**: `"staged"`
+- **Choices**: `staged`, `direct`
+
+##### `run_acmesh_certs['install']['permissions']`<a id="variable-run_acmesh_certs-sub-install-sub-permissions"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Partial overrides for the ownership and permissions of the
+destination directory and the installed certificate files.
+
+Effective values are calculated per key; later mappings
+override earlier mappings, unspecified keys inherit from the
+earlier ones:
+
+1. role defaults (directory: `run_acmesh_user`:`run_acmesh_group`
+   with mode `"2750"`; files: `run_acmesh_user`:`run_acmesh_group`
+   with mode `"0640"`)
+2. `default` (applies to all certificate files)
+3. the per-artifact mapping (`ca_file`, `cert_file`,
+   `fullchain_file`, `key_file`)
+
+`mode` values must be quoted octal strings (such as `"0640"`).
+Certificate files must not be executable and must not carry
+setuid/setgid/sticky bits; private keys must additionally not
+be world-readable or group/world-writable (`"0600"`, `"0640"`,
+`"0400"` and `"0440"` are typical valid values). Directories
+may keep the setgid bit (the default directory mode is
+`"2750"`). `owner` and `group` accept names (recommended) or
+numeric ID strings and must exist on the target.
+
+Example:
+
+```
+permissions:
+  directory:
+    owner: "root"
+    group: "ssl-cert"
+    mode: "0750"
+  default:
+    owner: "root"
+    group: "ssl-cert"
+    mode: "0640"
+  fullchain_file:
+    mode: "0644"
+  key_file:
+    group: "dovecot"
+```
+
+- **Type**: `dict`
+- **Required**: No
+
+###### `run_acmesh_certs['install']['permissions']['directory']`<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-directory"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Ownership and mode overrides for the immediate
+destination directories of the certificate files. Only
+these directories are managed; existing ancestors (such
+as `/etc/ssl` or `/etc/ssl/private`) are never changed.
+
+- **Type**: `dict`
+- **Required**: No
+
+> **Note**: This option has more options but this README shows nested options up to level 3. Please refer to the argument_specs file for complete details.
+
+###### `run_acmesh_certs['install']['permissions']['default']`<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-default"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Ownership and mode overrides applied to all installed
+certificate files (overridable per artifact).
+
+- **Type**: `dict`
+- **Required**: No
+
+> **Note**: This option has more options but this README shows nested options up to level 3. Please refer to the argument_specs file for complete details.
+
+###### `run_acmesh_certs['install']['permissions']['ca_file']`<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-ca_file"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Ownership and mode overrides for the installed `ca_file`.
+
+- **Type**: `dict`
+- **Required**: No
+
+> **Note**: This option has more options but this README shows nested options up to level 3. Please refer to the argument_specs file for complete details.
+
+###### `run_acmesh_certs['install']['permissions']['cert_file']`<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-cert_file"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Ownership and mode overrides for the installed `cert_file`.
+
+- **Type**: `dict`
+- **Required**: No
+
+> **Note**: This option has more options but this README shows nested options up to level 3. Please refer to the argument_specs file for complete details.
+
+###### `run_acmesh_certs['install']['permissions']['fullchain_file']`<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-fullchain_file"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Ownership and mode overrides for the installed
+`fullchain_file`.
+
+- **Type**: `dict`
+- **Required**: No
+
+> **Note**: This option has more options but this README shows nested options up to level 3. Please refer to the argument_specs file for complete details.
+
+###### `run_acmesh_certs['install']['permissions']['key_file']`<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-key_file"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Ownership and mode overrides for the installed `key_file`.
+
+- **Type**: `dict`
+- **Required**: No
+
+> **Note**: This option has more options but this README shows nested options up to level 3. Please refer to the argument_specs file for complete details.
+
 
 ##### `run_acmesh_certs['install']['reloadcmd']`<a id="variable-run_acmesh_certs-sub-install-sub-reloadcmd"></a>
 
@@ -983,11 +1225,12 @@ Optional. `present` (the default) issues and maintains the certificate.
 
 `absent` removes all data of this certificate: the acme.sh data below
 `run_acmesh_cfg_cert_home` (which also stops the automated renewal for
-it), the `acmesh-reload-*` systemd units and the installed certificate
-files listed under `install`. Directories holding installed files are
-kept, as they may be shared with other software. The certificate is not
-revoked at the ACME CA. This works independently of
-`run_acmesh_certs_delete_unmanaged`.
+it), the `acmesh-reload-*` and `acmesh-deploy-*` systemd units, the
+staging data and deployment manifest of the `staged` installation
+strategy and the installed certificate files listed under `install`.
+Directories holding installed files are kept, as they may be shared
+with other software. The certificate is not revoked at the ACME CA.
+This works independently of `run_acmesh_certs_delete_unmanaged`.
 
 - **Type**: `str`
 - **Required**: No
@@ -1003,9 +1246,10 @@ revoked at the ACME CA. This works independently of
 If set to `true`, certificate data below `run_acmesh_cfg_cert_home` that
 does not belong to any certificate listed in `run_acmesh_certs` gets
 removed (which also stops the automated renewal for it), as do
-`acmesh-reload-*` systemd units the current configuration does not
-define. Useful to declaratively clean up certificates that were simply
-deleted from `run_acmesh_certs` (instead of being listed with
+`acmesh-reload-*` and `acmesh-deploy-*` systemd units, staging
+directories and deployment manifests the current configuration does
+not define. Useful to declaratively clean up certificates that were
+simply deleted from `run_acmesh_certs` (instead of being listed with
 `state: absent`).
 
 Two safety properties: installed certificate files of unmanaged
@@ -1157,6 +1401,27 @@ https://github.com/acmesh-official/acme.sh/issues/2350#issuecomment-1449235599
 - **Type**: `str`
 - **Required**: No
 - **Default**: `"/var/opt/acme.sh"`
+
+
+
+### `run_acmesh_cfg_cert_deploy_base_dir`<a id="variable-run_acmesh_cfg_cert_deploy_base_dir"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Base directory for the internal staging areas of certificates using
+the `staged` installation strategy. The directory itself is
+root-owned and holds one subdirectory per certificate which is
+writable by the service user: acme.sh installs into that staging
+area and the root-owned `acmesh-deploy-*` systemd units validate and
+publish the files to their final destinations.
+
+Must not be located below (or be a parent of) `run_acmesh_cfg_home`,
+`run_acmesh_cfg_config_home` or `run_acmesh_cfg_cert_home`; the role
+fails fast otherwise.
+
+- **Type**: `str`
+- **Required**: No
+- **Default**: `"/var/opt/acme.sh-deploy"`
 
 
 

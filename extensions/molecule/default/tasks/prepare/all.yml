@@ -4,6 +4,7 @@
 - name: "Molecule | Prepare | Install needed packages"
   ansible.builtin.package:
     name:
+      - "diffutils" # cmp, compare deployed certificate files during verify
       - "openssl" # read out certificate details during verify
     state: "present"
 
@@ -13,6 +14,26 @@
     name: "molecule-acmesh-extra"
     state: "present"
     system: true
+
+
+- name: "Molecule | Prepare | Create group for install permission overrides (install.permissions)"
+  # Simulates a consumer group like Debian's "ssl-cert"; the service user is
+  # deliberately NOT a member.
+  ansible.builtin.group:
+    name: "molecule-ssl-cert"
+    state: "present"
+    system: true
+
+
+- name: "Molecule | Prepare | Create a protected parent directory for staged key deployment"
+  # Simulates /etc/ssl/private (root-only): the service user cannot traverse
+  # it, so only the root-side staged deployment can publish files below it.
+  ansible.builtin.file:
+    path: "/etc/molecule-acmesh-protected"
+    state: "directory"
+    owner: "root"
+    group: "root"
+    mode: "u=rwx,g=,o=" # 0700
 
 
 ## Pepple (Let's Encrypt test ACME server, https://github.com/letsencrypt/pebble)
@@ -318,7 +339,7 @@
           server {
               listen 80;
               listen [::]:80;
-              server_name acmesh-webroot.test;
+              server_name acmesh-webroot.test acmesh-direct.test;
               root /var/www/acmesh-test;
 
               location / {
@@ -341,6 +362,7 @@
         content: |
           <VirtualHost *:80>
               ServerName acmesh-webroot.test
+              ServerAlias acmesh-direct.test
               DocumentRoot /var/www/acmesh-test
 
               <Directory /var/www/acmesh-test>
