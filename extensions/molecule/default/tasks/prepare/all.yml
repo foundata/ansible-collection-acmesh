@@ -8,6 +8,13 @@
     state: "present"
 
 
+- name: "Molecule | Prepare | Create supplementary group for the service user (run_acmesh_user_supplementary_groups)"
+  ansible.builtin.group:
+    name: "molecule-acmesh-extra"
+    state: "present"
+    system: true
+
+
 ## Pepple (Let's Encrypt test ACME server, https://github.com/letsencrypt/pebble)
 #
 # Sets up pebble and a web server inside each container for webroot (HTTP-01)

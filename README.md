@@ -89,6 +89,7 @@ The primary role in this collection for issuing and managing certificates. [Its 
     - [`run_acmesh_certs_delete_unmanaged`](roles/run/README.md#variable-run_acmesh_certs_delete_unmanaged)
     - [`run_acmesh_user`](roles/run/README.md#variable-run_acmesh_user)
     - [`run_acmesh_group`](roles/run/README.md#variable-run_acmesh_group)
+    - [`run_acmesh_user_supplementary_groups`](roles/run/README.md#variable-run_acmesh_user_supplementary_groups)
     - [`run_acmesh_cfg_accountemail`](roles/run/README.md#variable-run_acmesh_cfg_accountemail)
     - [`run_acmesh_cfg_home`](roles/run/README.md#variable-run_acmesh_cfg_home)
     - [`run_acmesh_cfg_config_home`](roles/run/README.md#variable-run_acmesh_cfg_config_home)

@@ -1452,6 +1452,138 @@
         - __testing_acmesh_domaincfg_content_domain2 is ansible.builtin.defined
 
 
+## Supplementary group management (run_acmesh_user_supplementary_groups)
+
+- name: "Molecule | Verify | Get the service user's group memberships"
+  ansible.builtin.command:
+    argv:
+      - "id"
+      - "-nG"
+      - "{{ run_acmesh_user }}"
+  changed_when:
+    - false
+  register: __testing_acmesh_id_groups
+
+
+- name: "Molecule | Verify | Assert the configured supplementary group is assigned"
+  ansible.builtin.assert:
+    that:
+      - "'molecule-acmesh-extra' in (__testing_acmesh_id_groups['stdout'] | ansible.builtin.split(' '))"
+      - run_acmesh_group in (__testing_acmesh_id_groups['stdout'] | ansible.builtin.split(' '))
+    fail_msg: >-
+      The service user's groups do not contain the configured supplementary
+      group: {{ __testing_acmesh_id_groups['stdout'] }}
+
+
+- name: "Molecule | Verify | Get the group memberships as seen by setpriv --init-groups"
+  # Runs the same setpriv prefix the role uses for all acme.sh invocations,
+  # proving the supplementary groups are effective for issuance, installation
+  # and renewal.
+  ansible.builtin.command:
+    argv:
+      - "{{ __run_acmesh_setpriv_exec_path }}"
+      - "--reuid"
+      - "{{ run_acmesh_user }}"
+      - "--regid"
+      - "{{ run_acmesh_group }}"
+      - "--init-groups"
+      - "--"
+      - "id"
+      - "-nG"
+  changed_when:
+    - false
+  register: __testing_acmesh_setpriv_groups
+
+
+- name: "Molecule | Verify | Assert setpriv --init-groups sees the supplementary group"
+  ansible.builtin.assert:
+    that:
+      - "'molecule-acmesh-extra' in (__testing_acmesh_setpriv_groups['stdout'] | ansible.builtin.split(' '))"
+    fail_msg: >-
+      setpriv --init-groups does not see the configured supplementary group:
+      {{ __testing_acmesh_setpriv_groups['stdout'] }}
+
+
+# Exact reconciliation: a membership added outside of the role must be removed
+# again on the next run while the configured ones are kept.
+
+- name: "Molecule | Verify | Create a stray group for the reconciliation check"
+  ansible.builtin.group:
+    name: "molecule-acmesh-stray"
+    state: "present"
+    system: true
+
+
+- name: "Molecule | Verify | Add the service user to the stray group"
+  ansible.builtin.user:
+    name: "{{ run_acmesh_user }}"
+    groups:
+      - "molecule-acmesh-stray"
+    append: true
+
+
+- name: "Molecule | Verify | Include the foundata.acmesh.run role (supplementary group reconciliation)"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+
+
+- name: "Molecule | Verify | Get the service user's group memberships after the reconciliation run"
+  ansible.builtin.command:
+    argv:
+      - "id"
+      - "-nG"
+      - "{{ run_acmesh_user }}"
+  changed_when:
+    - false
+  register: __testing_acmesh_id_groups_reconciled
+
+
+- name: "Molecule | Verify | Assert the stray membership was removed and the configured one kept"
+  ansible.builtin.assert:
+    that:
+      - "'molecule-acmesh-stray' not in (__testing_acmesh_id_groups_reconciled['stdout'] | ansible.builtin.split(' '))"
+      - "'molecule-acmesh-extra' in (__testing_acmesh_id_groups_reconciled['stdout'] | ansible.builtin.split(' '))"
+    fail_msg: >-
+      Supplementary group reconciliation failed:
+      {{ __testing_acmesh_id_groups_reconciled['stdout'] }}
+
+
+- name: "Molecule | Verify | Remove the stray group"
+  ansible.builtin.group:
+    name: "molecule-acmesh-stray"
+    state: "absent"
+
+
+## Regression test: missing supplementary groups are rejected (init-only)
+
+- name: "Molecule | Verify | Validate rejection of missing supplementary groups (init-only)"
+  block:
+
+    - name: "Molecule | Verify | Supplementary groups: include the role's init with a missing group (must fail)"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+        tasks_from: "init"
+      vars:
+        run_acmesh_user_supplementary_groups:
+          - "molecule-acmesh-doesnotexist"
+
+    - name: "Molecule | Verify | Supplementary groups: force a failure because init accepted a missing group"
+      ansible.builtin.fail:
+        msg: "The role's init accepted a non-existing supplementary group."
+
+  rescue:
+
+    - name: "Molecule | Verify | Supplementary groups: assert the run failed in the group existence check"
+      ansible.builtin.assert:
+        that:
+          - (ansible_failed_task['name'] | ansible.builtin.default('')) is ansible.builtin.search('supplementary group exists')
+        fail_msg: >-
+          The run failed, but not in the supplementary group existence check as
+          expected (failed task:
+          '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
+        success_msg: "Missing supplementary groups are rejected by the role's init."
+
+
 ## Test uninstall: additional, non-primary group removal (no additional members)
 
 - name: "Molecule | Verify | Flush handlers now"

@@ -166,11 +166,19 @@
     force: false
 
 
-- name: "Setup | Install | Default | Add service user to the group"
+- name: "Setup | Install | Default | Add service user to the group(s)"
   ansible.builtin.user:
     name: "{{ run_acmesh_user }}"
-    groups:
-      - "{{ run_acmesh_group }}"
+    # Exact membership: the account is fully owned by this role, so the
+    # supplementary groups are reconciled to the unique union of
+    # run_acmesh_group and run_acmesh_user_supplementary_groups; memberships
+    # added outside of the role are removed again. Group existence was
+    # validated in tasks/init.yml.
+    groups: >-
+      {{
+        ([run_acmesh_group] + (run_acmesh_user_supplementary_groups | ansible.builtin.default([])))
+        | ansible.builtin.unique
+      }}
     append: false # remove from all groups (except the primary one)
 
 

@@ -110,6 +110,20 @@ __run_acmesh_certs_known_domains: >-
   {{ domains }}
 
 
+# Groups from run_acmesh_user_supplementary_groups which do not exist on the
+# target, derived from the getent lookups registered in tasks/init.yml (only
+# meaningful after these ran).
+__run_acmesh_supplementary_groups_missing: >-
+  {%- set missing = [] -%}
+  {%- for _res in ((__run_acmesh_supplementary_groups_getent | ansible.builtin.default({}))['results'] | ansible.builtin.default([])) -%}
+  {%-   if (_res['ansible_facts'] is ansible.builtin.defined) and
+           (_res['ansible_facts']['getent_group'][_res['item']] is ansible.builtin.none) -%}
+  {%-     set _ = missing.append(_res['item']) -%}
+  {%-   endif -%}
+  {%- endfor -%}
+  {{ missing }}
+
+
 # Whether the unprivileged renewal service (acmesh-renewal.service, runs as
 # run_acmesh_user) needs CAP_NET_BIND_SERVICE. acme.sh binds a listening port
 # itself only for the "standalone" (HTTP-01, default port 80, overridable with

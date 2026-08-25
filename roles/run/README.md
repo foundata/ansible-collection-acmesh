@@ -59,6 +59,7 @@ The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible co
   - [`run_acmesh_certs_delete_unmanaged`](#variable-run_acmesh_certs_delete_unmanaged)
   - [`run_acmesh_user`](#variable-run_acmesh_user)
   - [`run_acmesh_group`](#variable-run_acmesh_group)
+  - [`run_acmesh_user_supplementary_groups`](#variable-run_acmesh_user_supplementary_groups)
   - [`run_acmesh_cfg_accountemail`](#variable-run_acmesh_cfg_accountemail)
   - [`run_acmesh_cfg_home`](#variable-run_acmesh_cfg_home)
   - [`run_acmesh_cfg_config_home`](#variable-run_acmesh_cfg_config_home)
@@ -382,6 +383,7 @@ The following variables can be configured for this role:
 | `run_acmesh_certs_delete_unmanaged` | `bool` | No | `false` | If set to `true`, certificate data below `run_acmesh_cfg_cert_home` that does not belong to any certificate listed in `run_acmesh_certs` gets removed (which also stops the automated renewal for it), as do `acmesh-reload-*` systemd units the current […](#variable-run_acmesh_certs_delete_unmanaged) |
 | `run_acmesh_user` | `str` | No | `"acmesh"` | Specifies the service user account that runs acme.sh and owns relevant files and directories.<br><br>All acme.sh operations run as this account: account registration, certificate issuance and installation during the Ansible run as well as the […](#variable-run_acmesh_user) |
 | `run_acmesh_group` | `str` | No | `"acmesh"` | Specifies the group associated with the service user for managing acme.sh and the corresponding file permissions. |
+| `run_acmesh_user_supplementary_groups` | `list` | No | `[]` | Exact list of supplementary groups for the service user account (`run_acmesh_user`) beyond `run_acmesh_group`. The role manages the account's supplementary groups as the exact unique union of `run_acmesh_group` and this list; group memberships added […](#variable-run_acmesh_user_supplementary_groups) |
 | `run_acmesh_cfg_accountemail` | `str` | No | `""` | Specifies the email address to be associated with the ACME account. This email is used for expiration notices and recovery purposes. Some ACME providers might refuse to issue certificates if not set. |
 | `run_acmesh_cfg_home` | `str` | No | `"/opt/acme.sh"` | Specifies the installation directory for the acme.sh software (relates to acme.sh option --home). Will also be used as home directory of the service user defined (see `run_acmesh_user`). |
 | `run_acmesh_cfg_config_home` | `str` | No | `"/etc/acme.sh"` | Defines where configuration files are stored (relates to acme.sh option --config-home). |
@@ -1066,6 +1068,35 @@ acme.sh and the corresponding file permissions.
 - **Type**: `str`
 - **Required**: No
 - **Default**: `"acmesh"`
+
+
+
+### `run_acmesh_user_supplementary_groups`<a id="variable-run_acmesh_user_supplementary_groups"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Exact list of supplementary groups for the service user account
+(`run_acmesh_user`) beyond `run_acmesh_group`. The role manages the
+account's supplementary groups as the exact unique union of
+`run_acmesh_group` and this list; group memberships added outside of
+this role are removed again on the next run. Every listed group must
+already exist on the target (the role fails fast otherwise).
+
+Both the automated renewal service (`acmesh-renewal.service`) and all
+acme.sh invocations of this role (which run via
+`setpriv --init-groups`) pick these groups up.
+
+⚠️ Privileged groups (such as `ssl-cert` on Debian-based systems) may
+grant read access to unrelated private keys. This escape hatch is
+useful for `direct` certificate installations below protected
+directories, webroot write access, hooks and similar local
+requirements, but should not be needed merely to deploy a
+certificate through the (default) `staged` installation strategy.
+
+- **Type**: `list`
+- **Required**: No
+- **Default**: `[]`
+- **List Elements**: `str`
 
 
 

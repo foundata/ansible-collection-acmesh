@@ -308,6 +308,17 @@
       )
 
 
+- name: "Molecule | Converge | Store supplementary group settings in __testing_state"
+  ansible.builtin.include_tasks:
+    file: "../tasks/state_update.yml"
+  vars:
+    __testing_state_update:
+      # The group is created in the prepare stage; verify asserts the exact
+      # membership reconciliation and that setpriv --init-groups picks it up.
+      run_acmesh_user_supplementary_groups:
+        - "molecule-acmesh-extra"
+
+
 - name: "Molecule | Converge | Set run_acmesh_* parameters as facts from __testing_state"
   ansible.builtin.set_fact:
     "{{ item['key'] }}": "{{ item['value'] }}"

@@ -258,6 +258,76 @@
     quiet: true
 
 
+# The service user's supplementary groups are reconciled to the exact unique
+# union of run_acmesh_group and run_acmesh_user_supplementary_groups (see
+# tasks/setup/install/default.yml). Every requested group must already exist;
+# ansible.builtin.user would fail on a missing group too, but only one at a
+# time and with a less helpful message. Only relevant when installing.
+- name: "Init | Check supplementary group names are non-empty and fail if unmet"
+  ansible.builtin.assert:
+    that:
+      - "(__run_acmesh_supplementary_groups_unnamed | ansible.builtin.length) == 0"
+    fail_msg: >-
+      run_acmesh_user_supplementary_groups contains empty or whitespace-only
+      entr(y/ies) at the following position(s):
+      {{ __run_acmesh_supplementary_groups_unnamed | ansible.builtin.join(', ') }}.
+      Every entry must be an existing group name.
+    quiet: true
+  vars:
+    __run_acmesh_supplementary_groups_unnamed: >-
+      {%- set offenders = [] -%}
+      {%- for _group in (run_acmesh_user_supplementary_groups | ansible.builtin.default([])) -%}
+      {%-   if (((_group | ansible.builtin.string) | ansible.builtin.trim) | ansible.builtin.length) == 0 -%}
+      {%-     set _ = offenders.append('run_acmesh_user_supplementary_groups[' ~ loop.index0 ~ ']') -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ offenders }}
+  when:
+    - run_acmesh_state == 'present'
+
+
+- name: "Init | Look up the configured supplementary groups (if any)"
+  ansible.builtin.getent:
+    database: "group"
+    key: "{{ item }}"
+    fail_key: false
+  when:
+    - run_acmesh_state == 'present'
+  loop: "{{ (run_acmesh_user_supplementary_groups | ansible.builtin.default([])) | ansible.builtin.unique }}"
+  register: __run_acmesh_supplementary_groups_getent
+
+
+- name: "Init | Check every configured supplementary group exists and fail if unmet"
+  # In check mode a missing group is only reported (see the next task): it may
+  # legitimately be created by an earlier step of the same play which check
+  # mode did not really execute.
+  ansible.builtin.assert:
+    that:
+      - "(__run_acmesh_supplementary_groups_missing | ansible.builtin.length) == 0"
+    fail_msg: >-
+      The following group(s) from run_acmesh_user_supplementary_groups do not
+      exist on the target:
+      {{ __run_acmesh_supplementary_groups_missing | ansible.builtin.join(', ') }}.
+      Create them before running this role (or remove them from the list).
+    quiet: true
+  when:
+    - run_acmesh_state == 'present'
+    - not ansible_check_mode
+
+
+- name: "Init | Notify about missing supplementary groups (check mode)"
+  ansible.builtin.debug:
+    msg: >-
+      Check mode: the following group(s) from
+      run_acmesh_user_supplementary_groups do not exist (yet):
+      {{ __run_acmesh_supplementary_groups_missing | ansible.builtin.join(', ') }}.
+      A real run fails unless they exist by the time this role runs.
+  when:
+    - run_acmesh_state == 'present'
+    - ansible_check_mode
+    - (__run_acmesh_supplementary_groups_missing | ansible.builtin.length) > 0
+
+
 # The first domain is the certificate's identity: it names the acme.sh data
 # directory below run_acmesh_cfg_cert_home and the acmesh-reload-* units, and
 # the issue/install/removal tasks dereference it directly. Without this check

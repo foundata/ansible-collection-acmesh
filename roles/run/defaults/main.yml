@@ -473,6 +473,29 @@ run_acmesh_user: "acmesh"
 # - Default: acmesh
 run_acmesh_group: "acmesh"
 
+# Exact list of supplementary groups for the service user account
+# (`run_acmesh_user`) beyond `run_acmesh_group`. The role manages the account's
+# supplementary groups as the exact unique union of `run_acmesh_group` and this
+# list; group memberships added outside of this role are removed again on the
+# next run. Every listed group must already exist on the target (the role fails
+# fast otherwise).
+#
+# Both the automated renewal service (`acmesh-renewal.service`) and all acme.sh
+# invocations of this role (which run via `setpriv --init-groups`) pick these
+# groups up.
+#
+# ⚠️ Privileged groups (such as `ssl-cert` on Debian-based systems) may grant
+# read access to unrelated private keys. This escape hatch is useful for
+# `direct` certificate installations below protected directories, webroot write
+# access, hooks and similar local requirements, but should not be needed merely
+# to deploy a certificate through the (default) `staged` installation strategy.
+#
+# - Type: list
+# - Required: No
+# - Default: []
+# - List elements: str
+run_acmesh_user_supplementary_groups: []
+
 # Specifies the email address to be associated with the ACME account. This email
 # is used for expiration notices and recovery purposes. Some ACME providers
 # might refuse to issue certificates if not set.

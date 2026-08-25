@@ -1,0 +1,14 @@
+---
+
+minor_changes:
+  - >
+    ``run`` - new ``run_acmesh_user_supplementary_groups`` option: the service
+    account's supplementary groups are managed as the exact unique union of
+    ``run_acmesh_group`` and this list, so protected paths (or other local
+    requirements) can grant access via group membership without the role
+    removing it again on the next run. Memberships added outside of the role
+    are still reconciled away. Both the automated renewal service and all
+    acme.sh invocations of the role (``setpriv --init-groups``) pick the
+    groups up. Note that privileged groups such as ``ssl-cert`` may grant
+    access to unrelated private keys; see the role documentation
+    (`#22 <https://github.com/foundata/ansible-collection-acmesh/issues/22>`__).

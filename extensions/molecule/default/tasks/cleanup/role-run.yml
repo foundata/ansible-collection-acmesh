@@ -7,6 +7,12 @@
     run_acmesh_state: "absent"
 
 
+- name: "Molecule | Cleanup | Remove the supplementary test group"
+  ansible.builtin.group:
+    name: "molecule-acmesh-extra"
+    state: "absent"
+
+
 ## Pebble and web server cleanup
 
 - name: "Molecule | Cleanup | Stop and disable pebble services"
