@@ -4,6 +4,40 @@ foundata.acmesh Ansible collection Release Notes
 
 .. contents:: Topics
 
+v4.0.0
+======
+
+Release Summary
+---------------
+
+Release Date: 2026-08-26
+
+Feature and bugfix release.
+
+Major Changes
+-------------
+
+- ``run`` - new ``run_acmesh_certs[]['install']['permissions']`` option: partial overrides for the ownership and permissions of the destination directory and each installed certificate file, merged over the role defaults (which remain ``run_acmesh_user``:``run_acmesh_group`` with mode ``"2750"`` for directories and ``"0640"`` for files). The merge precedence is role defaults, then ``default``, then the per-artifact mapping; unspecified keys inherit from the earlier mappings.
+- ``run`` - the staged deployment helper validates every staged artifact before publishing (PEM parsing, private key/certificate match, certificate domain coverage, size limits, symlink and non-regular file rejection), applies ownership and modes before atomic renames and publishes the completion artifact last, so the ``acmesh-reload-*`` reload units only fire after a complete, consistent deployment. Metadata-only reconciliation does not trigger service reloads. Note the documented limitation: a hard system crash while publishing files on different filesystems can still leave a mixed set.
+
+Minor Changes
+-------------
+
+- ``run`` - new ``run_acmesh_user_supplementary_groups`` option: the service account's supplementary groups are managed as the exact unique union of ``run_acmesh_group`` and this list, so protected paths (or other local requirements) can grant access via group membership without the role removing it again on the next run. Memberships added outside of the role are still reconciled away. Both the automated renewal service and all acme.sh invocations of the role (``setpriv --init-groups``) pick the groups up. Note that privileged groups such as ``ssl-cert`` may grant access to unrelated private keys; see the role documentation (`#22 <https://github.com/foundata/ansible-collection-acmesh/issues/22>`__).
+
+Breaking Changes / Porting Guide
+--------------------------------
+
+- ``run`` - certificate installation now defaults to the new ``staged`` strategy: ``acme.sh`` installs into a root-protected staging area below ``run_acmesh_cfg_cert_deploy_base_dir`` and a root-owned systemd service (``acmesh-deploy-<primary domain>.service``) validates and publishes the files to their final destinations. This supports destinations below protected parent directories such as ``/etc/ssl/private`` and full ownership/mode control via ``install.permissions``, while acme.sh itself keeps running unprivileged. Set ``run_acmesh_certs[]['install']['strategy']: "direct"`` to keep the previous unprivileged direct installation (`#22 <https://github.com/foundata/ansible-collection-acmesh/issues/22>`__).
+- ``run`` - downgrading to version 3.x after the migration requires an explicit direct reinstallation: 3.x does not understand the staging paths, so renewals would keep updating the staging area while the final destinations go stale. Re-run the 3.x role (its ``--install-cert`` re-points acme.sh at the final paths) and remove the ``acmesh-deploy-*`` units, ``/etc/acmesh-deploy.d``, ``/usr/libexec/acmesh-deploy`` and the staging base directory manually.
+- ``run`` - playbooks which change certificate ownership or modes after applying the role must move those requirements into ``install.permissions``. The role now reconciles final certificate permissions and may overwrite external changes.
+- ``run`` - the first run of version 4.0.0 on an existing installation may report ``changed``: it migrates the acme.sh installation paths (``Le_Real*Path``) to the staging area, creates the staged deployment resources and reconciles the final files and their metadata. Subsequent runs are idempotent when certificate content, configuration, strategy, destinations and permissions are unchanged.
+
+Bugfixes
+--------
+
+- ``run`` - a failed ``acme.sh --install-cert`` is no longer treated as successful just because its output contains ``Installing``. acme.sh prints that line for every file before writing it, so a partial installation (for example a private key that could not be written below a protected directory) was reported as success while already deployed files went stale on every renewal. A nonzero acme.sh exit status now always fails the role (`#22 <https://github.com/foundata/ansible-collection-acmesh/issues/22>`__).
+
 v3.0.1
 ======
 
