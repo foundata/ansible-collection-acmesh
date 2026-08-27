@@ -1504,16 +1504,7 @@
 
 ## Regression: role included in a loop with item-templated configuration
 #
-# Playbooks may invoke the role once per certificate via include_role with a
-# loop, deriving run_acmesh_certs values from "{{ item.* }}" of the OUTER
-# loop. Inside the role, tasks with their own loops shadow "item"; lazily
-# evaluated values that dereference the certificate list during such a loop
-# then resolve against the wrong "item". This once made the install task see
-# no install file paths at all and invoke "acme.sh --install-cert" without
-# file flags, which cleared the certificate's stored Le_Real*Path
-# installation configuration. The installation data is therefore materialized
-# once per task-loop start (see __run_acmesh_install_loop in vars/main.yml);
-# this block pins that behavior with the exact invocation pattern.
+# Role-internal loops must not shadow "item".
 
 - name: "Molecule | Verify | Loop-included role invocation with item-templated configuration"
   when:
@@ -1524,6 +1515,7 @@
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
       vars:
+        run_acmesh_environment: "{{ item['environment'] }}"
         run_acmesh_certs:
           - domains:
               - name: "{{ item['domain'] }}"
@@ -1538,12 +1530,36 @@
               key_file: "/etc/pki/tls/certs/{{ item['cert_dir_name'] }}/cert.key"
               reloadcmd: ""
             server: "https://localhost:14000/dir"
+            # acme.sh returns RENEW_SKIP before it persists account settings,
+            # so the issuance has to actually run for this check.
+            force: true
       loop:
         - cert_dir_name: "acmesh-direct.test"
           domain: "acmesh-direct.test"
           webroot: "/var/www/acmesh-test"
+          # acme.sh persists this into account.conf, which makes it observable.
+          environment:
+            HTTPS_INSECURE: 1
       loop_control:
         label: "{{ item['cert_dir_name'] }}"
+
+
+    - name: "Molecule | Verify | Loop include: read account.conf to check the environment passthrough"
+      ansible.builtin.slurp:
+        src: "{{ run_acmesh_cfg_config_home }}/account.conf"
+      register: __testing_acmesh_loopinclude_accountconf
+
+
+    - name: "Molecule | Verify | Loop include: assert the environment reached acme.sh"
+      ansible.builtin.assert:
+        that:
+          - "'HTTPS_INSECURE' in (__testing_acmesh_loopinclude_accountconf['content'] | ansible.builtin.b64decode)"
+        fail_msg: >-
+          run_acmesh_environment did not reach acme.sh when the role was
+          included in a loop: the value is templated from the outer loop
+          item and a role task shadowed "item" while dereferencing it.
+        success_msg: >-
+          The environment templated from the outer loop item reached acme.sh.
 
 
     - name: "Molecule | Verify | Loop include: read the certificate's acme.sh configuration"

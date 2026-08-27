@@ -1,0 +1,12 @@
+---
+
+bugfixes:
+  - >
+    ``run`` - ``run_acmesh_environment`` no longer silently ends up empty
+    when the role is included in a loop and the value is templated from that
+    loop's ``item`` (for example ``run_acmesh_environment: "{{
+    item.environment }}"``). The issuance and installation tasks dereferenced
+    it per loop iteration, where their own loop had already rebound ``item``,
+    this also made acme.sh clear settings it persists in ``account.conf``, which
+    could break subsequent unattended renewals as well. Both tasks now use a
+    role-specific loop variable so the surrounding ``item`` stays intact.

@@ -344,11 +344,7 @@ __run_acmesh_install_permissions_file_defaults:
 #   certificate identity validation).
 #
 # Derived from __run_acmesh_install_loop below, which pairs every certificate
-# with its installation data in a single pass. Tasks must never re-associate
-# the two by looking a certificate up in this list at runtime: acme.sh
-# persists the paths handed to "--install-cert" as its Le_Real*Path values, so
-# a lookup that silently resolves to nothing would clear a certificate's
-# installation configuration instead of merely skipping it.
+# with its installation data in a single pass.
 __run_acmesh_install_normalized: >-
   {{
     __run_acmesh_install_loop
@@ -359,8 +355,7 @@ __run_acmesh_install_normalized: >-
 
 # Loop data for the installation task: one entry per managed certificate that
 # configures at least one install file path. Each entry carries everything
-# that task needs, so it never has to correlate two data structures at
-# runtime:
+# that task needs:
 #
 # - domain: the certificate's primary domain (for "--domain").
 # - environment: the certificate's own environment mapping (DNS API
@@ -369,9 +364,7 @@ __run_acmesh_install_normalized: >-
 #   consumes the credential-free __run_acmesh_install_normalized above.
 # - install_data: the normalized installation data of this certificate.
 #
-# Certificates without any install file path are intentionally absent:
-# invoking "acme.sh --install-cert" for them would have nothing to install
-# and would clear their stored installation configuration.
+# Certificates without any install file path are intentionally absent.
 __run_acmesh_install_loop: >-
   {%- set entries = [] -%}
   {%- for _cert in __run_acmesh_certs_managed -%}

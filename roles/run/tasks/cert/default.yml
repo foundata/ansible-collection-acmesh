@@ -727,7 +727,7 @@
         --issue
         --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
         --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
-        {% for item_domain in item['domains'] %}
+        {% for item_domain in __run_acmesh_cert_item['domains'] %}
           --domain {{ item_domain['name'] | ansible.builtin.quote }}
           {{ '--dns ' ~ (item_domain['challenge']['dns_provider'] | ansible.builtin.quote)
               if ((item_domain['challenge'] is ansible.builtin.defined) and
@@ -809,37 +809,37 @@
               '' }}
         {% endfor %}
         {{ '--force'
-            if ((item['force'] is ansible.builtin.defined) and
-                (item['force']))
+            if ((__run_acmesh_cert_item['force'] is ansible.builtin.defined) and
+                (__run_acmesh_cert_item['force']))
             else
             '' }}
         {{ '--debug'
-            if ((item['debug'] is ansible.builtin.defined) and
-                (item['debug']))
+            if ((__run_acmesh_cert_item['debug'] is ansible.builtin.defined) and
+                (__run_acmesh_cert_item['debug']))
             else
             '' }}
-        {{ '--dnssleep ' ~ (item['dnssleep'] | ansible.builtin.quote)
-            if (item['dnssleep'] is ansible.builtin.defined)
+        {{ '--dnssleep ' ~ (__run_acmesh_cert_item['dnssleep'] | ansible.builtin.quote)
+            if (__run_acmesh_cert_item['dnssleep'] is ansible.builtin.defined)
             else
             '' }}
-        {{ '--pre-hook ' ~ (item['pre_hook'] | ansible.builtin.quote)
-            if ((item['pre_hook'] is ansible.builtin.defined) and
-                (item['pre_hook']))
+        {{ '--pre-hook ' ~ (__run_acmesh_cert_item['pre_hook'] | ansible.builtin.quote)
+            if ((__run_acmesh_cert_item['pre_hook'] is ansible.builtin.defined) and
+                (__run_acmesh_cert_item['pre_hook']))
             else
             '' }}
-        {{ '--post-hook ' ~ (item['post_hook'] | ansible.builtin.quote)
-            if ((item['post_hook'] is ansible.builtin.defined) and
-                (item['post_hook']))
+        {{ '--post-hook ' ~ (__run_acmesh_cert_item['post_hook'] | ansible.builtin.quote)
+            if ((__run_acmesh_cert_item['post_hook'] is ansible.builtin.defined) and
+                (__run_acmesh_cert_item['post_hook']))
             else
             '' }}
-        {{ '--renew-hook ' ~ (item['renew_hook'] | ansible.builtin.quote)
-            if ((item['renew_hook'] is ansible.builtin.defined) and
-                (item['renew_hook']))
+        {{ '--renew-hook ' ~ (__run_acmesh_cert_item['renew_hook'] | ansible.builtin.quote)
+            if ((__run_acmesh_cert_item['renew_hook'] is ansible.builtin.defined) and
+                (__run_acmesh_cert_item['renew_hook']))
             else
             '' }}
-        {{ '--server ' ~ (item['server'] | ansible.builtin.quote)
-            if ((item['server'] is ansible.builtin.defined) and
-                (item['server']))
+        {{ '--server ' ~ (__run_acmesh_cert_item['server'] | ansible.builtin.quote)
+            if ((__run_acmesh_cert_item['server'] is ansible.builtin.defined) and
+                (__run_acmesh_cert_item['server']))
             else
             '--server letsencrypt' }}
         {{ '--ca-bundle ' ~ (run_acmesh_cfg_ca_bundle | ansible.builtin.quote)
@@ -852,8 +852,8 @@
                 (run_acmesh_cfg_ca_path))
             else
             '' }}
-        {{  item['extra_flags']
-            if (item['extra_flags'] is ansible.builtin.defined)
+        {{  __run_acmesh_cert_item['extra_flags']
+            if (__run_acmesh_cert_item['extra_flags'] is ansible.builtin.defined)
             else
             '' }}
   args:
@@ -865,7 +865,7 @@
     {{
       {'HOME': run_acmesh_cfg_home}
       | ansible.builtin.combine(run_acmesh_environment | ansible.builtin.default({}))
-      | ansible.builtin.combine(item['environment'] | ansible.builtin.default({}))
+      | ansible.builtin.combine(__run_acmesh_cert_item['environment'] | ansible.builtin.default({}))
     }}
   vars:
     # Whether this certificate needs CAP_NET_BIND_SERVICE for issuance: same
@@ -873,7 +873,7 @@
     # single certificate.
     __run_acmesh_issue_needs_net_bind: >-
       {%- set ns = namespace(need=false) -%}
-      {%- for _domain in (item['domains'] | ansible.builtin.default([])) -%}
+      {%- for _domain in (__run_acmesh_cert_item['domains'] | ansible.builtin.default([])) -%}
       {%-   set _challenge = _domain['challenge'] | ansible.builtin.default({}) -%}
       {%-   set _type = _challenge['type'] | ansible.builtin.default('') -%}
       {%-   if _type == 'standalone' and ((_challenge['httpport'] | ansible.builtin.default(80) | ansible.builtin.int) < 1024) -%}
@@ -899,9 +899,11 @@
     - __run_acmesh_issue_result is ansible.builtin.failed
     - (__run_acmesh_issue_result['rc'] | ansible.builtin.default(1)) != 2
   loop: "{{ __run_acmesh_certs_managed }}"
+  loop_control:
+    loop_var: "__run_acmesh_cert_item"
   register: __run_acmesh_issue_result
   # The task environment carries the DNS API credentials (global and
-  # per-certificate) and the loop item includes the per-certificate ones, so its
+  # per-certificate) and the loop __run_acmesh_cert_item includes the per-certificate ones, so its
   # output must not be logged. Note: a "-vvv" run still exposes the environment
   # in the connection plugin's EXEC line, which no_log cannot suppress.
   no_log: true
@@ -947,13 +949,6 @@
     label: "{{ item['domain'] }}: {{ item['path'] }}"
 
 
-# Guard against a destructive fallback: acme.sh stores the paths handed to
-# "--install-cert" as its Le_Real*Path values, so invoking it without the
-# file flags does not just skip the installation, it CLEARS the previously
-# stored installation configuration of that certificate. The install task
-# derives those flags from the normalized data; if that lookup ever fails to
-# resolve for a certificate which configures install paths, the run must stop
-# here instead of silently wiping the certificate's installation settings.
 - name: "Cert | Default | Check the installation data resolves for every certificate and fail if unmet"
   ansible.builtin.assert:
     that:
@@ -991,10 +986,8 @@
     - run_acmesh_certs is ansible.builtin.defined
 
 
-# The installation itself is no_log (it carries the DNS API credentials in its
-# environment), so the resolved paths would otherwise never be visible. This
-# task shows them without any credential: the normalized data is built from
-# the credential-free certificate view.
+# The installation task is no_log; this exposes the resolved paths without
+# any credential.
 - name: "Cert | Default | Show the resolved certificate installation paths"
   ansible.builtin.debug:
     msg:
@@ -1034,7 +1027,7 @@
         --install-cert
         --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
         --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
-        --domain {{ item['domain'] | ansible.builtin.quote }}
+        --domain {{ __run_acmesh_cert_item['domain'] | ansible.builtin.quote }}
         {{ '--ca-file ' ~ ((__run_acmesh_install_artifacts['ca_file']['staging']
                             if (__run_acmesh_install_staged | ansible.builtin.bool)
                             else __run_acmesh_install_artifacts['ca_file']['dest']) | ansible.builtin.quote)
@@ -1062,12 +1055,8 @@
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   vars:
-    # The loop item already carries this certificate's installation data, so
-    # there is no runtime correlation that could resolve to nothing (see
-    # __run_acmesh_install_loop in vars/main.yml on why that would be
-    # destructive).
-    __run_acmesh_install_artifacts: "{{ item['install_data']['artifacts'] }}"
-    __run_acmesh_install_staged: "{{ item['install_data']['strategy'] == 'staged' }}"
+    __run_acmesh_install_artifacts: "{{ __run_acmesh_cert_item['install_data']['artifacts'] }}"
+    __run_acmesh_install_staged: "{{ __run_acmesh_cert_item['install_data']['strategy'] == 'staged' }}"
   # HOME mirrors the environment of the renewal service unit. The environment
   # is preserved across the setpriv user switch, so the DNS API credentials
   # reach acme.sh as before.
@@ -1075,7 +1064,7 @@
     {{
       {'HOME': run_acmesh_cfg_home}
       | ansible.builtin.combine(run_acmesh_environment | ansible.builtin.default({}))
-      | ansible.builtin.combine(item['environment'] | ansible.builtin.default({}))
+      | ansible.builtin.combine(__run_acmesh_cert_item['environment'] | ansible.builtin.default({}))
     }}
   when:
     - __run_acmesh_is_installed
@@ -1094,10 +1083,11 @@
     - __run_acmesh_install_result is ansible.builtin.failed
   loop: "{{ __run_acmesh_install_loop }}"
   loop_control:
-    label: "{{ item['domain'] }}"
+    loop_var: "__run_acmesh_cert_item"
+    label: "{{ __run_acmesh_cert_item['domain'] }}"
   register: __run_acmesh_install_result
   # As with issuing: the task environment carries the DNS API credentials and the
-  # loop item includes the per-certificate ones. See the no_log note above.
+  # loop __run_acmesh_cert_item includes the per-certificate ones. See the no_log note above.
   no_log: true
   notify:
     - "run_acmesh: set ownership and permissions"
@@ -1144,8 +1134,6 @@
 
 
 - name: "Cert | Default | Check acme.sh populated the staging area(s) and fail if unmet"
-  # Without this, an unpopulated staging area only surfaces as a low-level
-  # open() error of the deploy helper, which hides the actual cause.
   ansible.builtin.assert:
     that:
       - "(__run_acmesh_deploy_staging_missing | ansible.builtin.length) == 0"
