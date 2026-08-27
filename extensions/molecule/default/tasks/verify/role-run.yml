@@ -292,6 +292,12 @@
       - __testing_acmesh_service_result['status']['Group'] == run_acmesh_group
       - __testing_acmesh_service_result['status']['WorkingDirectory'] == run_acmesh_cfg_home
       - (run_acmesh_cfg_home ~ '/acme.sh') in __testing_acmesh_service_result['status']['ExecStart']
+      # Regression check: without an explicit --certhome, acme.sh does not
+      # reliably recover the certificate home used at --issue time and falls
+      # back to scanning --config-home for certificate directories instead,
+      # silently finding nothing to renew whenever cert_home and config_home
+      # differ (the default layout).
+      - ('--certhome ' ~ run_acmesh_cfg_cert_home) in __testing_acmesh_service_result['status']['ExecStart']
     fail_msg: "acmesh-renewal.service does not have the expected configuration"
 
 

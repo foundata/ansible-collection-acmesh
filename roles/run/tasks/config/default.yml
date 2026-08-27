@@ -90,7 +90,16 @@
       {% endif %}
       Environment="HOME={{ run_acmesh_cfg_home }}"
       WorkingDirectory={{ run_acmesh_cfg_home }}
-      ExecStart="{{ run_acmesh_cfg_home }}"/acme.sh --cron --home "{{ run_acmesh_cfg_home }}" --config-home "{{ run_acmesh_cfg_config_home }}"
+      # --certhome is required here: without it, acme.sh does not reliably
+      # recover the certificate home used at --issue time and falls back to
+      # scanning --config-home for certificate directories instead, silently
+      # finding nothing to renew (cf. issue reports about acmesh-renewal.service
+      # never renewing anything when run_acmesh_cfg_cert_home differs from
+      # run_acmesh_cfg_config_home, which is the default layout).
+      ExecStart="{{ run_acmesh_cfg_home }}"/acme.sh --cron \
+        --home "{{ run_acmesh_cfg_home }}" \
+        --config-home "{{ run_acmesh_cfg_config_home }}" \
+        --certhome "{{ run_acmesh_cfg_cert_home }}"
       SuccessExitStatus=0 2
       StandardError=journal
       SyslogIdentifier=acme.sh
