@@ -1,6 +1,38 @@
 ---
 ancestor: null
 releases:
+  4.0.1:
+    changes:
+      bugfixes:
+        - '``run`` - the ``acmesh-renewal.service`` unit (the daily systemd-timer
+          triggered renewal) did not pass ``--certhome`` to ``acme.sh --cron``. Without
+          it, acme.sh could not reliably recover the certificate home used at issuance
+          time and fell back to scanning ``--config-home`` for certificate directories
+          instead, silently finding nothing to renew whenever ``run_acmesh_cfg_cert_home``
+          differs from ``run_acmesh_cfg_config_home`` (the default layout for this
+          role). Certificates therefore never renewed automatically via the timer,
+          regardless of how overdue they were. This affects existing installations,
+          though the impact may have been masked wherever the role itself was re-run
+          often enough: an explicit role run always passes ``--certhome`` for issuance
+          and therefore already triggers a correct renewal on its own when due, independently
+          of the timer. The fix applies itself on the next role run (a single expected
+          ``changed`` while the unit file is rewritten); the result can also be checked
+          manually afterwards, even though this is not required (``systemctl cat acmesh-renewal.service``
+          should show ``--certhome``, and ``journalctl -u acmesh-renewal.service``
+          should show ``Renew: <domain>`` lines instead of silently skipping every
+          domain).
+
+          '
+      release_summary: 'Release Date: 2026-08-27
+
+
+        Bugfix release.
+
+        '
+    fragments:
+      - 4.0.1-release.yaml
+      - fix-renewal-missing-certhome.yml
+    release_date: '2026-08-27'
   4.0.0:
     changes:
       breaking_changes:
