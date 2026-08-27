@@ -455,6 +455,25 @@ __run_acmesh_install_artifacts_flat: >-
   {{ items }}
 
 
+# Staging files acme.sh has to write for the staged installation strategy,
+# flattened for a per-file existence check before the deploy helper runs. A
+# missing file here means acme.sh did not populate the staging area (the
+# certificate could not be issued or renewed, or --install-cert did not run),
+# which the deploy helper would only report as a low-level open() error.
+__run_acmesh_install_staging_files_flat: >-
+  {%- set items = [] -%}
+  {%- for _entry in __run_acmesh_install_normalized_staged -%}
+  {%-   for _key, _artifact in _entry['artifacts'].items() -%}
+  {%-     set _ = items.append({
+            'domain': _entry['domain'],
+            'artifact': _key,
+            'staging': _artifact['staging'],
+          }) -%}
+  {%-   endfor -%}
+  {%- endfor -%}
+  {{ items }}
+
+
 # Unique owner and group names referenced by the effective install
 # permissions of staged certificates. tasks/config/default.yml resolves them
 # to numeric UID/GID values (getent, after the setup phase created the

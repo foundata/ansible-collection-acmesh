@@ -889,10 +889,15 @@
   changed_when:
     - __run_acmesh_issue_result is ansible.builtin.success
     - ('Cert success') in __run_acmesh_issue_result['stdout']
+  # Exit status 2 is acme.sh's RENEW_SKIP ("nothing to do", e.g. the
+  # certificate is not due for renewal yet); every other nonzero status is a
+  # real failure. Deliberately not matched against stdout: acme.sh prints
+  # "Domains not changed" before it decides whether to renew, so a renewal
+  # that starts and then fails (challenge, DNS API, CA error) still carries
+  # that text and would be swallowed.
   failed_when:
-    - >
-      (run_acmesh_certs is not ansible.builtin.defined) or
-      ((__run_acmesh_issue_result is ansible.builtin.failed) and ('Domains not changed' not in __run_acmesh_issue_result['stdout']))
+    - __run_acmesh_issue_result is ansible.builtin.failed
+    - (__run_acmesh_issue_result['rc'] | ansible.builtin.default(1)) != 2
   loop: "{{ __run_acmesh_certs_managed }}"
   register: __run_acmesh_issue_result
   # The task environment carries the DNS API credentials (global and
@@ -940,6 +945,50 @@
   loop: "{{ __run_acmesh_install_directories_flat }}"
   loop_control:
     label: "{{ item['domain'] }}: {{ item['path'] }}"
+
+
+# Guard against a destructive fallback: acme.sh stores the paths handed to
+# "--install-cert" as its Le_Real*Path values, so invoking it without the
+# file flags does not just skip the installation, it CLEARS the previously
+# stored installation configuration of that certificate. The install task
+# derives those flags from the normalized data; if that lookup ever fails to
+# resolve for a certificate which configures install paths, the run must stop
+# here instead of silently wiping the certificate's installation settings.
+- name: "Cert | Default | Check the installation data resolves for every certificate and fail if unmet"
+  ansible.builtin.assert:
+    that:
+      - "(__run_acmesh_install_unresolved | ansible.builtin.length) == 0"
+    fail_msg: >-
+      The normalized installation data could not be resolved for the following
+      certificate(s): {{ __run_acmesh_install_unresolved | ansible.builtin.join(', ') }}.
+      Running "acme.sh --install-cert" without the file paths would clear the
+      stored installation configuration of those certificates, so the run
+      stops here. Please report this together with the output of
+      "ansible-playbook ... --tags run_acmesh_cert -vv".
+    quiet: true
+  vars:
+    __run_acmesh_install_unresolved: >-
+      {%- set offenders = [] -%}
+      {%- for _cert in __run_acmesh_certs_no_secrets -%}
+      {%-   set _install = _cert['install'] | ansible.builtin.default({}) -%}
+      {%-   set _ns = namespace(paths=false) -%}
+      {%-   for _key in ['ca_file', 'cert_file', 'fullchain_file', 'key_file'] -%}
+      {%-     if (((_install[_key] | ansible.builtin.default('')) | ansible.builtin.length) > 0) -%}
+      {%-       set _ns.paths = true -%}
+      {%-     endif -%}
+      {%-   endfor -%}
+      {%-   set _domain = (_cert['domains'] | ansible.builtin.default([{}]))[0]['name'] | ansible.builtin.default('') -%}
+      {%-   set _found = __run_acmesh_install_normalized
+                         | ansible.builtin.selectattr('domain', 'ansible.builtin.equalto', _domain)
+                         | ansible.builtin.list -%}
+      {%-   if _ns.paths and ((_found | ansible.builtin.length) == 0) -%}
+      {%-     set _ = offenders.append(_domain) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ offenders }}
+  when:
+    - __run_acmesh_is_installed
+    - run_acmesh_certs is ansible.builtin.defined
 
 
 - name: "Cert | Default | Install certificate(s)"
@@ -1058,6 +1107,52 @@
   loop_control:
     label: "{{ item['domain'] }}"
   register: __run_acmesh_deploy_manifest_stat
+
+
+- name: "Cert | Default | Get information about the staged certificate file(s) (staged deployment)"
+  ansible.builtin.stat:
+    path: "{{ item['staging'] }}"
+    get_checksum: false
+    get_mime: false
+    get_attributes: false
+  when:
+    - __run_acmesh_is_installed
+    - run_acmesh_certs is ansible.builtin.defined
+  loop: "{{ __run_acmesh_install_staging_files_flat }}"
+  loop_control:
+    label: "{{ item['domain'] }}: {{ item['artifact'] }}"
+  register: __run_acmesh_deploy_staging_stat
+
+
+- name: "Cert | Default | Check acme.sh populated the staging area(s) and fail if unmet"
+  # Without this, an unpopulated staging area only surfaces as a low-level
+  # open() error of the deploy helper, which hides the actual cause.
+  ansible.builtin.assert:
+    that:
+      - "(__run_acmesh_deploy_staging_missing | ansible.builtin.length) == 0"
+    fail_msg: >-
+      acme.sh did not write the following staged certificate file(s):
+      {{ __run_acmesh_deploy_staging_missing | ansible.builtin.join(', ') }}.
+      The staged installation strategy needs them before the root-side deploy
+      service can publish anything. This usually means the certificate could
+      not be issued or renewed (see the output of the issuance task and
+      {{ run_acmesh_cfg_logfile }}), so there is nothing to stage yet. The
+      certificate files at the final destinations were not modified.
+    quiet: true
+  vars:
+    __run_acmesh_deploy_staging_missing: >-
+      {%- set missing = [] -%}
+      {%- for _res in (__run_acmesh_deploy_staging_stat['results'] | ansible.builtin.default([])) -%}
+      {%-   if (not (_res['skipped'] | ansible.builtin.default(false))) and
+             (_res['stat'] is ansible.builtin.defined) and (not _res['stat']['exists']) -%}
+      {%-     set _ = missing.append(_res['item']['staging']) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ missing }}
+  when:
+    - __run_acmesh_is_installed
+    - run_acmesh_certs is ansible.builtin.defined
+    - not ansible_check_mode
 
 
 - name: "Cert | Default | Check for staged deployment drift (staged deployment)"

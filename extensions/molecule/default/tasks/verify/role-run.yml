@@ -1318,6 +1318,74 @@
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
 
 
+## Strict issuance failure handling
+#
+# acme.sh prints "Domains not changed" before it decides whether a renewal is
+# due, so matching that text swallowed genuine issuance and renewal failures.
+# Failure detection is based on the exit status instead, with status 2
+# (RENEW_SKIP, "not due yet") remaining a success. An unreachable ACME server
+# makes acme.sh exit non-zero, which must fail the role.
+
+- name: "Molecule | Verify | Issuance failure: define the throwaway certificate"
+  # A dedicated, never-issued domain: the failing run must not disturb the
+  # certificates the other checks rely on. Port 1 on the loopback interface
+  # refuses connections, so acme.sh fails fast without any network wait.
+  ansible.builtin.set_fact:
+    __testing_issuefail_certs:
+      - domains:
+          - name: "acmesh-issuefail.test"
+            challenge:
+              type: "webroot"
+              webroot: "/var/www/acmesh-test"
+        install:
+          fullchain_file: "/etc/pki/tls/certs/acmesh-issuefail.test/fullchain.cer"
+          key_file: "/etc/pki/tls/certs/acmesh-issuefail.test/cert.key"
+          reloadcmd: ""
+        server: "https://127.0.0.1:1/dir"
+
+
+- name: "Molecule | Verify | Strict issuance failure handling"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+  block:
+
+    - name: "Molecule | Verify | Issuance failure: issue against an unreachable ACME server (must fail)"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+      vars:
+        run_acmesh_certs: "{{ __testing_issuefail_certs }}"
+
+    - name: "Molecule | Verify | Issuance failure: force a failure because the failed issuance was accepted"
+      ansible.builtin.fail:
+        msg: "The role accepted a nonzero acme.sh --issue exit status."
+
+  rescue:
+
+    - name: "Molecule | Verify | Issuance failure: assert the run failed in the issuance task"
+      ansible.builtin.assert:
+        that:
+          - (ansible_failed_task['name'] | ansible.builtin.default('')) is ansible.builtin.search('Issue certificate')
+        fail_msg: >-
+          The run failed, but not in the certificate issuance task as expected
+          (failed task:
+          '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
+        success_msg: "A failing acme.sh --issue fails the role."
+
+
+- name: "Molecule | Verify | Issuance failure: remove the throwaway certificate resources"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+  vars:
+    run_acmesh_certs: >-
+      {{
+        __testing_issuefail_certs
+        | ansible.builtin.map('ansible.builtin.combine', {'state': 'absent'})
+        | ansible.builtin.list
+      }}
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+
+
 ## Strategy transitions (direct -> staged -> direct)
 
 - name: "Molecule | Verify | Installation strategy transitions (webroot challenge)"

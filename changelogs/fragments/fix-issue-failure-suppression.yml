@@ -1,0 +1,30 @@
+---
+
+bugfixes:
+  - >
+    ``run`` - a failed certificate issuance or renewal is no longer treated as
+    successful just because acme.sh printed ``Domains not changed``. acme.sh
+    emits that line before it decides whether a renewal is due, so a renewal
+    that started and then failed (challenge failure, DNS API error, CA error)
+    was swallowed and the role continued as if the certificate had been
+    issued. Failures are now decided by acme.sh's exit status, with status 2
+    (``RENEW_SKIP``, "certificate is not due for renewal yet") remaining a
+    success as before. This is the same class of defect that was fixed for
+    ``acme.sh --install-cert`` in version 4.0.0.
+  - >
+    ``run`` - the role no longer risks clearing a certificate's stored
+    installation configuration. acme.sh persists the paths handed to
+    ``--install-cert`` as its ``Le_Real*Path`` values, so an invocation
+    without the file flags does not merely skip the installation, it wipes
+    those values and thereby stops automated renewals from installing the
+    certificate anywhere. The role now verifies that the normalized
+    installation data resolves for every certificate before invoking acme.sh
+    and aborts with an explanatory message instead of falling back to a
+    flagless invocation.
+  - >
+    ``run`` - when acme.sh has not populated the staging area of a
+    certificate using the (default) ``staged`` installation strategy, the
+    role now fails with an explanatory message naming the missing files and
+    pointing at the issuance step, instead of surfacing a low-level
+    ``cannot open staged file`` error of the deploy helper. The certificate
+    files at the final destinations are not modified in that situation.
