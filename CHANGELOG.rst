@@ -4,6 +4,25 @@ foundata.acmesh Ansible collection Release Notes
 
 .. contents:: Topics
 
+v4.0.2
+======
+
+Release Summary
+---------------
+
+Release Date: 2026-08-27
+
+Bugfix release.
+
+Bugfixes
+--------
+
+- ``run`` - a failed certificate issuance or renewal is no longer treated as successful just because acme.sh printed ``Domains not changed``. acme.sh emits that line before it decides whether a renewal is due, so a renewal that started and then failed (challenge failure, DNS API error, CA error) was swallowed and the role continued as if the certificate had been issued. Failures are now decided by acme.sh's exit status, with status 2 (``RENEW_SKIP``, "certificate is not due for renewal yet") remaining a success as before. This is the same class of defect that was fixed for ``acme.sh --install-cert`` in version 4.0.0.
+- ``run`` - a run with ``run_acmesh_autoupgrade`` enabled no longer aborts with ``Version parameter to compare against cannot be empty`` when the latest upstream acme.sh version could not be determined (unreachable Git remote, and always in check mode, where the best-effort ``git ls-remote`` probe does not run). The upgrade is simply skipped in that case, matching the documented "empty means nothing detected" semantics.
+- ``run`` - the certificate paths handed to ``acme.sh --install-cert`` are now shown at verbosity 2 (``-vv``). The installation task itself is ``no_log`` because it carries the DNS API credentials in its environment, which previously made the resolved paths impossible to inspect when diagnosing an installation problem. The new output is credential-free.
+- ``run`` - the role no longer risks clearing a certificate's stored installation configuration when it is included in a loop (e.g. ``include_role`` with ``loop:``) and ``run_acmesh_certs`` values are derived from ``{{ item.* }}`` of that outer loop. Inside the role, tasks with their own loops shadow ``item``, so lazily evaluated installation paths could resolve to nothing right when the installation task consumed them; acme.sh was then invoked without the file flags, which does not merely skip the installation but wipes the certificate's stored ``Le_Real*Path`` values and thereby stops automated renewals from installing the certificate anywhere. The installation data is now materialized once per run before the task iterates, and the role additionally aborts with an explanatory message if it can ever not be resolved, instead of falling back to a flagless invocation.
+- ``run`` - when acme.sh has not populated the staging area of a certificate using the (default) ``staged`` installation strategy, the role now fails with an explanatory message naming the missing files and pointing at the issuance step, instead of surfacing a low-level ``cannot open staged file`` error of the deploy helper. The certificate files at the final destinations are not modified in that situation.
+
 v4.0.1
 ======
 
