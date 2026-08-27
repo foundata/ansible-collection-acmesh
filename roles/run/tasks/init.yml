@@ -122,10 +122,12 @@
   ansible.builtin.include_vars:
     file: "{{ __run_acmesh_vars_file }}"
   vars:
-    __run_acmesh_vars_file: "{{ role_path }}/vars/{{ item }}"
+    __run_acmesh_vars_file: "{{ role_path }}/vars/{{ __run_acmesh_varsfile_item }}"
   when:
     - __run_acmesh_vars_file is ansible.builtin.file
   loop: "{{ __run_acmesh_platform_filenames_most_specific_last }}"
+  loop_control:
+    loop_var: "__run_acmesh_varsfile_item"
 
 
 ### acme.sh specific
@@ -289,11 +291,13 @@
 - name: "Init | Look up the configured supplementary groups (if any)"
   ansible.builtin.getent:
     database: "group"
-    key: "{{ item }}"
+    key: "{{ __run_acmesh_supplementary_group_item }}"
     fail_key: false
   when:
     - run_acmesh_state == 'present'
   loop: "{{ (run_acmesh_user_supplementary_groups | ansible.builtin.default([])) | ansible.builtin.unique }}"
+  loop_control:
+    loop_var: "__run_acmesh_supplementary_group_item"
   register: __run_acmesh_supplementary_groups_getent
 
 

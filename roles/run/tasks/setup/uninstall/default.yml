@@ -118,7 +118,7 @@
 
 - name: "Setup | Uninstall | Default | Disable acmesh-reload-*.path and acmesh-deploy-*.path unit(s) (best-effort)"
   ansible.builtin.systemd_service:
-    name: "{{ item['path'] | ansible.builtin.basename }}"
+    name: "{{ __run_acmesh_unitfile_item['path'] | ansible.builtin.basename }}"
     enabled: false
     state: "stopped"
   failed_when:
@@ -130,7 +130,8 @@
       | ansible.builtin.list
     }}
   loop_control:
-    label: "{{ item['path'] | ansible.builtin.basename }}"
+    loop_var: "__run_acmesh_unitfile_item"
+    label: "{{ __run_acmesh_unitfile_item['path'] | ansible.builtin.basename }}"
   notify:
     - "run_acmesh: systemd daemon-reload"
 
@@ -140,7 +141,7 @@
   # removed as well; the installed (final) certificate files are kept, as
   # before.
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ __run_acmesh_removal_path_item }}"
     state: "absent"
   loop: >-
     {{
@@ -157,5 +158,7 @@
       ]
       + (__run_acmesh_reload_unitfiles_found['files'] | ansible.builtin.default([]) | ansible.builtin.map(attribute='path') | ansible.builtin.list)
     }}
+  loop_control:
+    loop_var: "__run_acmesh_removal_path_item"
   notify:
     - "run_acmesh: systemd daemon-reload"

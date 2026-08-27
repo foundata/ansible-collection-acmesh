@@ -165,14 +165,14 @@
     # byte-identical: backslashes and double quotes (C-style unquoting of the
     # double-quoted word), "%" (specifier expansion, "%%" yields a literal
     # "%") and "$" (variable expansion, "$$" yields a literal "$").
-    dest: "{{ __run_acmesh_reload_unitfile_dir }}/{{ __run_acmesh_reload_unit_prefix }}{{ item['name'] }}.service"
+    dest: "{{ __run_acmesh_reload_unitfile_dir }}/{{ __run_acmesh_reload_unit_prefix }}{{ __run_acmesh_reload_unit_item['name'] }}.service"
     content: |
       [Unit]
-      Description=acme.sh - run reload command after certificate change ({{ item['domain'] }})
+      Description=acme.sh - run reload command after certificate change ({{ __run_acmesh_reload_unit_item['domain'] }})
 
       [Service]
       Type=oneshot
-      ExecStart=/bin/sh -c "{{ item['reloadcmd']
+      ExecStart=/bin/sh -c "{{ __run_acmesh_reload_unit_item['reloadcmd']
         | ansible.builtin.trim
         | ansible.builtin.replace(__run_acmesh_backslash, __run_acmesh_backslash ~ __run_acmesh_backslash)
         | ansible.builtin.replace('"', __run_acmesh_backslash ~ '"')
@@ -191,23 +191,24 @@
     __run_acmesh_backslash: "\\"
   loop: "{{ __run_acmesh_reload_units }}"
   loop_control:
-    label: "{{ item['name'] }}"
+    loop_var: "__run_acmesh_reload_unit_item"
+    label: "{{ __run_acmesh_reload_unit_item['name'] }}"
   notify:
     - "run_acmesh: systemd daemon-reload"
 
 
 - name: "Config | Default | Create systemd unit file(s) (acmesh-reload-*.path)"
   ansible.builtin.copy:
-    dest: "{{ __run_acmesh_reload_unitfile_dir }}/{{ __run_acmesh_reload_unit_prefix }}{{ item['name'] }}.path"
+    dest: "{{ __run_acmesh_reload_unitfile_dir }}/{{ __run_acmesh_reload_unit_prefix }}{{ __run_acmesh_reload_unit_item['name'] }}.path"
     content: |
       [Unit]
-      Description=acme.sh - watch installed certificate files ({{ item['domain'] }})
+      Description=acme.sh - watch installed certificate files ({{ __run_acmesh_reload_unit_item['domain'] }})
 
       [Path]
       # PathChanged= triggers when the watched file gets closed after writing,
       # not on every write and not on permission or ownership changes.
-      PathChanged={{ item['watch_path'] }}
-      Unit={{ __run_acmesh_reload_unit_prefix }}{{ item['name'] }}.service
+      PathChanged={{ __run_acmesh_reload_unit_item['watch_path'] }}
+      Unit={{ __run_acmesh_reload_unit_prefix }}{{ __run_acmesh_reload_unit_item['name'] }}.service
 
       [Install]
       WantedBy=multi-user.target
@@ -217,20 +218,22 @@
     mode: "{{ __run_acmesh_reload_unitfile_mode }}"
   loop: "{{ __run_acmesh_reload_units }}"
   loop_control:
-    label: "{{ item['name'] }}"
+    loop_var: "__run_acmesh_reload_unit_item"
+    label: "{{ __run_acmesh_reload_unit_item['name'] }}"
   notify:
     - "run_acmesh: systemd daemon-reload"
 
 
 - name: "Config | Default | Manage (enable and start) acmesh-reload-*.path unit(s)"
   ansible.builtin.systemd_service:
-    name: "{{ __run_acmesh_reload_unit_prefix }}{{ item['name'] }}.path"
+    name: "{{ __run_acmesh_reload_unit_prefix }}{{ __run_acmesh_reload_unit_item['name'] }}.path"
     enabled: true
     state: "started"
     daemon_reload: true
   loop: "{{ __run_acmesh_reload_units }}"
   loop_control:
-    label: "{{ item['name'] }}"
+    loop_var: "__run_acmesh_reload_unit_item"
+    label: "{{ __run_acmesh_reload_unit_item['name'] }}"
 
 
 # Staged certificate deployment (install strategy "staged", the default):
@@ -256,14 +259,15 @@
 
 - name: "Config | Default | Create the certificate staging directories (staged deployment)"
   ansible.builtin.file:
-    path: "{{ item['staging_dir'] }}"
+    path: "{{ __run_acmesh_staging_dir_item['staging_dir'] }}"
     state: "directory"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
     mode: "{{ __run_acmesh_deploy_staging_dir_mode }}"
   loop: "{{ __run_acmesh_install_normalized_staged }}"
   loop_control:
-    label: "{{ item['domain'] }}"
+    loop_var: "__run_acmesh_staging_dir_item"
+    label: "{{ __run_acmesh_staging_dir_item['domain'] }}"
 
 
 - name: "Config | Default | Install the deploy helper (staged deployment)"
@@ -294,18 +298,22 @@
 - name: "Config | Default | Look up the numeric UID of every staged install owner"
   ansible.builtin.getent:
     database: "passwd"
-    key: "{{ item }}"
+    key: "{{ __run_acmesh_install_owner_item }}"
     fail_key: false
   loop: "{{ __run_acmesh_install_staged_owner_names }}"
+  loop_control:
+    loop_var: "__run_acmesh_install_owner_item"
   register: __run_acmesh_install_owner_getent
 
 
 - name: "Config | Default | Look up the numeric GID of every staged install group"
   ansible.builtin.getent:
     database: "group"
-    key: "{{ item }}"
+    key: "{{ __run_acmesh_install_group_item }}"
     fail_key: false
   loop: "{{ __run_acmesh_install_staged_group_names }}"
+  loop_control:
+    loop_var: "__run_acmesh_install_group_item"
   register: __run_acmesh_install_group_getent
 
 
@@ -320,7 +328,7 @@
       {%-   set _values = ((_res['ansible_facts'] | ansible.builtin.default({}))['getent_passwd']
                           | ansible.builtin.default({})).values() | ansible.builtin.list -%}
       {%-   if ((_values | ansible.builtin.length) > 0) and (_values[0] is not ansible.builtin.none) -%}
-      {%-     set _ = map.update({(_res['item'] | ansible.builtin.string): (_values[0][1] | ansible.builtin.int)}) -%}
+      {%-     set _ = map.update({(_res['__run_acmesh_install_owner_item'] | ansible.builtin.string): (_values[0][1] | ansible.builtin.int)}) -%}
       {%-   endif -%}
       {%- endfor -%}
       {{ map }}
@@ -330,7 +338,7 @@
       {%-   set _values = ((_res['ansible_facts'] | ansible.builtin.default({}))['getent_group']
                           | ansible.builtin.default({})).values() | ansible.builtin.list -%}
       {%-   if ((_values | ansible.builtin.length) > 0) and (_values[0] is not ansible.builtin.none) -%}
-      {%-     set _ = map.update({(_res['item'] | ansible.builtin.string): (_values[0][1] | ansible.builtin.int)}) -%}
+      {%-     set _ = map.update({(_res['__run_acmesh_install_group_item'] | ansible.builtin.string): (_values[0][1] | ansible.builtin.int)}) -%}
       {%-   endif -%}
       {%- endfor -%}
       {{ map }}
@@ -390,14 +398,14 @@
 - name: "Config | Default | Create deployment manifest(s) (staged deployment)"
   ansible.builtin.template:
     src: "acmesh-deploy-manifest.json.j2"
-    dest: "{{ __run_acmesh_deploy_manifest_dir_path }}/{{ item['cert_id'] }}.json"
+    dest: "{{ __run_acmesh_deploy_manifest_dir_path }}/{{ __run_acmesh_manifest_item['cert_id'] }}.json"
     owner: "{{ __run_acmesh_deploy_manifest_file_owner }}"
     group: "{{ __run_acmesh_deploy_manifest_file_group }}"
     mode: "{{ __run_acmesh_deploy_manifest_file_mode }}"
   vars:
     tpl_manifest: >-
       {%- set _artifacts = {} -%}
-      {%- for _key, _artifact in item['artifacts'].items() -%}
+      {%- for _key, _artifact in __run_acmesh_manifest_item['artifacts'].items() -%}
       {%-   set _ = _artifacts.update({_key: {
               'staging': _artifact['staging'],
               'destination': _artifact['dest'],
@@ -408,25 +416,26 @@
       {%- endfor -%}
       {{ {
         'version': 1,
-        'certificate_id': item['cert_id'],
-        'domains': item['domains'],
-        'staging_dir': item['staging_dir'],
-        'completion_artifact': item['completion_key'],
+        'certificate_id': __run_acmesh_manifest_item['cert_id'],
+        'domains': __run_acmesh_manifest_item['domains'],
+        'staging_dir': __run_acmesh_manifest_item['staging_dir'],
+        'completion_artifact': __run_acmesh_manifest_item['completion_key'],
         'artifacts': _artifacts,
       } }}
   when:
     - (__run_acmesh_install_ids_unresolved | ansible.builtin.default([]) | ansible.builtin.length) == 0
   loop: "{{ __run_acmesh_install_normalized_staged }}"
   loop_control:
-    label: "{{ item['domain'] }}"
+    loop_var: "__run_acmesh_manifest_item"
+    label: "{{ __run_acmesh_manifest_item['domain'] }}"
 
 
 - name: "Config | Default | Create systemd unit file(s) (acmesh-deploy-*.service)"
   ansible.builtin.copy:
-    dest: "{{ __run_acmesh_deploy_unitfile_dir }}/{{ __run_acmesh_deploy_unit_prefix }}{{ item['cert_id'] }}.service"
+    dest: "{{ __run_acmesh_deploy_unitfile_dir }}/{{ __run_acmesh_deploy_unit_prefix }}{{ __run_acmesh_deploy_service_item['cert_id'] }}.service"
     content: |
       [Unit]
-      Description=acme.sh - deploy staged certificate files ({{ item['domain'] }})
+      Description=acme.sh - deploy staged certificate files ({{ __run_acmesh_deploy_service_item['domain'] }})
 
       [Service]
       Type=oneshot
@@ -453,7 +462,7 @@
       RestrictNamespaces=true
       LockPersonality=true
       SystemCallArchitectures=native
-      {% for _dir in item['directories'] %}
+      {% for _dir in __run_acmesh_deploy_service_item['directories'] %}
       ReadWritePaths={{ _dir }}
       {% endfor %}
       StandardError=journal
@@ -463,20 +472,21 @@
     group: "{{ __run_acmesh_deploy_unitfile_group }}"
     mode: "{{ __run_acmesh_deploy_unitfile_mode }}"
   vars:
-    __run_acmesh_deploy_manifest_file: "{{ __run_acmesh_deploy_manifest_dir_path }}/{{ item['cert_id'] }}.json"
+    __run_acmesh_deploy_manifest_file: "{{ __run_acmesh_deploy_manifest_dir_path }}/{{ __run_acmesh_deploy_service_item['cert_id'] }}.json"
   loop: "{{ __run_acmesh_install_normalized_staged }}"
   loop_control:
-    label: "{{ item['cert_id'] }}"
+    loop_var: "__run_acmesh_deploy_service_item"
+    label: "{{ __run_acmesh_deploy_service_item['cert_id'] }}"
   notify:
     - "run_acmesh: systemd daemon-reload"
 
 
 - name: "Config | Default | Create systemd unit file(s) (acmesh-deploy-*.path)"
   ansible.builtin.copy:
-    dest: "{{ __run_acmesh_deploy_unitfile_dir }}/{{ __run_acmesh_deploy_unit_prefix }}{{ item['cert_id'] }}.path"
+    dest: "{{ __run_acmesh_deploy_unitfile_dir }}/{{ __run_acmesh_deploy_unit_prefix }}{{ __run_acmesh_deploy_path_item['cert_id'] }}.path"
     content: |
       [Unit]
-      Description=acme.sh - watch staged certificate files ({{ item['domain'] }})
+      Description=acme.sh - watch staged certificate files ({{ __run_acmesh_deploy_path_item['domain'] }})
 
       [Path]
       # PathChanged= triggers when the watched file gets closed after writing
@@ -484,8 +494,8 @@
       # ownership changes. acme.sh writes this staged artifact last, and the
       # deploy helper publishes its final counterpart last, so both watchers
       # only fire on complete sets.
-      PathChanged={{ item['artifacts'][item['completion_key']]['staging'] }}
-      Unit={{ __run_acmesh_deploy_unit_prefix }}{{ item['cert_id'] }}.service
+      PathChanged={{ __run_acmesh_deploy_path_item['artifacts'][__run_acmesh_deploy_path_item['completion_key']]['staging'] }}
+      Unit={{ __run_acmesh_deploy_unit_prefix }}{{ __run_acmesh_deploy_path_item['cert_id'] }}.service
 
       [Install]
       WantedBy=multi-user.target
@@ -495,7 +505,8 @@
     mode: "{{ __run_acmesh_deploy_unitfile_mode }}"
   loop: "{{ __run_acmesh_install_normalized_staged }}"
   loop_control:
-    label: "{{ item['cert_id'] }}"
+    loop_var: "__run_acmesh_deploy_path_item"
+    label: "{{ __run_acmesh_deploy_path_item['cert_id'] }}"
   notify:
     - "run_acmesh: systemd daemon-reload"
 
@@ -507,21 +518,22 @@
 # until they are removed via state "absent" or the delete-unmanaged sweep.)
 - name: "Config | Default | Disable deploy units of certificates with strategy 'direct' (best-effort)"
   ansible.builtin.systemd_service:
-    name: "{{ __run_acmesh_deploy_unit_prefix }}{{ item[0]['cert_id'] }}.{{ item[1] }}"
+    name: "{{ __run_acmesh_deploy_unit_prefix }}{{ __run_acmesh_deploy_unit_item[0]['cert_id'] }}.{{ __run_acmesh_deploy_unit_item[1] }}"
     enabled: false
     state: "stopped"
   failed_when:
     - false # the unit might not exist (e.g. certificate was never staged)
   loop: "{{ __run_acmesh_install_normalized_direct | ansible.builtin.product(['path', 'service']) }}"
   loop_control:
-    label: "{{ item[0]['cert_id'] }} ({{ item[1] }})"
+    loop_var: "__run_acmesh_deploy_unit_item"
+    label: "{{ __run_acmesh_deploy_unit_item[0]['cert_id'] }} ({{ __run_acmesh_deploy_unit_item[1] }})"
   notify:
     - "run_acmesh: systemd daemon-reload"
 
 
 - name: "Config | Default | Delete deploy resources of certificates with strategy 'direct'"
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ __run_acmesh_deploy_resource_item }}"
     state: "absent"
   loop: >-
     {%- set paths = [] -%}
@@ -532,5 +544,7 @@
     {%-   set _ = paths.append(_entry['staging_dir']) -%}
     {%- endfor -%}
     {{ paths }}
+  loop_control:
+    loop_var: "__run_acmesh_deploy_resource_item"
   notify:
     - "run_acmesh: systemd daemon-reload"

@@ -127,8 +127,8 @@ __run_acmesh_supplementary_groups_missing: >-
   {%- set missing = [] -%}
   {%- for _res in ((__run_acmesh_supplementary_groups_getent | ansible.builtin.default({}))['results'] | ansible.builtin.default([])) -%}
   {%-   if (_res['ansible_facts'] is ansible.builtin.defined) and
-           (_res['ansible_facts']['getent_group'][_res['item']] is ansible.builtin.none) -%}
-  {%-     set _ = missing.append(_res['item']) -%}
+           (_res['ansible_facts']['getent_group'][_res['__run_acmesh_supplementary_group_item']] is ansible.builtin.none) -%}
+  {%-     set _ = missing.append(_res['__run_acmesh_supplementary_group_item']) -%}
   {%-   endif -%}
   {%- endfor -%}
   {{ missing }}
