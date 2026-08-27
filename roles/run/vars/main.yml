@@ -342,9 +342,39 @@ __run_acmesh_install_permissions_file_defaults:
 #   ones per key).
 # - domains: all domain names of the certificate (for the deploy helper's
 #   certificate identity validation).
+#
+# Derived from __run_acmesh_install_loop below, which pairs every certificate
+# with its installation data in a single pass. Tasks must never re-associate
+# the two by looking a certificate up in this list at runtime: acme.sh
+# persists the paths handed to "--install-cert" as its Le_Real*Path values, so
+# a lookup that silently resolves to nothing would clear a certificate's
+# installation configuration instead of merely skipping it.
 __run_acmesh_install_normalized: >-
+  {{
+    __run_acmesh_install_loop
+    | ansible.builtin.map(attribute='install_data')
+    | ansible.builtin.list
+  }}
+
+
+# Loop data for the installation task: one entry per managed certificate that
+# configures at least one install file path. Each entry carries everything
+# that task needs, so it never has to correlate two data structures at
+# runtime:
+#
+# - domain: the certificate's primary domain (for "--domain").
+# - environment: the certificate's own environment mapping (DNS API
+#   credentials). This is the only credential-bearing part; the installation
+#   task is no_log and labels its loop with the domain only. Everything else
+#   consumes the credential-free __run_acmesh_install_normalized above.
+# - install_data: the normalized installation data of this certificate.
+#
+# Certificates without any install file path are intentionally absent:
+# invoking "acme.sh --install-cert" for them would have nothing to install
+# and would clear their stored installation configuration.
+__run_acmesh_install_loop: >-
   {%- set entries = [] -%}
-  {%- for _cert in __run_acmesh_certs_no_secrets -%}
+  {%- for _cert in __run_acmesh_certs_managed -%}
   {%-   set _install = _cert['install'] | ansible.builtin.default({}) -%}
   {%-   set _artifact_keys = [] -%}
   {%-   for _key in ['ca_file', 'cert_file', 'fullchain_file', 'key_file'] -%}
@@ -385,19 +415,23 @@ __run_acmesh_install_normalized: >-
   {%-     endfor -%}
   {%-     set _ = entries.append({
             'domain': _domain,
-            'cert_id': _cert_id,
-            'strategy': _strategy,
-            'staging_dir': _staging_dir,
-            'completion_key': _ns.completion,
-            'directory': {
-              'owner': _directory['owner'] | ansible.builtin.string,
-              'group': _directory['group'] | ansible.builtin.string,
-              'mode': _directory['mode'] | ansible.builtin.string,
+            'environment': _cert['environment'] | ansible.builtin.default({}, true),
+            'install_data': {
+              'domain': _domain,
+              'cert_id': _cert_id,
+              'strategy': _strategy,
+              'staging_dir': _staging_dir,
+              'completion_key': _ns.completion,
+              'directory': {
+                'owner': _directory['owner'] | ansible.builtin.string,
+                'group': _directory['group'] | ansible.builtin.string,
+                'mode': _directory['mode'] | ansible.builtin.string,
+              },
+              'directories': _dirs,
+              'artifacts': _artifacts,
+              'domains': (_cert['domains'] | ansible.builtin.default([])
+                          | ansible.builtin.map(attribute='name') | ansible.builtin.list),
             },
-            'directories': _dirs,
-            'artifacts': _artifacts,
-            'domains': (_cert['domains'] | ansible.builtin.default([])
-                        | ansible.builtin.map(attribute='name') | ansible.builtin.list),
           }) -%}
   {%-   endif -%}
   {%- endfor -%}

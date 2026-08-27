@@ -113,8 +113,6 @@
       {%- endfor -%}
       {%- if (ns.latest | ansible.builtin.length) > 0 -%}
         {{- ns.latest -}}
-      {%- else -%}
-        {{ false }}
       {%- endif -%}
   when:
     - (run_acmesh_git_version | ansible.builtin.default('', true) | ansible.builtin.trim | ansible.builtin.length) == 0
@@ -379,8 +377,12 @@
     - __run_acmesh_version_upstream is ansible.builtin.defined
     - run_acmesh_autoupgrade is ansible.builtin.defined
     - run_acmesh_autoupgrade | ansible.builtin.bool
+    # The upstream version stays empty when the remote could not be queried
+    # (git ls-remote is best-effort and skipped in check mode). Comparing
+    # against it would abort the whole run with an unrelated error message.
     - (run_acmesh_git_version | ansible.builtin.default('', true) | ansible.builtin.trim | ansible.builtin.length) > 0 or
-      __run_acmesh_version_installed is ansible.builtin.version(__run_acmesh_version_upstream, 'lt', version_type='semver')
+      (((__run_acmesh_version_upstream | ansible.builtin.default('', true) | ansible.builtin.trim) | ansible.builtin.length) > 0 and
+       __run_acmesh_version_installed is ansible.builtin.version(__run_acmesh_version_upstream, 'lt', version_type='semver'))
   changed_when:
     - __run_acmesh_upgrade_result is ansible.builtin.success
     - ('Upgrade success') in __run_acmesh_upgrade_result['stdout']

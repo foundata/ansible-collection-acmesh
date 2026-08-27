@@ -13,14 +13,24 @@ bugfixes:
     ``acme.sh --install-cert`` in version 4.0.0.
   - >
     ``run`` - the role no longer risks clearing a certificate's stored
-    installation configuration. acme.sh persists the paths handed to
-    ``--install-cert`` as its ``Le_Real*Path`` values, so an invocation
-    without the file flags does not merely skip the installation, it wipes
-    those values and thereby stops automated renewals from installing the
-    certificate anywhere. The role now verifies that the normalized
-    installation data resolves for every certificate before invoking acme.sh
-    and aborts with an explanatory message instead of falling back to a
-    flagless invocation.
+    installation configuration when it is included in a loop (e.g.
+    ``include_role`` with ``loop:``) and ``run_acmesh_certs`` values are
+    derived from ``{{ item.* }}`` of that outer loop. Inside the role, tasks
+    with their own loops shadow ``item``, so lazily evaluated installation
+    paths could resolve to nothing right when the installation task consumed
+    them; acme.sh was then invoked without the file flags, which does not
+    merely skip the installation but wipes the certificate's stored
+    ``Le_Real*Path`` values and thereby stops automated renewals from
+    installing the certificate anywhere. The installation data is now
+    materialized once per run before the task iterates, and the role
+    additionally aborts with an explanatory message if it can ever not be
+    resolved, instead of falling back to a flagless invocation.
+  - >
+    ``run`` - the certificate paths handed to ``acme.sh --install-cert`` are
+    now shown at verbosity 2 (``-vv``). The installation task itself is
+    ``no_log`` because it carries the DNS API credentials in its environment,
+    which previously made the resolved paths impossible to inspect when
+    diagnosing an installation problem. The new output is credential-free.
   - >
     ``run`` - when acme.sh has not populated the staging area of a
     certificate using the (default) ``staged`` installation strategy, the

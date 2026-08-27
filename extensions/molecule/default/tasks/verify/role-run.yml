@@ -1502,6 +1502,76 @@
         label: "{{ item['item'] }}"
 
 
+## Regression: role included in a loop with item-templated configuration
+#
+# Playbooks may invoke the role once per certificate via include_role with a
+# loop, deriving run_acmesh_certs values from "{{ item.* }}" of the OUTER
+# loop. Inside the role, tasks with their own loops shadow "item"; lazily
+# evaluated values that dereference the certificate list during such a loop
+# then resolve against the wrong "item". This once made the install task see
+# no install file paths at all and invoke "acme.sh --install-cert" without
+# file flags, which cleared the certificate's stored Le_Real*Path
+# installation configuration. The installation data is therefore materialized
+# once per task-loop start (see __run_acmesh_install_loop in vars/main.yml);
+# this block pins that behavior with the exact invocation pattern.
+
+- name: "Molecule | Verify | Loop-included role invocation with item-templated configuration"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+  block:
+
+    - name: "Molecule | Verify | Loop include: include the role once per outer loop item"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+      vars:
+        run_acmesh_certs:
+          - domains:
+              - name: "{{ item['domain'] }}"
+                challenge:
+                  type: "webroot"
+                  webroot: "{{ item['webroot'] }}"
+            install:
+              strategy: "direct"
+              ca_file: "/etc/pki/tls/certs/{{ item['cert_dir_name'] }}/ca.cer"
+              cert_file: "/etc/pki/tls/certs/{{ item['cert_dir_name'] }}/cert.cer"
+              fullchain_file: "/etc/pki/tls/certs/{{ item['cert_dir_name'] }}/fullchain.cer"
+              key_file: "/etc/pki/tls/certs/{{ item['cert_dir_name'] }}/cert.key"
+              reloadcmd: ""
+            server: "https://localhost:14000/dir"
+      loop:
+        - cert_dir_name: "acmesh-direct.test"
+          domain: "acmesh-direct.test"
+          webroot: "/var/www/acmesh-test"
+      loop_control:
+        label: "{{ item['cert_dir_name'] }}"
+
+
+    - name: "Molecule | Verify | Loop include: read the certificate's acme.sh configuration"
+      ansible.builtin.slurp:
+        src: "{{ run_acmesh_cfg_cert_home }}/acmesh-direct.test_ecc/acmesh-direct.test.conf"
+      register: __testing_acmesh_loopinclude_conf
+
+
+    - name: "Molecule | Verify | Loop include: assert the installation configuration was stored, not cleared"
+      ansible.builtin.assert:
+        that:
+          - >-
+            "Le_RealKeyPath='/etc/pki/tls/certs/acmesh-direct.test/cert.key'"
+            in (__testing_acmesh_loopinclude_conf['content'] | ansible.builtin.b64decode)
+          - >-
+            "Le_RealFullChainPath='/etc/pki/tls/certs/acmesh-direct.test/fullchain.cer'"
+            in (__testing_acmesh_loopinclude_conf['content'] | ansible.builtin.b64decode)
+        fail_msg: >-
+          The loop-included role invocation did not store the expected
+          Le_Real*Path values; the item-templated install paths were not
+          resolved correctly:
+          {{ __testing_acmesh_loopinclude_conf['content'] | ansible.builtin.b64decode
+             | ansible.builtin.regex_findall('Le_Real[A-Za-z]*Path=[^\n]*') }}
+        success_msg: >-
+          Item-templated installation paths resolve correctly when the role is
+          included in a loop.
+
+
 ## Deploy helper hardening (validation, attacks, concurrency, rollback)
 #
 # Focused tests of /usr/libexec/acmesh-deploy with crafted fixtures, run as

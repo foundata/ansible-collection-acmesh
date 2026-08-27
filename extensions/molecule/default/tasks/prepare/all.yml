@@ -36,7 +36,7 @@
     mode: "u=rwx,g=,o=" # 0700
 
 
-## Pepple (Let's Encrypt test ACME server, https://github.com/letsencrypt/pebble)
+## Pebble (Let's Encrypt test ACME server, https://github.com/letsencrypt/pebble)
 #
 # Sets up pebble and a web server inside each container for webroot (HTTP-01)
 # challenge testing. Everything runs on localhost within each container so

@@ -1,0 +1,10 @@
+---
+
+bugfixes:
+  - >
+    ``run`` - a run with ``run_acmesh_autoupgrade`` enabled no longer aborts
+    with ``Version parameter to compare against cannot be empty`` when the
+    latest upstream acme.sh version could not be determined (unreachable Git
+    remote, and always in check mode, where the best-effort ``git ls-remote``
+    probe does not run). The upgrade is simply skipped in that case, matching
+    the documented "empty means nothing detected" semantics.

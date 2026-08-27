@@ -991,6 +991,30 @@
     - run_acmesh_certs is ansible.builtin.defined
 
 
+# The installation itself is no_log (it carries the DNS API credentials in its
+# environment), so the resolved paths would otherwise never be visible. This
+# task shows them without any credential: the normalized data is built from
+# the credential-free certificate view.
+- name: "Cert | Default | Show the resolved certificate installation paths"
+  ansible.builtin.debug:
+    msg:
+      - "domain: {{ item['domain'] }}"
+      - "strategy: {{ item['strategy'] }}"
+      - >-
+        acme.sh --install-cert writes to:
+        {{ item['artifacts'] | ansible.builtin.dict2items
+           | ansible.builtin.map(attribute='value')
+           | ansible.builtin.map(attribute=(item['strategy'] == 'staged') | ansible.builtin.ternary('staging', 'dest'))
+           | ansible.builtin.list | ansible.builtin.join(', ') }}
+    verbosity: 2
+  when:
+    - __run_acmesh_is_installed
+    - run_acmesh_certs is ansible.builtin.defined
+  loop: "{{ __run_acmesh_install_normalized }}"
+  loop_control:
+    label: "{{ item['domain'] }}"
+
+
 - name: "Cert | Default | Install certificate(s)"
   # The command or shell module is used here. This approach is justified:
   #
@@ -1010,47 +1034,40 @@
         --install-cert
         --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
         --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
-        --domain {{ item['domains'][0]['name'] | ansible.builtin.quote }}
-        {{ '--ca-file ' ~ ((__run_acmesh_install_entry_artifacts['ca_file']['staging']
-                            if (__run_acmesh_install_use_staging | ansible.builtin.bool)
-                            else __run_acmesh_install_entry_artifacts['ca_file']['dest']) | ansible.builtin.quote)
-            if ('ca_file' in __run_acmesh_install_entry_artifacts)
+        --domain {{ item['domain'] | ansible.builtin.quote }}
+        {{ '--ca-file ' ~ ((__run_acmesh_install_artifacts['ca_file']['staging']
+                            if (__run_acmesh_install_staged | ansible.builtin.bool)
+                            else __run_acmesh_install_artifacts['ca_file']['dest']) | ansible.builtin.quote)
+            if ('ca_file' in __run_acmesh_install_artifacts)
             else
             '' }}
-        {{ '--cert-file ' ~ ((__run_acmesh_install_entry_artifacts['cert_file']['staging']
-                              if (__run_acmesh_install_use_staging | ansible.builtin.bool)
-                              else __run_acmesh_install_entry_artifacts['cert_file']['dest']) | ansible.builtin.quote)
-            if ('cert_file' in __run_acmesh_install_entry_artifacts)
+        {{ '--cert-file ' ~ ((__run_acmesh_install_artifacts['cert_file']['staging']
+                              if (__run_acmesh_install_staged | ansible.builtin.bool)
+                              else __run_acmesh_install_artifacts['cert_file']['dest']) | ansible.builtin.quote)
+            if ('cert_file' in __run_acmesh_install_artifacts)
             else
             '' }}
-        {{ '--fullchain-file ' ~ ((__run_acmesh_install_entry_artifacts['fullchain_file']['staging']
-                                   if (__run_acmesh_install_use_staging | ansible.builtin.bool)
-                                   else __run_acmesh_install_entry_artifacts['fullchain_file']['dest']) | ansible.builtin.quote)
-            if ('fullchain_file' in __run_acmesh_install_entry_artifacts)
+        {{ '--fullchain-file ' ~ ((__run_acmesh_install_artifacts['fullchain_file']['staging']
+                                   if (__run_acmesh_install_staged | ansible.builtin.bool)
+                                   else __run_acmesh_install_artifacts['fullchain_file']['dest']) | ansible.builtin.quote)
+            if ('fullchain_file' in __run_acmesh_install_artifacts)
             else
             '' }}
-        {{ '--key-file ' ~ ((__run_acmesh_install_entry_artifacts['key_file']['staging']
-                             if (__run_acmesh_install_use_staging | ansible.builtin.bool)
-                             else __run_acmesh_install_entry_artifacts['key_file']['dest']) | ansible.builtin.quote)
-            if ('key_file' in __run_acmesh_install_entry_artifacts)
+        {{ '--key-file ' ~ ((__run_acmesh_install_artifacts['key_file']['staging']
+                             if (__run_acmesh_install_staged | ansible.builtin.bool)
+                             else __run_acmesh_install_artifacts['key_file']['dest']) | ansible.builtin.quote)
+            if ('key_file' in __run_acmesh_install_artifacts)
             else
             '' }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
   vars:
-    # Normalized install data of this certificate (empty when it configures no
-    # install file paths, keeping the pre-4.0.0 "run without file flags"
-    # behavior).
-    __run_acmesh_install_entry: >-
-      {{
-        ((__run_acmesh_install_normalized
-          | ansible.builtin.selectattr('domain', 'ansible.builtin.equalto', item['domains'][0]['name'])
-          | ansible.builtin.list)
-         + [{}])
-        | ansible.builtin.first
-      }}
-    __run_acmesh_install_entry_artifacts: "{{ __run_acmesh_install_entry['artifacts'] | ansible.builtin.default({}) }}"
-    __run_acmesh_install_use_staging: "{{ (__run_acmesh_install_entry['strategy'] | ansible.builtin.default('staged')) == 'staged' }}"
+    # The loop item already carries this certificate's installation data, so
+    # there is no runtime correlation that could resolve to nothing (see
+    # __run_acmesh_install_loop in vars/main.yml on why that would be
+    # destructive).
+    __run_acmesh_install_artifacts: "{{ item['install_data']['artifacts'] }}"
+    __run_acmesh_install_staged: "{{ item['install_data']['strategy'] == 'staged' }}"
   # HOME mirrors the environment of the renewal service unit. The environment
   # is preserved across the setpriv user switch, so the DNS API credentials
   # reach acme.sh as before.
@@ -1075,7 +1092,9 @@
   # leaving already deployed files stale.
   failed_when:
     - __run_acmesh_install_result is ansible.builtin.failed
-  loop: "{{ __run_acmesh_certs_managed }}"
+  loop: "{{ __run_acmesh_install_loop }}"
+  loop_control:
+    label: "{{ item['domain'] }}"
   register: __run_acmesh_install_result
   # As with issuing: the task environment carries the DNS API credentials and the
   # loop item includes the per-certificate ones. See the no_log note above.
