@@ -4,6 +4,26 @@ foundata.acmesh Ansible collection Release Notes
 
 .. contents:: Topics
 
+v4.1.0
+======
+
+Release Summary
+---------------
+
+Release Date: 2026-08-28
+
+Maintenance and bugfix release.
+
+Minor Changes
+-------------
+
+- ``run`` - Improve Ansible compatibility for roles and collections used in the wild by giving every loop in the role a private, purpose-specific loop variable derived from the role's public variable prefix (``__run_acmesh_*_item``) instead of ``item``. This avoids rebinding a caller's ``item`` when role parameters reference it, such as when the role itself is included from a loop, and makes the role behave more robustly across common Ansible usage patterns.
+
+Bugfixes
+--------
+
+- ``run`` - ``run_acmesh_environment`` no longer silently ends up empty when the role is included in a loop and the value is templated from that loop's ``item`` (for example ``run_acmesh_environment: "{{ item.environment }}"``). The issuance and installation tasks dereferenced it per loop iteration, where their own loop had already rebound ``item``, this also made acme.sh clear settings it persists in ``account.conf``, which could break subsequent unattended renewals as well. Both tasks now use a role-specific loop variable so the surrounding ``item`` stays intact.
+
 v4.0.2
 ======
 
