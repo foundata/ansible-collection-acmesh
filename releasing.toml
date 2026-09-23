@@ -1,0 +1,14 @@
+# How this collection is released, read by foundata's `release` command:
+# https://github.com/foundata/releasing/blob/main/docs/ansible-collections.md
+#
+# The ansible-collection ecosystem publishes to Ansible Galaxy, takes the
+# version from galaxy.yml and leaves the changelog to antsibull-changelog.
+repository = "foundata/ansible-collection-acmesh"
+ecosystem = "ansible-collection"
+
+# The Galaxy page renders the README without the HTML block and without
+# loading the badge image, so the header becomes one line and the badge a
+# text link. Only the shipped copy changes; the committed README keeps both.
+[[readmes]]
+collapse-header = true
+simplify-badges = true
