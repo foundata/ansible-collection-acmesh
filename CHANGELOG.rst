@@ -4,6 +4,21 @@ foundata.acmesh Ansible collection Release Notes
 
 .. contents:: Topics
 
+v4.2.0
+======
+
+Release Summary
+---------------
+
+Release Date: 2026-09-24
+
+Maintenance release.
+
+Minor Changes
+-------------
+
+- ``run`` role - Removed the temporary workaround for `acme.sh issue 4763 <https://github.com/acmesh-official/acme.sh/issues/4763>`__ (``dns_inwx`` DNS API broken in acme.sh 3.0.6 and older), fixed upstream in 2023. The task only ever applied when ``run_acmesh_git_version`` pins an affected acme.sh version.
+
 v4.1.0
 ======
 
