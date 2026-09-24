@@ -493,21 +493,6 @@
     - __run_acmesh_envfile_stat_result['stat']['exists']
 
 
-# TODO
-# remove in future versions of this role once all acme.sh versions ≤ 3.0.6 are
-# guaranteed to be absent in all environments.
-# https://github.com/acmesh-official/acme.sh/issues/4763#issuecomment-1695832047
-- name: "Setup | Install | Default | Temporary workaround for issue 4763 (dns_inwx broken in versions <= 3.0.6)"
-  ansible.builtin.lineinfile:
-    path: "{{ run_acmesh_cfg_home }}/dnsapi/dns_inwx.sh"
-    regexp: '^([\t ]+?INWX_Cookie.+)grep \"\^(.+)$'
-    line: '\1grep -i "^\2'
-    backrefs: true
-  when:
-    - __run_acmesh_is_installed
-    - __run_acmesh_version_installed is ansible.builtin.version('3.0.6', 'le', version_type='semver')
-
-
 - name: "Setup | Install | Default | Clean-up temporary working directory"
   ansible.builtin.file:
     path: "{{ __run_acmesh_tempdir['path'] }}"

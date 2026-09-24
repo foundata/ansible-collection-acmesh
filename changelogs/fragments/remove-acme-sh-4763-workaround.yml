@@ -1,0 +1,9 @@
+---
+
+minor_changes:
+  - >
+    ``run`` role - Removed the temporary workaround for
+    `acme.sh issue 4763 <https://github.com/acmesh-official/acme.sh/issues/4763>`__
+    (``dns_inwx`` DNS API broken in acme.sh 3.0.6 and older), fixed upstream in
+    2023. The task only ever applied when ``run_acmesh_git_version`` pins an
+    affected acme.sh version.
