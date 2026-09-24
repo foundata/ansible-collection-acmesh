@@ -37,6 +37,7 @@ build_ignore:
   - ".ansible"
   - ".gitattributes"
   - ".gitignore"
+  - ".rumdl.toml"
   - ".vscode"
   - "*.tar.gz"
   - "changelogs/.plugin-cache.yaml"
