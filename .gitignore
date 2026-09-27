@@ -395,6 +395,7 @@ $RECYCLE.BIN/
 # End of https://www.toptal.com/developers/gitignore/api/git,vim,linux,macos,windows,jetbrains+all,visualstudiocode,python,ansible
 
 ### Repository-specific files
+
 # Prevent accidental inclusion of ANSIBLE_HOME directory
 .ansible/*
 
