@@ -141,8 +141,7 @@ See `dependencies` in [`galaxy.yml`](./galaxy.yml).
 ## Licensing, copyright<a id="licensing-copyright"></a>
 
 <!--REUSE-IgnoreStart-->
-<!-- rumdl-disable MD034 -->
-<!-- Plain URL retained in the copyright notice for plain-text reuse. -->
+<!-- rumdl-disable MD034 --><!-- should match SPDX-PackageSupplier -->
 Copyright (c) 2025, 2026, [foundata GmbH](https://foundata.com/)
 (https://foundata.com)
 <!-- rumdl-enable MD034 -->
