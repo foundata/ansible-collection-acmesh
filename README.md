@@ -165,6 +165,35 @@ a
 
 
 
+### Trademarks<a id="trademarks"></a>
+
+Third-party trademarks used in this repository:
+
+- Ansible®, Fedora® and Red Hat® are trademarks of Red Hat, LLC, registered in
+  the United States and other countries.
+- Debian® is a trademark of Software in the Public Interest, Inc., registered in
+  Germany and the United States.
+- Docker® is a trademark of Docker, Inc., registered in the European Union and
+  the United States.
+- [INWX®](https://register.dpma.de/DPMAregister/marke/registerhabm?AKZ=018729512)
+  is a trademark of INWX GmbH, registered in the European Union.
+- openSUSE® is a trademark of SUSE LLC or its affiliates, registered in the
+  European Union and the United States.
+- SUSE® is a trademark of SUSE LLC or its affiliates, registered in Germany, the
+  European Union and the United States.
+- Ubuntu® is a trademark of Canonical Ltd., registered in Germany, the European
+  Union and the United States.
+
+Their use here is purely descriptive and does not imply any affiliation with or
+endorsement by the trademark holders.
+
+Own and licensed trademarks used in this repository:
+
+- foundata® is a trademark of [IPAM GmbH](https://ipam-services.com/),
+  registered in Germany and the European Union, licensed to
+  [foundata GmbH](https://foundata.com/).
+
+
 ## Author information<a id="author-information"></a>
 
 This [project](https://foundata.com/en/projects/) was created and is maintained
