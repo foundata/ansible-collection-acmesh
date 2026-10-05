@@ -9,7 +9,7 @@ galaxy_info:
   company: "foundata GmbH (https://foundata.com)"
 
   standalone: false # This role is part of a collection (useful hint for ansible-lint)
-  min_ansible_version: "2.16.0"
+  min_ansible_version: "2.19.0"
 
 # Roles that this role requires to be installed.
 dependencies: []

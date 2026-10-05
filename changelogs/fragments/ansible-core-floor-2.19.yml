@@ -1,0 +1,8 @@
+---
+bugfixes:
+  - >
+    The declared ansible-core minimum is corrected from 2.16 to 2.19. The
+    roles write Jinja's own filters and tests as ``ansible.builtin.<name>``,
+    which ansible-core resolves from 2.19 only; on 2.16 to 2.18 every run
+    failed at the first such expression, so no working installation is
+    affected.
