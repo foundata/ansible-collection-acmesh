@@ -173,8 +173,6 @@ Third-party trademarks used in this repository:
   the United States and other countries.
 - Debian® is a trademark of Software in the Public Interest, Inc., registered in
   Germany and the United States.
-- Docker® is a trademark of Docker, Inc., registered in the European Union and
-  the United States.
 - [INWX®](https://register.dpma.de/DPMAregister/marke/registerhabm?AKZ=018729512)
   is a trademark of INWX GmbH, registered in the European Union.
 - openSUSE® is a trademark of SUSE LLC or its affiliates, registered in the
