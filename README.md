@@ -196,7 +196,3 @@ Own and licensed trademarks used in this repository:
 
 This [project](https://foundata.com/en/projects/) was created and is maintained
 by [foundata](https://foundata.com/).
-
-Initially based on an
-[Ansible skeleton](https://foundata.com/en/projects/ansible-skeletons/)
-developed by [foundata](https://foundata.com/).
