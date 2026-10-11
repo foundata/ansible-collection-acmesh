@@ -1,5 +1,10 @@
 # Developing foundata.acmesh
 
+<!--
+SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
 This guide is the entry point for changing and testing the `foundata.acmesh`
 collection. Role usage and supported platforms are documented in
 [`README.md`](./README.md) and the role READMEs under [`roles/`](./roles/).

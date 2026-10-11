@@ -3,6 +3,9 @@
 # Variables defined here usually override earlier definitions due to the high
 # precedence of this file. Each variable should have a concise comment above
 # it, describing its purpose and how it fits into the role's functionality.
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
 

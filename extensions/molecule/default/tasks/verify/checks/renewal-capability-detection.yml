@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Assert __run_acmesh_renewal_needs_net_bind for a single challenge configuration
 # (see GitHub issue #19). run_acmesh_certs is swapped via set_fact because
 # include-level vars do not override the fact the verify stage set earlier.

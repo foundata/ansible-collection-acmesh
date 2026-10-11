@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Publish staged acme.sh certificate files to their final destinations.
 
 Managed by Ansible (foundata.acmesh.run role); local changes will be

@@ -1,5 +1,10 @@
 # Ansible role: `foundata.acmesh.run`
 
+<!--
+SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
 The `foundata.acmesh.run` Ansible role (part of the `foundata.acmesh` Ansible collection). It provides automated management of ACME certificates using acme.sh.
 
 

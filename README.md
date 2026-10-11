@@ -1,5 +1,10 @@
 # Ansible collection: `foundata.acmesh`
 
+<!--
+SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
 This repository contains the `foundata.acmesh` Ansible Collection.
 
 It provides resources to manage and use [acme.sh](https://acme.sh/), as

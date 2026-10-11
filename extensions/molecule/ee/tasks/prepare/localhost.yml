@@ -1,4 +1,7 @@
 # Prepare prerequisites for building the Execution Environment image
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 - name: "Molecule | Prepare (localhost) | Check for required tools"
   # The command or shell module is used intentionally: Ansible provides no

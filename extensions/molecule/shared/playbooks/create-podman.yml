@@ -7,6 +7,9 @@
 # This playbook was heavily inspired by the following resources:
 # https://github.com/ansible-community/molecule-plugins/blob/main/src/molecule_plugins/podman/playbooks/create.yml
 # https://docs.ansible.com/projects/molecule/examples/podman/
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
 

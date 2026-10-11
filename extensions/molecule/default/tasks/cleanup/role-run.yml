@@ -1,4 +1,7 @@
 # Execute the collection role "run" against all driver-created instances (cleanup / absent)
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 - name: "Molecule | Cleanup | Include the foundata.acmesh.run role"
   ansible.builtin.include_role:

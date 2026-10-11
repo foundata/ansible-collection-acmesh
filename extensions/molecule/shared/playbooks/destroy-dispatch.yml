@@ -1,6 +1,9 @@
 # Molecule destroy playbook: backend-agnostic cleanup. Both imported playbooks
 # tolerate the absence of their instances (and even of their tooling), so this
 # removes whatever exists regardless of which backend created it.
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
 

@@ -9,6 +9,9 @@
 # virtualization, Podman insid  e the test target, ...). Mixed scenarios are
 # possible. See extensions/molecule/README.md for requirements and usage
 # details.
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
 

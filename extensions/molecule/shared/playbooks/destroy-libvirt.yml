@@ -6,6 +6,9 @@
 #
 # The cached cloud images below the image cache directory are kept on purpose
 # (they are shared between scenario runs; delete them manually if needed).
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
 

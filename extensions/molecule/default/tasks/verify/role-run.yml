@@ -1,4 +1,7 @@
 # Check collection role "run" outcomes.
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 - name: "Molecule | Verify | Initialize the foundata.acmesh.run role (without actually running it; get and expose variables)"
   ansible.builtin.include_role:

@@ -11,6 +11,9 @@
 #           - "one"
 #           - "two"
 #         some_flag: true     # accessible via __testing_state['some_flag']
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 - name: "Molecule | State | Merge __testing_state_update into __testing_state"
   ansible.builtin.set_fact:

@@ -1,4 +1,7 @@
 # Execute the collection role "run" against all driver-created instances.
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 ## Fresh-system check mode (must run FIRST, before anything installs acme.sh)
 #

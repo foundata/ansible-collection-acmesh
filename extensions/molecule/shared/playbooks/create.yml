@@ -1,5 +1,8 @@
 # Molecule create playbook. Creates the testing infrastructure and stores data
 # in instance-config.
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
 
