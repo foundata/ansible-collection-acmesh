@@ -1,0 +1,2 @@
+bugfixes:
+  - "Limit automatic fact gathering to each role's declared subsets while retaining missing-fact recovery and reuse of cached facts."
