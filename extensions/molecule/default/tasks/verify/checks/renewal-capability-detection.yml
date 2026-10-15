@@ -1,3 +1,4 @@
+---
 # SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -7,7 +8,6 @@
 - name: "Molecule | Verify | Renewal capability: set run_acmesh_certs for case '{{ __testing_capcase['label'] }}'"
   ansible.builtin.set_fact:
     run_acmesh_certs: "{{ __testing_capcase['certs'] }}"
-
 
 - name: "Molecule | Verify | Renewal capability: assert detection for case '{{ __testing_capcase['label'] }}'"
   ansible.builtin.assert:

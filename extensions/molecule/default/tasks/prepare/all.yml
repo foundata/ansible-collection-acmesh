@@ -1,3 +1,4 @@
+---
 # Tasks for the Molecule prepare stage: Add resources needed for later steps
 # (e.g. verify) on all driver-created instances.
 #
@@ -11,13 +12,11 @@
       - "openssl" # read out certificate details during verify
     state: "present"
 
-
 - name: "Molecule | Prepare | Create supplementary group for the service user (run_acmesh_user_supplementary_groups)"
   ansible.builtin.group:
     name: "molecule-acmesh-extra"
     state: "present"
     system: true
-
 
 - name: "Molecule | Prepare | Create group for install permission overrides (install.permissions)"
   # Simulates a consumer group like Debian's "ssl-cert"; the service user is
@@ -26,7 +25,6 @@
     name: "molecule-ssl-cert"
     state: "present"
     system: true
-
 
 - name: "Molecule | Prepare | Create a protected parent directory for staged key deployment"
   # Simulates /etc/ssl/private (root-only): the service user cannot traverse
@@ -37,7 +35,6 @@
     owner: "root"
     group: "root"
     mode: "u=rwx,g=,o=" # 0700
-
 
 ## Pebble (Let's Encrypt test ACME server, https://github.com/letsencrypt/pebble)
 #
@@ -52,36 +49,30 @@
 
 - name: "Molecule | Prepare | Set pebble staging directory path (localhost)"
   delegate_to: "localhost"
-  run_once: true # noqa: run-once[task]
   ansible.builtin.set_fact:
     __testing_pebble_staging_dir: "{{ molecule_ephemeral_directory }}/pebble"
 
-
+  run_once: true # noqa: run-once[task]
 - name: "Molecule | Prepare | Create pebble staging directory (localhost)"
   delegate_to: "localhost"
-  run_once: true # noqa: run-once[task]
   ansible.builtin.file:
     path: "{{ __testing_pebble_staging_dir }}"
     state: "directory"
     mode: "u=rwx,g=rx,o=rx" # 0755
 
-
+  run_once: true # noqa: run-once[task]
 - name: "Molecule | Prepare | Pull pebble OCI images (localhost)"
   delegate_to: "localhost"
-  run_once: true # noqa: run-once[task]
   containers.podman.podman_image:
     name: "{{ item }}"
     state: "present"
+  run_once: true # noqa: run-once[task]
   loop:
     - "ghcr.io/letsencrypt/pebble:latest"
     - "ghcr.io/letsencrypt/pebble-challtestsrv:latest"
 
-
 - name: "Molecule | Prepare | Extract pebble binary and test certs from OCI image (localhost)"
   delegate_to: "localhost"
-  run_once: true # noqa: run-once[task]
-  # The command or shell module is used intentionally:
-  # Ansible provides no dedicated module to perform this operation.
   ansible.builtin.shell:
     cmd: |
       set -u              # no uninitialized vars
@@ -107,13 +98,11 @@
       chmod 0755 "{{ __testing_pebble_staging_dir }}/pebble"
     creates: "{{ __testing_pebble_staging_dir }}/pebble"
 
-
-- name: "Molecule | Prepare | Extract pebble-challtestsrv binary from OCI image (localhost)"
-  delegate_to: "localhost"
   run_once: true # noqa: run-once[task]
   # The command or shell module is used intentionally:
   # Ansible provides no dedicated module to perform this operation.
-  # noqa: yaml[line-length]
+- name: "Molecule | Prepare | Extract pebble-challtestsrv binary from OCI image (localhost)"
+  delegate_to: "localhost"
   ansible.builtin.shell:
     cmd: |
       set -u              # no uninitialized vars
@@ -138,9 +127,12 @@
     creates:
       - "{{ __testing_pebble_staging_dir }}/pebble-challtestsrv"
 
-
 ## Pebble infrastructure setup (on each molecule host)
 
+  run_once: true # noqa: run-once[task]
+  # The command or shell module is used intentionally:
+  # Ansible provides no dedicated module to perform this operation.
+  # noqa: yaml[line-length]
 - name: "Molecule | Prepare | Create pebble directories"
   ansible.builtin.file:
     path: "{{ item }}"
@@ -150,7 +142,6 @@
     - "/etc/pebble"
     - "/etc/pebble/certs"
 
-
 - name: "Molecule | Prepare | Copy pebble binaries to container"
   ansible.builtin.copy:
     src: "{{ __testing_pebble_staging_dir }}/{{ item }}"
@@ -159,7 +150,6 @@
   loop:
     - "pebble"
     - "pebble-challtestsrv"
-
 
 - name: "Molecule | Prepare | Copy pebble test certificates to container"
   ansible.builtin.copy:
@@ -174,44 +164,42 @@
     - src: "localhost/key.pem"
       dest: "key.pem"
 
-
 - name: "Molecule | Prepare | Add pebble CA to system trust store (Debian/Ubuntu)"
   ansible.builtin.shell:
     cmd: |
       cp /etc/pebble/certs/pebble.minica.pem /usr/local/share/ca-certificates/pebble-minica.crt
       update-ca-certificates
     executable: "/bin/bash"
-  changed_when: true
   when:
     - (ansible_facts['os_family'] | ansible.builtin.lower) == 'debian'
 
-
+  changed_when:
+    - true
 - name: "Molecule | Prepare | Add pebble CA to system trust store (RedHat)"
   ansible.builtin.shell:
     cmd: |
       cp /etc/pebble/certs/pebble.minica.pem /etc/pki/ca-trust/source/anchors/pebble-minica.pem
       update-ca-trust
     executable: "/bin/bash"
-  changed_when: true
   when:
     - (ansible_facts['os_family'] | ansible.builtin.lower) == 'redhat'
 
-
+  changed_when:
+    - true
 - name: "Molecule | Prepare | Add pebble CA to system trust store (SUSE)"
   ansible.builtin.shell:
     cmd: |
       cp /etc/pebble/certs/pebble.minica.pem /etc/pki/trust/anchors/pebble-minica.pem
       update-ca-certificates
     executable: "/bin/bash"
-  changed_when: true
   when:
     - (ansible_facts['os_family'] | ansible.builtin.lower) == 'suse'
 
-
+  changed_when:
+    - true
 - name: "Molecule | Prepare | Create pebble configuration file"
   ansible.builtin.copy:
     dest: "/etc/pebble/pebble-config.json"
-    mode: "u=rw,g=r,o=r" # 0644
     content: |
       {
         "pebble": {
@@ -227,10 +215,10 @@
       }
 
 
+    mode: "u=rw,g=r,o=r" # 0644
 - name: "Molecule | Prepare | Create pebble-challtestsrv systemd service"
   ansible.builtin.copy:
     dest: "/etc/systemd/system/pebble-challtestsrv.service"
-    mode: "u=rw,g=r,o=r" # 0644
     content: |
       [Unit]
       Description=Pebble ACME challenge test server (DNS resolver)
@@ -246,10 +234,10 @@
       WantedBy=multi-user.target
 
 
+    mode: "u=rw,g=r,o=r" # 0644
 - name: "Molecule | Prepare | Create pebble systemd service"
   ansible.builtin.copy:
     dest: "/etc/systemd/system/pebble.service"
-    mode: "u=rw,g=r,o=r" # 0644
     content: |
       [Unit]
       Description=Pebble ACME test server
@@ -267,10 +255,10 @@
       WantedBy=multi-user.target
 
 
+    mode: "u=rw,g=r,o=r" # 0644
 - name: "Molecule | Prepare | Reload systemd daemon"
   ansible.builtin.systemd:
     daemon_reload: true
-
 
 - name: "Molecule | Prepare | Start pebble-challtestsrv service"
   ansible.builtin.systemd:
@@ -278,24 +266,22 @@
     state: "started"
     enabled: true
 
-
 - name: "Molecule | Prepare | Start pebble service"
   ansible.builtin.systemd:
     name: "pebble.service"
     state: "started"
     enabled: true
 
-
 - name: "Molecule | Prepare | Wait for pebble ACME directory to become available"
   ansible.builtin.uri:
     url: "https://localhost:14000/dir"
-    validate_certs: false
     status_code: 200
+    validate_certs: false
   register: __testing_pebble_health
   retries: 15
   delay: 2
-  until: __testing_pebble_health is ansible.builtin.success
-
+  until:
+    - __testing_pebble_health is ansible.builtin.success
 
 ## Web server setup (switchable backend via TEST_ACMESH_WEBROOT_BACKEND)
 
@@ -314,6 +300,7 @@
       "nginx", "apache").
 
 
+    verbosity: 0
 - name: "Molecule | Prepare | Create webroot directory"
   ansible.builtin.file:
     path: "/var/www/acmesh-test"
@@ -327,7 +314,6 @@
     # write access via group membership or a pre-created (service-user owned)
     # ".well-known/acme-challenge" directory instead.
     mode: "u=rwx,g=rwx,o=rwx" # 0777
-
 
 - name: "Molecule | Prepare | Include foundata.nginx.run role for webroot serving"
   ansible.builtin.include_role:
@@ -352,7 +338,6 @@
   when:
     - __testing_webroot_backend == 'nginx'
 
-
 - name: "Molecule | Prepare | Include foundata.apache_httpd.run role for webroot serving"
   ansible.builtin.include_role:
     name: "foundata.apache_httpd.run"
@@ -375,7 +360,6 @@
   when:
     - __testing_webroot_backend == 'apache'
 
-
 - name: "Molecule | Prepare | Verify web server responds on port 80"
   ansible.builtin.uri:
     url: "http://localhost:80/"
@@ -388,8 +372,8 @@
   register: __testing_webserver_health
   retries: 10
   delay: 2
-  until: __testing_webserver_health is ansible.builtin.success
-
+  until:
+    - __testing_webserver_health is ansible.builtin.success
 
 - name: "Molecule | Prepare | Store pebble and webroot settings in __testing_state"
   ansible.builtin.include_tasks:

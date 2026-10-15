@@ -1,3 +1,4 @@
+---
 # Execute the collection role "run" against all driver-created instances.
 #
 # SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
@@ -15,12 +16,10 @@
     path: "/opt/acme.sh"
   register: __testing_acmesh_checkmode_pre_stat
 
-
 - name: "Molecule | Converge | Fresh-system check mode"
   when:
     - not __testing_acmesh_checkmode_pre_stat['stat']['exists']
   block:
-
     - name: "Molecule | Converge | Run the role in check mode on the fresh system"
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
@@ -39,7 +38,6 @@
         fail_msg: "The check-mode run on the fresh system installed something below /opt/acme.sh."
         success_msg: "The check-mode run on the fresh system succeeded without installing anything."
 
-
 - name: "Molecule | Converge | Check for environment variables needed to issue certificates via DNS challenge"
   ansible.builtin.set_fact:
     __testing_missing_envvars_dns01: "{{ __testing_missing_envvars_dns01 | ansible.builtin.default([]) + [item] }}"
@@ -54,16 +52,15 @@
     - "TEST_ACMESH_INWX_User"
     - "TEST_ACMESH_INWX_Password"
 
-
 - name: "Molecule | Converge | Show missing environment variables (if any) needed to issue certificates via DNS challenge"
   ansible.builtin.debug:
     msg: >
       Tests regarding certificate issuing via DNS challenge will be skipped,
       required environment variables are missing or invalid: {{ __testing_missing_envvars_dns01 | ansible.builtin.join(', ') }}.
+    verbosity: 0
   when:
     - __testing_missing_envvars_dns01 is ansible.builtin.defined
     - __testing_missing_envvars_dns01 | ansible.builtin.length > 0
-
 
 - name: "Molecule | Prepare | Store info about missing environment variables (DNS challenge) in __testing_state"
   ansible.builtin.include_tasks:
@@ -71,7 +68,6 @@
   vars:
     __testing_state_update:
       __testing_missing_envvars_dns01: "{{ __testing_missing_envvars_dns01 | ansible.builtin.default('', true) }}"
-
 
 - name: "Molecule | Converge | Store run_acmesh_* role parameters needed for certificate issuance in __testing_state"
   ansible.builtin.include_tasks:
@@ -146,9 +142,7 @@
         INWX_User: "{{ lookup('ansible.builtin.env', 'TEST_ACMESH_INWX_User') }}"
         INWX_Password: "{{ lookup('ansible.builtin.env', 'TEST_ACMESH_INWX_Password') }}"
   when:
-    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or
-      ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
-
+    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
 
 ## dns-persist-01 certificate (requires permanent TXT records + pre-seeded account key)
 #
@@ -183,16 +177,15 @@
     - "TEST_ACMESH_TESTDOMAIN3"
     - "TEST_ACMESH_ACCOUNT_KEY"
 
-
 - name: "Molecule | Converge | Show missing environment variables (if any) needed for dns-persist-01 challenge"
   ansible.builtin.debug:
     msg: >
       Tests regarding certificate issuing via dns-persist-01 challenge will be
       skipped, required environment variables are missing or invalid: {{ __testing_missing_envvars_dnspersist | ansible.builtin.join(', ') }}.
+    verbosity: 0
   when:
     - __testing_missing_envvars_dnspersist is ansible.builtin.defined
     - (__testing_missing_envvars_dnspersist | ansible.builtin.length) > 0
-
 
 - name: "Molecule | Prepare | Store info about missing environment variables (DNS challenge) in __testing_state"
   ansible.builtin.include_tasks:
@@ -200,7 +193,6 @@
   vars:
     __testing_state_update:
       __testing_missing_envvars_dnspersist: "{{ __testing_missing_envvars_dnspersist | ansible.builtin.default('', true) }}"
-
 
 - name: "Molecule | Converge | Append dns-persist-01 certificate config and account key to __testing_state"
   ansible.builtin.include_tasks:
@@ -242,9 +234,7 @@
           }]
         }}
   when:
-    - __testing_missing_envvars_dnspersist is not ansible.builtin.defined or
-      ((__testing_missing_envvars_dnspersist | ansible.builtin.length) <= 0)
-
+    - __testing_missing_envvars_dnspersist is not ansible.builtin.defined or ((__testing_missing_envvars_dnspersist | ansible.builtin.length) <= 0)
 
 ## Webroot certificate via pebble (runs unconditionally when pebble is available)
 
@@ -256,9 +246,8 @@
       run_acmesh_cfg_accountemail: "test@acmesh-webroot.test"
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
-    - __testing_state['run_acmesh_cfg_accountemail'] is not ansible.builtin.defined or
-      (__testing_state['run_acmesh_cfg_accountemail'] | ansible.builtin.length) <= 0
-
+    - __testing_state['run_acmesh_cfg_accountemail'] is not ansible.builtin.defined or (__testing_state['run_acmesh_cfg_accountemail'] | ansible.builtin.length)
+      <= 0
 
 - name: "Molecule | Converge | Append webroot (pebble) certificate config to run_acmesh_certs"
   ansible.builtin.include_tasks:
@@ -360,7 +349,6 @@
       run_acmesh_user_supplementary_groups:
         - "molecule-acmesh-extra"
 
-
 - name: "Molecule | Converge | Set run_acmesh_* parameters as facts from __testing_state"
   ansible.builtin.set_fact:
     "{{ item['key'] }}": "{{ item['value'] }}"
@@ -375,7 +363,6 @@
     # Label with the variable name only: the values include the DNS API
     # credentials (run_acmesh_environment, per-certificate environment).
     label: "{{ item['key'] }}"
-
 
 - name: "Molecule | Converge | Include the foundata.acmesh.run role"
   ansible.builtin.include_role:

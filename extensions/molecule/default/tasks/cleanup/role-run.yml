@@ -1,3 +1,4 @@
+---
 # Execute the collection role "run" against all driver-created instances (cleanup / absent)
 #
 # SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
@@ -9,12 +10,10 @@
   vars:
     run_acmesh_state: "absent"
 
-
 - name: "Molecule | Cleanup | Remove the supplementary test group"
   ansible.builtin.group:
     name: "molecule-acmesh-extra"
     state: "absent"
-
 
 ## Pebble and web server cleanup
 
@@ -23,50 +22,46 @@
     name: "{{ item }}"
     state: "stopped"
     enabled: false
-  loop:
-    - "pebble.service"
-    - "pebble-challtestsrv.service"
-  failed_when: false
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
 
-
+  failed_when:
+    - false
+  loop:
+    - "pebble.service"
+    - "pebble-challtestsrv.service"
 - name: "Molecule | Cleanup | Remove pebble systemd unit files"
   ansible.builtin.file:
     path: "{{ item }}"
     state: "absent"
-  loop:
-    - "/etc/systemd/system/pebble.service"
-    - "/etc/systemd/system/pebble-challtestsrv.service"
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
 
-
+  loop:
+    - "/etc/systemd/system/pebble.service"
+    - "/etc/systemd/system/pebble-challtestsrv.service"
 - name: "Molecule | Cleanup | Reload systemd daemon"
   ansible.builtin.systemd:
     daemon_reload: true
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
 
-
 - name: "Molecule | Cleanup | Remove pebble binaries"
   ansible.builtin.file:
     path: "{{ item }}"
     state: "absent"
-  loop:
-    - "/usr/local/bin/pebble"
-    - "/usr/local/bin/pebble-challtestsrv"
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
 
-
+  loop:
+    - "/usr/local/bin/pebble"
+    - "/usr/local/bin/pebble-challtestsrv"
 - name: "Molecule | Cleanup | Remove pebble configuration and certificates"
   ansible.builtin.file:
     path: "/etc/pebble"
     state: "absent"
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
-
 
 - name: "Molecule | Cleanup | Remove installed webroot test certificates"
   ansible.builtin.file:
@@ -79,12 +74,10 @@
     - "/etc/pki/tls/certs/acmesh-direct.test"
     - "/etc/molecule-acmesh-protected"
 
-
 - name: "Molecule | Cleanup | Remove the install permission test group"
   ansible.builtin.group:
     name: "molecule-ssl-cert"
     state: "absent"
-
 
 - name: "Molecule | Cleanup | Remove nginx via foundata.nginx.run role"
   ansible.builtin.include_role:
@@ -95,7 +88,6 @@
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
     - (__testing_state['__testing_webroot_backend'] | ansible.builtin.default('nginx')) == 'nginx'
 
-
 - name: "Molecule | Cleanup | Remove apache via foundata.apache_httpd.run role"
   ansible.builtin.include_role:
     name: "foundata.apache_httpd.run"
@@ -104,7 +96,6 @@
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
     - (__testing_state['__testing_webroot_backend'] | ansible.builtin.default('nginx')) == 'apache'
-
 
 - name: "Molecule | Cleanup | Remove webroot directory"
   ansible.builtin.file:
