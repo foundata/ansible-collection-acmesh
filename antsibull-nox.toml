@@ -1,0 +1,50 @@
+# Built-in antsibull-nox sessions of this collection. The sessions foundata
+# defines, and the usage, are in noxfile.py and DEVELOPMENT.md; "nox -l" lists
+# all of them. Reference: https://docs.ansible.com/projects/antsibull-nox/config-file/
+#
+# ansible-core versions are derived from "requires_ansible" in meta/runtime.yml.
+# Run nox inside the collection's Git repository: the license check honors
+# .gitignore only there.
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+version = 1
+
+[collection]
+# Python versions of module code are read from tests/config.yml.
+min_python_version = "ansible-test-config"
+
+[sessions.docs_check]
+validate_collection_refs = "all"
+
+[sessions.license_check]
+# The per-file check reads the license tags of every file but not REUSE.toml,
+# so it skips the files the licensing guide exempts from headers: the
+# generated changelog and the fragments. It also misreads the license sentence
+# in README.md; "reuse lint" still checks that file.
+run_license_check = true
+license_check_extra_ignore_paths = [
+  "CHANGELOG.rst",
+  "README.md",
+  "changelogs/changelog.yaml",
+  "changelogs/fragments/*",
+  "changelogs/fragments/archive/*",
+]
+
+[sessions.extra_checks]
+run_no_unwanted_files = true
+
+[sessions.build_import_check]
+run_galaxy_importer = true
+
+# The ansible-lint session is defined in noxfile.py.
+
+[sessions.ansible_test_sanity]
+include_devel = true
+# changelog: changelogs/fragments also holds the fragment template and the
+# archive, which this test rejects. Use "antsibull-changelog lint" instead.
+# no-smart-quotes: the license text in LICENSES/ uses typographic quotes.
+skip_tests = ["changelog", "no-smart-quotes"]
+
+# The molecule session is defined in noxfile.py.

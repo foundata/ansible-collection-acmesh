@@ -1,0 +1,11 @@
+# Configuration for ansible-test, see
+# https://docs.ansible.com/projects/ansible/devel/dev_guide/testing/sanity/index.html
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+modules:
+  # Python versions supported by module code on managed nodes. Controller-side
+  # plugins follow the Python versions of the supported ansible-core releases.
+  python_requires: ">=3.9"
