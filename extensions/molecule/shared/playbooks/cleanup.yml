@@ -7,7 +7,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
-
 - name: "Molecule | Cleanup"
   hosts: "molecule"
   gather_facts: false
@@ -17,7 +16,6 @@
   ignore_unreachable: true
   no_log: "{{ molecule_no_log | ansible.builtin.default(false) }}"
   pre_tasks:
-
     - name: "Molecule | Cleanup | Restore __testing_state (if any) from YAML file from localhost"
       # Although this task is delegated to localhost, the play itself targets
       # "hosts: molecule", so the resulting fact is stored on the current
@@ -38,9 +36,7 @@
       # "cleanup" and "destroy" phases must tolerate missing containers
       ignore_unreachable: true
 
-
   tasks:
-
     - name: "Molecule | Cleanup | Set <scenario>/tasks/cleanup directory path"
       ansible.builtin.set_fact:
         __testing_cleanup_taskdir: >-
@@ -49,14 +45,12 @@
             ~ '/tasks/cleanup'
           }}
 
-
     - name: "Molecule | Cleanup | Check if <scenario>/tasks/cleanup directory exists on localhost"
       delegate_to: "localhost"
       ansible.builtin.stat:
         path: "{{ __testing_cleanup_taskdir }}"
       run_once: true # noqa: run-once[task]
       register: __testing_cleanup_taskdir_stat
-
 
     - name: "Molecule | Cleanup | Include additional tasks from <scenario>/tasks/cleanup"
       ansible.builtin.include_tasks:
@@ -74,9 +68,7 @@
         index_var: "__testing_cleanup_loop_index"
         loop_var: "__testing_cleanup_loop_item"
 
-
   post_tasks:
-
     - name: "Molecule | Cleanup | Persist __testing_state (if any) to YAML file on localhost"
       # Although this task is delegated to localhost, the play itself targets
       # "hosts: molecule", so inventory_hostname is available.

@@ -6,15 +6,13 @@
 # Each platform selects its backend via the "type" key: "podman" (container,
 # the default when omitted) or "libvirt" (QEMU/KVM virtual machine). Use VM
 # platforms for tests containers cannot cover (kernel settings, nested
-# virtualization, Podman insid  e the test target, ...). Mixed scenarios are
-# possible. See extensions/molecule/README.md for requirements and usage
-# details.
+# virtualization, Podman inside the test target, ...). Mixed scenarios are
+# possible. See ../README.md for requirements and usage details.
 #
 # SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
-
 driver:
   name: "default"
   options:
@@ -22,7 +20,6 @@ driver:
     # Resolved per instance from the instance config written by the create
     # playbooks, so "molecule login" works for containers and VMs alike.
     login_cmd_template: "{login_cmd}"
-
 
 # Target platforms for testing
 platforms:
@@ -122,7 +119,6 @@ platforms:
   # openSUSE Leap 15.6
   # Currently not supported by us and therefore not tested.
 
-
 # Ansible dependencies (collections, roles) of this Molecule scenario
 dependency:
   name: "galaxy"
@@ -131,7 +127,6 @@ dependency:
     requirements-file: "${MOLECULE_SCENARIO_DIRECTORY}/requirements.yml"
     ignore-certs: false
     ignore-errors: false
-
 
 # Configuration parameters for Ansible to provision test infrastructure and
 # enable Molecule to execute test scenarios against the provisioned environment.
@@ -147,7 +142,7 @@ provisioner:
     defaults:
       # If roles are not found by Molecule, try to run molecule with an adjusted
       # MOLECULE_GLOB environment variable instead of setting roles_path and/or
-      # collections_path. See molecule/README.md#faq-role-path-detection for details.
+      # collections_path. See ../README.md#faq-role-path-detection for details.
       verbosity: ${ANSIBLE_VERBOSITY:-0} # noqa
       display_args_to_stdout: ${ANSIBLE_DISPLAY_ARGS_TO_STDOUT:-false} # noqa
       # set forks >= number of test platforms for better performance
@@ -164,7 +159,6 @@ provisioner:
     verify: "../shared/playbooks/verify.yml"
     cleanup: "../shared/playbooks/cleanup.yml"
     destroy: "../shared/playbooks/destroy-dispatch.yml"
-
 
 verifier:
   name: "ansible"

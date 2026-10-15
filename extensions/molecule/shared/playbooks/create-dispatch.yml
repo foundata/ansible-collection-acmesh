@@ -8,7 +8,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
-
 - name: "Molecule | Create (dispatch) | Podman typed platforms"
   ansible.builtin.import_playbook: "create-podman.yml"
 

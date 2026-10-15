@@ -6,7 +6,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
-
 - name: "Molecule | Destroy (dispatch) | Podman"
   ansible.builtin.import_playbook: "destroy-podman.yml"
 

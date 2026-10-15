@@ -7,25 +7,21 @@
 # https://docs.ansible.com/projects/molecule/configuration/
 #
 # This scenario uses Podman to create and manage a container based testing
-# environment. See extensions/molecule/README.md for requirements and usage
-# details.
+# environment. See ../README.md for requirements and usage details.
 #
 # SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
-
 driver:
   name: "default"
   options:
     managed: false
 
-
 # Target platforms for testing
 platforms:
   # No target platforms needed - we test on localhost by building an EE image
   - name: "localhost"
-
 
 # Scenario execution order
 scenario:
@@ -43,7 +39,6 @@ scenario:
     - cleanup
     - destroy
 
-
 # Ansible dependencies (collections, roles) of this Molecule scenario
 dependency:
   name: "galaxy"
@@ -52,7 +47,6 @@ dependency:
     requirements-file: "${MOLECULE_SCENARIO_DIRECTORY}/requirements.yml"
     ignore-certs: false
     ignore-errors: false
-
 
 # Configuration parameters for Ansible to provision test infrastructure and
 # enable Molecule to execute test scenarios against the provisioned environment.
@@ -68,7 +62,7 @@ provisioner:
     defaults:
       # If roles are not found by Molecule, try to run molecule with an adjusted
       # MOLECULE_GLOB environment variable instead of setting roles_path and/or
-      # collections_path. See molecule/README.md#faq-role-path-detection for details.
+      # collections_path. See ../README.md#faq-role-path-detection for details.
       verbosity: ${ANSIBLE_VERBOSITY:-0} # noqa
       display_args_to_stdout: ${ANSIBLE_DISPLAY_ARGS_TO_STDOUT:-false} # noqa
       # set forks >= number of test platforms for better performance
@@ -85,7 +79,6 @@ provisioner:
     verify: "../shared/playbooks/verify.yml"
     cleanup: "../shared/playbooks/cleanup.yml"
     destroy: "../shared/playbooks/destroy.yml"
-
 
 verifier:
   name: "ansible"
