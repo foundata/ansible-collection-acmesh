@@ -345,12 +345,51 @@
       {{ (lookup('ansible.builtin.env', 'MOLECULE_SCENARIO_DIRECTORY')
           | ansible.builtin.default('../../default')) }}/tasks/verify/checks/renewal-capability-detection.yml
   loop:
-    - {label: "standalone (port 80)", expect: true, certs: [{domains: [{name: x, challenge: {type: standalone}}]}]}
-    - {label: "standalone (httpport 8080)", expect: false, certs: [{domains: [{name: x, challenge: {type: standalone, httpport: 8080}}]}]}
-    - {label: "alpn (port 443)", expect: true, certs: [{domains: [{name: x, challenge: {type: alpn}}]}]}
-    - {label: "alpn (tlsport 8443)", expect: false, certs: [{domains: [{name: x, challenge: {type: alpn, tlsport: 8443}}]}]}
-    - {label: "webroot", expect: false, certs: [{domains: [{name: x, challenge: {type: webroot, webroot: /w}}]}]}
-    - {label: "dns", expect: false, certs: [{domains: [{name: x, challenge: {type: dns}}]}]}
+    - label: "standalone (port 80)"
+      expect: true
+      certs:
+        - domains:
+            - name: x
+              challenge:
+                type: standalone
+    - label: "standalone (httpport 8080)"
+      expect: false
+      certs:
+        - domains:
+            - name: x
+              challenge:
+                type: standalone
+                httpport: 8080
+    - label: "alpn (port 443)"
+      expect: true
+      certs:
+        - domains:
+            - name: x
+              challenge:
+                type: alpn
+    - label: "alpn (tlsport 8443)"
+      expect: false
+      certs:
+        - domains:
+            - name: x
+              challenge:
+                type: alpn
+                tlsport: 8443
+    - label: "webroot"
+      expect: false
+      certs:
+        - domains:
+            - name: x
+              challenge:
+                type: webroot
+                webroot: /w
+    - label: "dns"
+      expect: false
+      certs:
+        - domains:
+            - name: x
+              challenge:
+                type: dns
   loop_control:
     loop_var: "__testing_capcase"
     label: "{{ __testing_capcase['label'] }}"
