@@ -80,7 +80,7 @@ applicable categories, and use reStructuredText in entry text.
 
 Antsibull owns [`CHANGELOG.rst`](./CHANGELOG.rst); its configuration is in
 [`changelogs/config.yaml`](./changelogs/config.yaml). Release metadata comes
-from [`galaxy.yml`](./galaxy.yml) and [`releasing.toml`](./releasing.toml).
+from [`galaxy.yml`](./galaxy.yml) and [`.releasing.toml`](./.releasing.toml).
 
 Maintainers use foundata's
 [Ansible collection release procedure](https://github.com/foundata/releasing/blob/main/docs/ansible-collections.md).
