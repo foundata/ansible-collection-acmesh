@@ -56,6 +56,35 @@
       configuration and certificate phases.
 
 
+- name: "Molecule | Verify | Honor quoted false when configuring automatic upgrades"
+  block:
+    - name: "Molecule | Verify | Configure acme.sh with automatic upgrades disabled as a string"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+        tasks_from: "config/default"
+      vars:
+        run_acmesh_autoupgrade: "false"
+
+    - name: "Molecule | Verify | Read the automatic upgrade configuration"
+      ansible.builtin.slurp:
+        src: "{{ run_acmesh_cfg_config_home }}/account.conf"
+      register: __testing_autoupgrade_config
+      no_log: true
+
+    - name: "Molecule | Verify | Assert quoted false disables automatic upgrades"
+      ansible.builtin.assert:
+        that:
+          - >-
+            (__testing_autoupgrade_config['content'] | ansible.builtin.b64decode)
+            is ansible.builtin.search("(?m)^AUTO_UPGRADE='0'$")
+        quiet: true
+  always:
+    - name: "Molecule | Verify | Restore the configured automatic upgrade setting"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+        tasks_from: "config/default"
+
+
 ## Files and directories
 
 - name: "Molecule | Verify | Gather stats for directory: {{ run_acmesh_cfg_home }}"

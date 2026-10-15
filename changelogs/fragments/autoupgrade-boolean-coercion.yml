@@ -1,0 +1,3 @@
+---
+bugfixes:
+  - "run role - Coerce autoupgrade values in acme.sh command arguments so quoted false, no, and off do not enable automatic upgrades."

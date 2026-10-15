@@ -38,7 +38,7 @@
             --syslog {{ run_acmesh_cfg_syslog | ansible.builtin.quote }} \
             {{ '--auto-upgrade 1'
               if ((run_acmesh_autoupgrade is ansible.builtin.defined) and
-                  (run_acmesh_autoupgrade))
+                  (run_acmesh_autoupgrade | ansible.builtin.bool))
               else
               '--auto-upgrade 0' }} \
             {{ '--accountemail ' ~ (run_acmesh_cfg_accountemail | ansible.builtin.quote)
