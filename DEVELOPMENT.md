@@ -37,6 +37,18 @@ test environment setup and how to add verification tasks.
 
 ## Testing
 
+`runtime-check` runs by default. It installs a built archive in isolation and
+retains only `meta/`, `plugins/`, `roles/` and `playbooks/`. It checks Python
+imports, module documentation and role loading/syntax, then runs available
+unit tests from a separate fixture directory against that installation.
+Role deployment behavior remains covered by Molecule.
+
+To check the exact archive retained for a release:
+
+```sh
+uv run noxfile.py -s runtime-check -- --artifact /path/to/collection.tar.gz
+```
+
 Run Python helper checks from the collection root:
 
 ```sh
@@ -44,7 +56,7 @@ CI=true uv run noxfile.py -s helper-lint
 ```
 
 `helper-lint` covers Python in `extensions/molecule/`, `roles/*/files/`,
-`tools/` and `scripts/`, using [ruff.toml](ruff.toml).
+`tools/`, `scripts/` and `tests/runtime_check.py`, using [ruff.toml](ruff.toml).
 It runs by default; add it to CI configurations that list sessions explicitly.
 
 After setting up the required test tools, run the collection's Molecule scenario
