@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
-
 - name: "Config | Default | Configure acme.sh"
   # The command or shell module is used here. This approach is justified:
   #
@@ -70,7 +69,6 @@
     - ('Changed config file') in __run_acmesh_config_result['stdout']
   register: __run_acmesh_config_result
 
-
 - name: "Config | Default | Create systemd unit file (acmesh-renewal.service)"
   ansible.builtin.copy:
     dest: "{{ __run_acmesh_systemd_renewal_servicefile_path }}"
@@ -106,13 +104,12 @@
       SuccessExitStatus=0 2
       StandardError=journal
       SyslogIdentifier=acme.sh
-    force: true
     owner: "{{ __run_acmesh_systemd_renewal_servicefile_owner }}"
     group: "{{ __run_acmesh_systemd_renewal_servicefile_group }}"
     mode: "{{ __run_acmesh_systemd_renewal_servicefile_mode }}"
+    force: true
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 - name: "Config | Default | Create systemd unit file (acmesh-renewal.timer)"
   ansible.builtin.copy:
@@ -128,38 +125,36 @@
 
       [Install]
       WantedBy=timers.target
-    force: true
     owner: "{{ __run_acmesh_systemd_renewal_timerfile_owner }}"
     group: "{{ __run_acmesh_systemd_renewal_timerfile_group }}"
     mode: "{{ __run_acmesh_systemd_renewal_timerfile_mode }}"
+    force: true
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 # debugging: systemctl list-timers --all; systemd-analyze verify acmesh-renewal.timer
 - name: "Config | Default | Manage (enable or disabled) acmesh-renewal.timer"
   ansible.builtin.systemd_service:
     name: "acmesh-renewal.timer"
-    enabled: "{{ run_acmesh_autorenewal }}"
     state: "{{ 'started' if (run_acmesh_autorenewal | ansible.builtin.bool) else 'stopped' }}"
     daemon_reload: true
 
-
-# Reload handling: the configured "reloadcmd" of each certificate is not passed
-# to acme.sh (which would execute it as the unprivileged service user during
-# renewal). Instead, a root-side path unit watches the installed certificate
-# files and starts a service unit of the same name, which runs the reload
-# command as root. This behaves identically for initial issuance, automated
-# renewal and manual acme.sh runs. See __run_acmesh_reload_units in
-# vars/main.yml for the entry layout and the choice of the watched file.
-#
-# Units of certificates that are no longer listed in run_acmesh_certs are kept
-# by default: acme.sh continues to renew and reinstall already issued
-# certificates until they are actively removed, so their services still need
-# reloading. A certificate listed with state "absent" gets its units removed
-# together with its data (see tasks/cert/default.yml), and
-# run_acmesh_certs_delete_unmanaged reaps units of unlisted certificates. All
-# acmesh-reload-* resources get removed on run_acmesh_state: "absent".
+    # Reload handling: the configured "reloadcmd" of each certificate is not passed
+    # to acme.sh (which would execute it as the unprivileged service user during
+    # renewal). Instead, a root-side path unit watches the installed certificate
+    # files and starts a service unit of the same name, which runs the reload
+    # command as root. This behaves identically for initial issuance, automated
+    # renewal and manual acme.sh runs. See __run_acmesh_reload_units in
+    # vars/main.yml for the entry layout and the choice of the watched file.
+    #
+    # Units of certificates that are no longer listed in run_acmesh_certs are kept
+    # by default: acme.sh continues to renew and reinstall already issued
+    # certificates until they are actively removed, so their services still need
+    # reloading. A certificate listed with state "absent" gets its units removed
+    # together with its data (see tasks/cert/default.yml), and
+    # run_acmesh_certs_delete_unmanaged reaps units of unlisted certificates. All
+    # acmesh-reload-* resources get removed on run_acmesh_state: "absent".
+    enabled: "{{ run_acmesh_autorenewal }}"
 - name: "Config | Default | Create systemd unit file(s) (acmesh-reload-*.service)"
   ansible.builtin.copy:
     # The reload command runs via a shell (it may contain multiple commands)
@@ -183,10 +178,10 @@
         | ansible.builtin.replace('$', '$$') }}"
       StandardError=journal
       SyslogIdentifier=acmesh-reload
-    force: true
     owner: "{{ __run_acmesh_reload_unitfile_owner }}"
     group: "{{ __run_acmesh_reload_unitfile_group }}"
     mode: "{{ __run_acmesh_reload_unitfile_mode }}"
+    force: true
   vars:
     # A literal backslash cannot be written as a Jinja string literal (the
     # lexer keeps escape pairs raw), so it is provided here via YAML
@@ -197,8 +192,7 @@
     loop_var: "__run_acmesh_reload_unit_item"
     label: "{{ __run_acmesh_reload_unit_item['name'] }}"
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 - name: "Config | Default | Create systemd unit file(s) (acmesh-reload-*.path)"
   ansible.builtin.copy:
@@ -215,29 +209,27 @@
 
       [Install]
       WantedBy=multi-user.target
-    force: true
     owner: "{{ __run_acmesh_reload_unitfile_owner }}"
     group: "{{ __run_acmesh_reload_unitfile_group }}"
     mode: "{{ __run_acmesh_reload_unitfile_mode }}"
+    force: true
   loop: "{{ __run_acmesh_reload_units }}"
   loop_control:
     loop_var: "__run_acmesh_reload_unit_item"
     label: "{{ __run_acmesh_reload_unit_item['name'] }}"
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 - name: "Config | Default | Manage (enable and start) acmesh-reload-*.path unit(s)"
   ansible.builtin.systemd_service:
     name: "{{ __run_acmesh_reload_unit_prefix }}{{ __run_acmesh_reload_unit_item['name'] }}.path"
-    enabled: true
     state: "started"
     daemon_reload: true
+    enabled: true
   loop: "{{ __run_acmesh_reload_units }}"
   loop_control:
     loop_var: "__run_acmesh_reload_unit_item"
     label: "{{ __run_acmesh_reload_unit_item['name'] }}"
-
 
 # Staged certificate deployment (install strategy "staged", the default):
 # acme.sh installs into a per-certificate staging directory below the
@@ -259,7 +251,6 @@
   when:
     - (__run_acmesh_install_normalized_staged | ansible.builtin.length) > 0
 
-
 - name: "Config | Default | Create the certificate staging directories (staged deployment)"
   ansible.builtin.file:
     path: "{{ __run_acmesh_staging_dir_item['staging_dir'] }}"
@@ -272,7 +263,6 @@
     loop_var: "__run_acmesh_staging_dir_item"
     label: "{{ __run_acmesh_staging_dir_item['domain'] }}"
 
-
 - name: "Config | Default | Install the deploy helper (staged deployment)"
   ansible.builtin.copy:
     src: "acmesh-deploy.py"
@@ -283,7 +273,6 @@
   when:
     - (__run_acmesh_install_normalized_staged | ansible.builtin.length) > 0
 
-
 - name: "Config | Default | Create the deployment manifest directory (staged deployment)"
   ansible.builtin.file:
     path: "{{ __run_acmesh_deploy_manifest_dir_path }}"
@@ -293,7 +282,6 @@
     mode: "{{ __run_acmesh_deploy_manifest_dir_mode }}"
   when:
     - (__run_acmesh_install_normalized_staged | ansible.builtin.length) > 0
-
 
 # The manifests must only contain trusted numeric UID/GID values, so the
 # effective owner/group names are resolved here (after the setup phase
@@ -308,7 +296,6 @@
     loop_var: "__run_acmesh_install_owner_item"
   register: __run_acmesh_install_owner_getent
 
-
 - name: "Config | Default | Look up the numeric GID of every staged install group"
   ansible.builtin.getent:
     database: "group"
@@ -318,7 +305,6 @@
   loop_control:
     loop_var: "__run_acmesh_install_group_item"
   register: __run_acmesh_install_group_getent
-
 
 - name: "Config | Default | Resolve staged install owner and group names to numeric IDs"
   ansible.builtin.set_fact:
@@ -348,7 +334,6 @@
   when:
     - (__run_acmesh_install_normalized_staged | ansible.builtin.length) > 0
 
-
 - name: "Config | Default | Determine unresolved staged install owners and groups"
   ansible.builtin.set_fact:
     __run_acmesh_install_ids_unresolved: >-
@@ -367,7 +352,6 @@
   when:
     - (__run_acmesh_install_normalized_staged | ansible.builtin.length) > 0
 
-
 - name: "Config | Default | Check every staged install owner and group exists and fail if unmet"
   # In check mode a missing owner/group is only reported (see the next task):
   # it may be created by an earlier step of the same play which check mode did
@@ -384,7 +368,6 @@
     - (__run_acmesh_install_normalized_staged | ansible.builtin.length) > 0
     - not ansible_check_mode
 
-
 - name: "Config | Default | Notify about unresolved install owners and groups (check mode)"
   ansible.builtin.debug:
     msg: >-
@@ -392,11 +375,11 @@
       exist (yet): {{ __run_acmesh_install_ids_unresolved | ansible.builtin.join(', ') }}.
       The deployment manifests cannot be rendered without them; a real run
       fails unless they exist by the time this role runs.
+    verbosity: 0
   when:
     - (__run_acmesh_install_normalized_staged | ansible.builtin.length) > 0
     - ansible_check_mode
     - (__run_acmesh_install_ids_unresolved | ansible.builtin.default([]) | ansible.builtin.length) > 0
-
 
 - name: "Config | Default | Create deployment manifest(s) (staged deployment)"
   ansible.builtin.template:
@@ -431,7 +414,6 @@
   loop_control:
     loop_var: "__run_acmesh_manifest_item"
     label: "{{ __run_acmesh_manifest_item['domain'] }}"
-
 
 - name: "Config | Default | Create systemd unit file(s) (acmesh-deploy-*.service)"
   ansible.builtin.copy:
@@ -470,10 +452,10 @@
       {% endfor %}
       StandardError=journal
       SyslogIdentifier=acmesh-deploy
-    force: true
     owner: "{{ __run_acmesh_deploy_unitfile_owner }}"
     group: "{{ __run_acmesh_deploy_unitfile_group }}"
     mode: "{{ __run_acmesh_deploy_unitfile_mode }}"
+    force: true
   vars:
     __run_acmesh_deploy_manifest_file: "{{ __run_acmesh_deploy_manifest_dir_path }}/{{ __run_acmesh_deploy_service_item['cert_id'] }}.json"
   loop: "{{ __run_acmesh_install_normalized_staged }}"
@@ -481,8 +463,7 @@
     loop_var: "__run_acmesh_deploy_service_item"
     label: "{{ __run_acmesh_deploy_service_item['cert_id'] }}"
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 - name: "Config | Default | Create systemd unit file(s) (acmesh-deploy-*.path)"
   ansible.builtin.copy:
@@ -502,17 +483,16 @@
 
       [Install]
       WantedBy=multi-user.target
-    force: true
     owner: "{{ __run_acmesh_deploy_unitfile_owner }}"
     group: "{{ __run_acmesh_deploy_unitfile_group }}"
     mode: "{{ __run_acmesh_deploy_unitfile_mode }}"
+    force: true
   loop: "{{ __run_acmesh_install_normalized_staged }}"
   loop_control:
     loop_var: "__run_acmesh_deploy_path_item"
     label: "{{ __run_acmesh_deploy_path_item['cert_id'] }}"
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 # Strategy transition staged -> direct: a managed certificate with strategy
 # "direct" must not keep deploy resources. (Deploy resources of certificates
@@ -522,8 +502,8 @@
 - name: "Config | Default | Disable deploy units of certificates with strategy 'direct' (best-effort)"
   ansible.builtin.systemd_service:
     name: "{{ __run_acmesh_deploy_unit_prefix }}{{ __run_acmesh_deploy_unit_item[0]['cert_id'] }}.{{ __run_acmesh_deploy_unit_item[1] }}"
-    enabled: false
     state: "stopped"
+    enabled: false
   failed_when:
     - false # the unit might not exist (e.g. certificate was never staged)
   loop: "{{ __run_acmesh_install_normalized_direct | ansible.builtin.product(['path', 'service']) }}"
@@ -531,8 +511,7 @@
     loop_var: "__run_acmesh_deploy_unit_item"
     label: "{{ __run_acmesh_deploy_unit_item[0]['cert_id'] }} ({{ __run_acmesh_deploy_unit_item[1] }})"
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 - name: "Config | Default | Delete deploy resources of certificates with strategy 'direct'"
   ansible.builtin.file:
@@ -550,4 +529,4 @@
   loop_control:
     loop_var: "__run_acmesh_deploy_resource_item"
   notify:
-    - "run_acmesh: systemd daemon-reload"
+    - "run_acmesh_reload_systemd_daemon"

@@ -4,12 +4,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
-
 - name: "Init | Include role meta data"
   ansible.builtin.include_vars:
     file: "../meta/main.yml"
     name: "__run_acmesh_meta"
-
 
 - name: "Init | Check Ansible version requirement and fail if unmet"
   ansible.builtin.fail:
@@ -41,12 +39,9 @@
       or distribution facts are missing.
     verbosity: 1
   when:
-    - ansible_facts['os_family'] is not ansible.builtin.defined or
-      ansible_facts['distribution'] is not ansible.builtin.defined or
-      ansible_facts['distribution_version'] is not ansible.builtin.defined or
-      ansible_facts['distribution_major_version'] is not ansible.builtin.defined or
+    - ansible_facts['os_family'] is not ansible.builtin.defined or ansible_facts['distribution'] is not ansible.builtin.defined or
+      ansible_facts['distribution_version'] is not ansible.builtin.defined or ansible_facts['distribution_major_version'] is not ansible.builtin.defined or
       ((__run_acmesh_supported_platforms | ansible.builtin.length) == 0)
-
 
 - name: "Init | Warn when platform is unsupported"
   ansible.builtin.fail:
@@ -72,7 +67,6 @@
     - (__run_acmesh_supported_platforms | ansible.builtin.length) > 0
     - (__run_acmesh_matched_versions | ansible.builtin.length) == 0
   ignore_errors: true # noqa: ignore-errors
-
 
 - name: "Init | Set platform-specific filename list (most to least specific; raw with possible duplicates)"
   ansible.builtin.set_fact:
@@ -138,7 +132,6 @@
   loop_control:
     loop_var: "__run_acmesh_varsfile_item"
 
-
 ### acme.sh specific
 
 # Deliberately shows the credential-free views instead of run_acmesh_certs:
@@ -149,12 +142,10 @@
     var: __run_acmesh_certs_no_secrets
     verbosity: 3
 
-
 - name: "Init | Show certificate removal settings"
   ansible.builtin.debug:
     var: __run_acmesh_certs_absent_cleanup
     verbosity: 3
-
 
 - name: "Init | Determine installed version (if any)"
   # The command or shell module is used here. This approach is justified:
@@ -184,15 +175,14 @@
       printf '%s' "${__run_acmesh_version_installed}"
       exit 0
     executable: "/bin/bash" # Support for other shells untested (so far)
-  register: __run_acmesh_version_installed_result
-  ignore_errors: true
   changed_when:
     - false
   # The probe is read-only; run it under "--check" too, otherwise an installed
   # acme.sh is not detected and every later phase gets skipped (check mode
   # would report no drift at all).
+  ignore_errors: true
+  register: __run_acmesh_version_installed_result
   check_mode: false
-
 
 - name: "Init | Set installed version as facts"
   ansible.builtin.set_fact:
@@ -231,23 +221,21 @@
   # "become: false" reports the real connection user even when the role runs with
   # privilege escalation; "check_mode: false" keeps the guard effective during a
   # "--check" run.
+  become: false
   ansible.builtin.command:
     argv:
       - "id"
       - "-un"
-  become: false
   changed_when:
     - false
   check_mode: false
   register: __run_acmesh_connection_user_raw
-
 
 - name: "Init | Look up the configured service account (if it already exists)"
   ansible.builtin.getent:
     database: "passwd"
     key: "{{ run_acmesh_user }}"
     fail_key: false
-
 
 - name: "Init | Check run_acmesh_user is a dedicated account and fail if unmet"
   ansible.builtin.assert:
@@ -267,7 +255,6 @@
       deletes it (with its home directory) on uninstall. Set run_acmesh_user to a
       separate, role-owned service account.
     quiet: true
-
 
 # The service user's supplementary groups are reconciled to the exact unique
 # union of run_acmesh_group and run_acmesh_user_supplementary_groups (see
@@ -296,7 +283,6 @@
   when:
     - run_acmesh_state == 'present'
 
-
 - name: "Init | Look up the configured supplementary groups (if any)"
   ansible.builtin.getent:
     database: "group"
@@ -308,7 +294,6 @@
   loop_control:
     loop_var: "__run_acmesh_supplementary_group_item"
   register: __run_acmesh_supplementary_groups_getent
-
 
 - name: "Init | Check every configured supplementary group exists and fail if unmet"
   # In check mode a missing group is only reported (see the next task): it may
@@ -327,7 +312,6 @@
     - run_acmesh_state == 'present'
     - not ansible_check_mode
 
-
 - name: "Init | Notify about missing supplementary groups (check mode)"
   ansible.builtin.debug:
     msg: >-
@@ -335,11 +319,11 @@
       run_acmesh_user_supplementary_groups do not exist (yet):
       {{ __run_acmesh_supplementary_groups_missing | ansible.builtin.join(', ') }}.
       A real run fails unless they exist by the time this role runs.
+    verbosity: 0
   when:
     - run_acmesh_state == 'present'
     - ansible_check_mode
     - (__run_acmesh_supplementary_groups_missing | ansible.builtin.length) > 0
-
 
 # The first domain is the certificate's identity: it names the acme.sh data
 # directory below run_acmesh_cfg_cert_home and the acmesh-reload-* units, and
@@ -449,7 +433,6 @@
       certificate files, so at least one of these paths is required.
     quiet: true
 
-
 - name: "Init | Check no reloadcmd contains a line break and fail if unmet"
   # The reload command is inlined into the ExecStart= line of a systemd unit;
   # a line break would corrupt the unit file syntax.
@@ -484,14 +467,10 @@
 - name: "Init | Handle deprecated 'fullcain_file' key in run_acmesh_certs"
   when:
     - run_acmesh_certs is ansible.builtin.defined
-    - (run_acmesh_certs | ansible.builtin.default([])
-       | ansible.builtin.selectattr('install', 'ansible.builtin.defined')
-       | ansible.builtin.map(attribute='install')
-       | ansible.builtin.selectattr('fullcain_file', 'ansible.builtin.defined')
-       | ansible.builtin.list
-       | ansible.builtin.length) > 0
+    - (run_acmesh_certs | ansible.builtin.default([]) | ansible.builtin.selectattr('install', 'ansible.builtin.defined') |
+      ansible.builtin.map(attribute='install') | ansible.builtin.selectattr('fullcain_file', 'ansible.builtin.defined') | ansible.builtin.list |
+      ansible.builtin.length) > 0
   block:
-
     - name: "Init | Warn if deprecated 'fullcain_file' key is found in run_acmesh_certs"
       ansible.builtin.pause:
         seconds: "{{ __run_acmesh_deprecated_fullcain_file_pause_seconds | ansible.builtin.default(30) }}"
@@ -509,41 +488,10 @@
                 fullcain_file: # rename to fullchain_file:
 
 
-    - name: "Init | Normalize deprecated 'fullcain_file' key to 'fullchain_file'"
-      ansible.builtin.set_fact:
-        run_acmesh_certs: "{{ __run_acmesh_certs_normalized_json | ansible.builtin.from_json }}"
-      vars:
-        __run_acmesh_certs_normalized_json: |
-          {%- set _certs = [] -%}
-          {%- for _cert in run_acmesh_certs -%}
-            {%- set _install = _cert['install'] | ansible.builtin.default({}) -%}
-            {%- if _install['fullcain_file'] is ansible.builtin.defined -%}
-              {%- set _install_normalized = (
-                    _install
-                    | ansible.builtin.dict2items
-                    | ansible.builtin.rejectattr('key', 'ansible.builtin.equalto', 'fullcain_file')
-                    | ansible.builtin.list
-                    | ansible.builtin.items2dict
-                    | ansible.builtin.combine({'fullchain_file': _install['fullcain_file']})
-                  )
-              -%}
-              {%- set _ = _certs.append(_cert | ansible.builtin.combine({'install': _install_normalized})) -%}
-            {%- else -%}
-              {%- set _ = _certs.append(_cert) -%}
-            {%- endif -%}
-          {%- endfor -%}
-          {{ _certs | ansible.builtin.to_json }}
-
-
-# Installation strategy and permission validation. This runs after the
-# fullcain_file normalization above so __run_acmesh_install_normalized (see
-# vars/main.yml) sees the canonical key names.
-
 - name: "Init | Show normalized certificate installation settings"
   ansible.builtin.debug:
     var: __run_acmesh_install_normalized
     verbosity: 3
-
 
 - name: "Init | Check the deploy base directory is disjoint from the acme.sh directories and fail if unmet"
   ansible.builtin.assert:

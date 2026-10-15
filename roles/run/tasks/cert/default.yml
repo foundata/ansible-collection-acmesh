@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
-
 # Removal of certificates with state: "absent". This reaps all data of the
 # certificate: the acme.sh data below run_acmesh_cfg_cert_home (which also
 # stops the automated renewal for it), the acmesh-reload-* systemd units and
@@ -13,19 +12,18 @@
 - name: "Cert | Default | Disable reload path unit(s) of certificate(s) with state 'absent' (best-effort)"
   ansible.builtin.systemd_service:
     name: "{{ __run_acmesh_reload_unit_prefix }}{{ __run_acmesh_absent_cert_item['unit_name'] }}.path"
-    enabled: false
     state: "stopped"
-  failed_when:
-    - false # the unit might not exist (e.g. certificate without reloadcmd)
+    enabled: false
   when:
     - run_acmesh_certs is ansible.builtin.defined
+  failed_when:
+    - false # the unit might not exist (e.g. certificate without reloadcmd)
   loop: "{{ __run_acmesh_certs_absent_cleanup }}"
   loop_control:
     loop_var: "__run_acmesh_absent_cert_item"
     label: "{{ __run_acmesh_absent_cert_item['domain'] }}"
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 - name: "Cert | Default | Delete reload unit file(s) of certificate(s) with state 'absent'"
   ansible.builtin.file:
@@ -41,25 +39,23 @@
     loop_var: "__run_acmesh_absent_reload_unit_item"
     label: "{{ __run_acmesh_absent_reload_unit_item[0]['domain'] }} ({{ __run_acmesh_absent_reload_unit_item[1] }})"
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 - name: "Cert | Default | Disable deploy unit(s) of certificate(s) with state 'absent' (best-effort)"
   ansible.builtin.systemd_service:
     name: "{{ __run_acmesh_deploy_unit_prefix }}{{ __run_acmesh_absent_deploy_unit_item[0]['unit_name'] }}.{{ __run_acmesh_absent_deploy_unit_item[1] }}"
-    enabled: false
     state: "stopped"
-  failed_when:
-    - false # the unit might not exist (e.g. certificate with strategy "direct")
+    enabled: false
   when:
     - run_acmesh_certs is ansible.builtin.defined
+  failed_when:
+    - false # the unit might not exist (e.g. certificate with strategy "direct")
   loop: "{{ __run_acmesh_certs_absent_cleanup | ansible.builtin.product(['path', 'service']) }}"
   loop_control:
     loop_var: "__run_acmesh_absent_deploy_unit_item"
     label: "{{ __run_acmesh_absent_deploy_unit_item[0]['domain'] }} ({{ __run_acmesh_absent_deploy_unit_item[1] }})"
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 - name: "Cert | Default | Delete deploy unit file(s) of certificate(s) with state 'absent'"
   ansible.builtin.file:
@@ -75,8 +71,7 @@
     loop_var: "__run_acmesh_absent_deploy_unitfile_item"
     label: "{{ __run_acmesh_absent_deploy_unitfile_item[0]['domain'] }} ({{ __run_acmesh_absent_deploy_unitfile_item[1] }})"
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 - name: "Cert | Default | Delete certificate data and installed files of certificate(s) with state 'absent'"
   ansible.builtin.file:
@@ -94,7 +89,6 @@
   loop_control:
     loop_var: "__run_acmesh_absent_path_item"
 
-
 # Removal of unmanaged certificate data (opt-in): when
 # run_acmesh_certs_delete_unmanaged is enabled, acme.sh certificate data below
 # run_acmesh_cfg_cert_home that does not belong to any certificate listed in
@@ -110,7 +104,6 @@
     - run_acmesh_certs is ansible.builtin.defined
     - run_acmesh_certs_delete_unmanaged | ansible.builtin.bool
   register: __run_acmesh_certhome_dirs_found
-
 
 - name: "Cert | Default | Determine unmanaged certificate data directories"
   ansible.builtin.set_fact:
@@ -131,7 +124,6 @@
     - run_acmesh_certs is ansible.builtin.defined
     - run_acmesh_certs_delete_unmanaged | ansible.builtin.bool
 
-
 - name: "Cert | Default | Delete unmanaged certificate data directories"
   ansible.builtin.file:
     path: "{{ __run_acmesh_unmanaged_certhome_item }}"
@@ -142,7 +134,6 @@
   loop: "{{ __run_acmesh_certhome_dirs_unmanaged | ansible.builtin.default([]) }}"
   loop_control:
     loop_var: "__run_acmesh_unmanaged_certhome_item"
-
 
 - name: "Cert | Default | Find reload unit files (unmanaged certificate data removal)"
   ansible.builtin.find:
@@ -155,7 +146,6 @@
     - run_acmesh_certs is ansible.builtin.defined
     - run_acmesh_certs_delete_unmanaged | ansible.builtin.bool
   register: __run_acmesh_reload_unitfiles_present
-
 
 - name: "Cert | Default | Determine unmanaged reload unit files"
   ansible.builtin.set_fact:
@@ -177,17 +167,16 @@
     - run_acmesh_certs is ansible.builtin.defined
     - run_acmesh_certs_delete_unmanaged | ansible.builtin.bool
 
-
 - name: "Cert | Default | Disable unmanaged acmesh-reload-*.path unit(s) (best-effort)"
   ansible.builtin.systemd_service:
     name: "{{ __run_acmesh_unmanaged_reload_unit_item | ansible.builtin.basename }}"
-    enabled: false
     state: "stopped"
-  failed_when:
-    - false
+    enabled: false
   when:
     - run_acmesh_certs is ansible.builtin.defined
     - run_acmesh_certs_delete_unmanaged | ansible.builtin.bool
+  failed_when:
+    - false
   loop: >-
     {{
       __run_acmesh_reload_unitfiles_unmanaged | ansible.builtin.default([])
@@ -198,8 +187,7 @@
     loop_var: "__run_acmesh_unmanaged_reload_unit_item"
     label: "{{ __run_acmesh_unmanaged_reload_unit_item | ansible.builtin.basename }}"
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 - name: "Cert | Default | Delete unmanaged reload unit files"
   ansible.builtin.file:
@@ -213,8 +201,7 @@
     loop_var: "__run_acmesh_unmanaged_reload_unitfile_item"
     label: "{{ __run_acmesh_unmanaged_reload_unitfile_item | ansible.builtin.basename }}"
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 # Staged deployment resources (acmesh-deploy-* units, manifests, staging
 # directories) the current configuration does not define are swept the same
@@ -237,7 +224,6 @@
     - run_acmesh_certs_delete_unmanaged | ansible.builtin.bool
   register: __run_acmesh_deploy_files_present
 
-
 - name: "Cert | Default | Find staging directories (unmanaged certificate data removal)"
   ansible.builtin.find:
     paths: "{{ run_acmesh_cfg_cert_deploy_base_dir }}"
@@ -246,7 +232,6 @@
     - run_acmesh_certs is ansible.builtin.defined
     - run_acmesh_certs_delete_unmanaged | ansible.builtin.bool
   register: __run_acmesh_deploy_stagingdirs_present
-
 
 - name: "Cert | Default | Determine unmanaged staged deployment resources"
   ansible.builtin.set_fact:
@@ -281,17 +266,16 @@
     - run_acmesh_certs is ansible.builtin.defined
     - run_acmesh_certs_delete_unmanaged | ansible.builtin.bool
 
-
 - name: "Cert | Default | Disable unmanaged acmesh-deploy-* unit(s) (best-effort)"
   ansible.builtin.systemd_service:
     name: "{{ __run_acmesh_unmanaged_deploy_unit_item | ansible.builtin.basename }}"
-    enabled: false
     state: "stopped"
-  failed_when:
-    - false
+    enabled: false
   when:
     - run_acmesh_certs is ansible.builtin.defined
     - run_acmesh_certs_delete_unmanaged | ansible.builtin.bool
+  failed_when:
+    - false
   loop: >-
     {{
       __run_acmesh_deploy_resources_unmanaged | ansible.builtin.default([])
@@ -302,8 +286,7 @@
     loop_var: "__run_acmesh_unmanaged_deploy_unit_item"
     label: "{{ __run_acmesh_unmanaged_deploy_unit_item | ansible.builtin.basename }}"
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 - name: "Cert | Default | Delete unmanaged staged deployment resources"
   ansible.builtin.file:
@@ -317,8 +300,7 @@
     loop_var: "__run_acmesh_unmanaged_deploy_resource_item"
     label: "{{ __run_acmesh_unmanaged_deploy_resource_item | ansible.builtin.basename }}"
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 # These tasks for copying existing certificates can be useful in non-production
 # environments during development to avoid hitting CA rate limits or encountering
@@ -342,7 +324,6 @@
     loop_var: "__run_acmesh_preseed_rsa_domain_item"
   register: __run_acmesh_local_preseed_rsa_result
 
-
 - name: "Cert | Default | Show data about pre-seeded cert dirs (RSA) at local source"
   ansible.builtin.debug:
     var: __run_acmesh_local_preseed_rsa_result
@@ -351,18 +332,17 @@
     - run_acmesh_certs is ansible.builtin.defined
     - __run_acmesh_local_preseed_rsa_result is ansible.builtin.defined
 
-
 - name: "Cert | Default | Pre-seed already issued certs (RSA) from local source (if any)"
   ansible.builtin.copy:
     src: "{{ __run_acmesh_preseed_rsa_item['stat']['path'] }}"
     dest: "{{ run_acmesh_cfg_cert_home }}"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
-    directory_mode: "{{ __run_acmesh_cfg_cert_home_dir_mode }}"
     mode: "{{ __run_acmesh_cfg_cert_home_file_mode }}"
-    remote_src: false
     decrypt: true
+    directory_mode: "{{ __run_acmesh_cfg_cert_home_dir_mode }}"
     force: false # do not overwrite anything if already existing on target
+    remote_src: false
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
@@ -372,7 +352,6 @@
   loop: "{{ __run_acmesh_local_preseed_rsa_result['results'] }}"
   loop_control:
     loop_var: "__run_acmesh_preseed_rsa_item"
-
 
 - name: "Cert | Default | Check for pre-seeded cert dirs (ECC) at local source"
   delegate_to: "localhost"
@@ -393,7 +372,6 @@
     loop_var: "__run_acmesh_preseed_ecc_domain_item"
   register: __run_acmesh_local_preseed_ecc_result
 
-
 - name: "Cert | Default | show data about pre-seeded cert dirs (ECC) at local source"
   ansible.builtin.debug:
     var: __run_acmesh_local_preseed_ecc_result
@@ -402,18 +380,17 @@
     - run_acmesh_certs is ansible.builtin.defined
     - __run_acmesh_local_preseed_ecc_result is ansible.builtin.defined
 
-
 - name: "Cert | Default | Pre-seed already issued certs (ECC) from local source (if any)"
   ansible.builtin.copy:
     src: "{{ __run_acmesh_preseed_ecc_item['stat']['path'] }}"
     dest: "{{ run_acmesh_cfg_cert_home }}"
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
-    directory_mode: "{{ __run_acmesh_cfg_cert_home_dir_mode }}"
     mode: "{{ __run_acmesh_cfg_cert_home_file_mode }}"
-    remote_src: false
     decrypt: true
+    directory_mode: "{{ __run_acmesh_cfg_cert_home_dir_mode }}"
     force: false # do not overwrite anything if already existing on target
+    remote_src: false
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
@@ -423,7 +400,6 @@
   loop: "{{ __run_acmesh_local_preseed_ecc_result['results'] }}"
   loop_control:
     loop_var: "__run_acmesh_preseed_ecc_item"
-
 
 - name: "Cert | Default | Pre-seed ACME account.key files, re-register ACME account"
   # The command or shell module is used here. This approach is justified:
@@ -574,8 +550,7 @@
   register: __run_acmesh_account_preseed_result
   no_log: true
   notify:
-    - "run_acmesh: set ownership and permissions"
-
+    - "run_acmesh_set_certificate_permissions"
 
 - name: "Cert | Default | Register ACME accounts for dns-persist-01 domains"
   # The command or shell module is used here. This approach is justified:
@@ -610,19 +585,6 @@
             '' }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
-  when:
-    - __run_acmesh_is_installed
-    - run_acmesh_certs is ansible.builtin.defined
-    - (__run_acmesh_dns_persist_servers | ansible.builtin.length) > 0
-  changed_when:
-    - __run_acmesh_register_result is ansible.builtin.success
-    - ('Registered') in __run_acmesh_register_result['stdout']
-  failed_when:
-    - __run_acmesh_register_result is ansible.builtin.failed
-    - ('Already registered') not in __run_acmesh_register_result['stdout'] | ansible.builtin.default('')
-  loop: "{{ __run_acmesh_dns_persist_servers }}"
-  loop_control:
-    loop_var: "__run_acmesh_dns_persist_server_item"
   vars:
     __run_acmesh_dns_persist_servers: >-
       {%- set servers = [] -%}
@@ -636,8 +598,20 @@
         {%- endfor -%}
       {%- endfor -%}
       {{ servers | ansible.builtin.unique | ansible.builtin.list }}
+  when:
+    - __run_acmesh_is_installed
+    - run_acmesh_certs is ansible.builtin.defined
+    - (__run_acmesh_dns_persist_servers | ansible.builtin.length) > 0
+  changed_when:
+    - __run_acmesh_register_result is ansible.builtin.success
+    - ('Registered') in __run_acmesh_register_result['stdout']
+  failed_when:
+    - __run_acmesh_register_result is ansible.builtin.failed
+    - ('Already registered') not in __run_acmesh_register_result['stdout'] | ansible.builtin.default('')
+  loop: "{{ __run_acmesh_dns_persist_servers }}"
+  loop_control:
+    loop_var: "__run_acmesh_dns_persist_server_item"
   register: __run_acmesh_register_result
-
 
 - name: "Cert | Default | Generate dns-persist-01 TXT record values"
   # The command or shell module is used here. This approach is justified:
@@ -668,15 +642,6 @@
             '' }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
-  when:
-    - __run_acmesh_is_installed
-    - run_acmesh_certs is ansible.builtin.defined
-    - (__run_acmesh_dns_persist_domains | ansible.builtin.length) > 0
-  changed_when:
-    - false
-  loop: "{{ __run_acmesh_dns_persist_domains }}"
-  loop_control:
-    loop_var: "__run_acmesh_dns_persist_domain_item"
   vars:
     __run_acmesh_dns_persist_domains: >-
       {%- set domains = [] -%}
@@ -696,8 +661,16 @@
         {%- endfor -%}
       {%- endfor -%}
       {{ domains }}
+  when:
+    - __run_acmesh_is_installed
+    - run_acmesh_certs is ansible.builtin.defined
+    - (__run_acmesh_dns_persist_domains | ansible.builtin.length) > 0
+  changed_when:
+    - false
+  loop: "{{ __run_acmesh_dns_persist_domains }}"
+  loop_control:
+    loop_var: "__run_acmesh_dns_persist_domain_item"
   register: __run_acmesh_dns_persist_values_result
-
 
 - name: "Cert | Default | Display dns-persist-01 TXT record instructions"
   ansible.builtin.debug:
@@ -719,11 +692,11 @@
       The record is tied to your ACME account key - do not lose the account key
       (if the account key is lost, delete the old DNS RR, create a new ACME
       account, and publish new DNS RR(s)).
+    verbosity: 0
   when:
     - __run_acmesh_is_installed
     - __run_acmesh_dns_persist_values_result is ansible.builtin.defined
     - (__run_acmesh_dns_persist_values_result['results'] | ansible.builtin.default([]) | ansible.builtin.length) > 0
-
 
 - name: "Cert | Default | Pause for dns-persist-01 TXT record publication"
   ansible.builtin.pause:
@@ -738,7 +711,6 @@
     - (run_acmesh_dns_persist_pause | ansible.builtin.int) > 0
     - __run_acmesh_dns_persist_values_result is ansible.builtin.defined
     - (__run_acmesh_dns_persist_values_result['results'] | ansible.builtin.default([]) | ansible.builtin.length) > 0
-
 
 - name: "Cert | Default | Issue certificate(s)"
   # The command or shell module is used here. This approach is justified:
@@ -896,12 +868,6 @@
   # HOME mirrors the environment of the renewal service unit. The environment
   # is preserved across the setpriv user switch, so the DNS API credentials
   # reach acme.sh as before.
-  environment: >-
-    {{
-      {'HOME': run_acmesh_cfg_home}
-      | ansible.builtin.combine(run_acmesh_environment | ansible.builtin.default({}))
-      | ansible.builtin.combine(__run_acmesh_cert_item['environment'] | ansible.builtin.default({}))
-    }}
   vars:
     # Whether this certificate needs CAP_NET_BIND_SERVICE for issuance: same
     # logic as __run_acmesh_renewal_needs_net_bind (vars/main.yml), but for a
@@ -918,6 +884,12 @@
       {%-   endif -%}
       {%- endfor -%}
       {{ ns.need }}
+  environment: >-
+    {{
+      {'HOME': run_acmesh_cfg_home}
+      | ansible.builtin.combine(run_acmesh_environment | ansible.builtin.default({}))
+      | ansible.builtin.combine(__run_acmesh_cert_item['environment'] | ansible.builtin.default({}))
+    }}
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
@@ -943,8 +915,7 @@
   # in the connection plugin's EXEC line, which no_log cannot suppress.
   no_log: true
   notify:
-    - "run_acmesh: set ownership and permissions"
-
+    - "run_acmesh_set_certificate_permissions"
 
 # Only the immediate destination directories are managed with the effective
 # (merged) directory permissions; existing ancestors such as /etc/ssl or
@@ -969,7 +940,6 @@
     loop_var: "__run_acmesh_install_parentdir_item"
     label: "{{ __run_acmesh_install_parentdir_item['domain'] }}: {{ __run_acmesh_install_parentdir_item['path'] | ansible.builtin.dirname }}"
 
-
 - name: "Cert | Default | Create and reconcile target directories for certificate installation(s)"
   ansible.builtin.file:
     path: "{{ __run_acmesh_install_directory_item['path'] }}"
@@ -984,7 +954,6 @@
   loop_control:
     loop_var: "__run_acmesh_install_directory_item"
     label: "{{ __run_acmesh_install_directory_item['domain'] }}: {{ __run_acmesh_install_directory_item['path'] }}"
-
 
 - name: "Cert | Default | Check the installation data resolves for every certificate and fail if unmet"
   ansible.builtin.assert:
@@ -1022,7 +991,6 @@
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
 
-
 # The installation task is no_log; this exposes the resolved paths without
 # any credential.
 - name: "Cert | Default | Show the resolved certificate installation paths"
@@ -1044,7 +1012,6 @@
   loop_control:
     loop_var: "__run_acmesh_install_path_item"
     label: "{{ __run_acmesh_install_path_item['domain'] }}"
-
 
 - name: "Cert | Default | Install certificate(s)"
   # The command or shell module is used here. This approach is justified:
@@ -1128,8 +1095,7 @@
   # loop __run_acmesh_cert_item includes the per-certificate ones. See the no_log note above.
   no_log: true
   notify:
-    - "run_acmesh: set ownership and permissions"
-
+    - "run_acmesh_set_certificate_permissions"
 
 # Staged deployment: after acme.sh wrote the staging files, the root-owned
 # acmesh-deploy-* service publishes them. The helper's read-only --check mode
@@ -1139,7 +1105,6 @@
 # idempotent while earlier failures still resurface here.
 - name: "Cert | Default | Apply pending systemd changes before staged deployment"
   ansible.builtin.meta: "flush_handlers"
-
 
 - name: "Cert | Default | Get information about the deployment manifest(s) (staged deployment)"
   ansible.builtin.stat:
@@ -1156,7 +1121,6 @@
     label: "{{ __run_acmesh_deploy_manifest_item['domain'] }}"
   register: __run_acmesh_deploy_manifest_stat
 
-
 - name: "Cert | Default | Get information about the staged certificate file(s) (staged deployment)"
   ansible.builtin.stat:
     path: "{{ __run_acmesh_staging_file_item['staging'] }}"
@@ -1171,7 +1135,6 @@
     loop_var: "__run_acmesh_staging_file_item"
     label: "{{ __run_acmesh_staging_file_item['domain'] }}: {{ __run_acmesh_staging_file_item['artifact'] }}"
   register: __run_acmesh_deploy_staging_stat
-
 
 - name: "Cert | Default | Check acme.sh populated the staging area(s) and fail if unmet"
   ansible.builtin.assert:
@@ -1200,7 +1163,6 @@
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
     - not ansible_check_mode
-
 
 - name: "Cert | Default | Check for staged deployment drift (staged deployment)"
   # The command module is used here: the deploy helper is the single source
@@ -1233,7 +1195,6 @@
     label: "{{ __run_acmesh_deploy_check_item['__run_acmesh_deploy_manifest_item']['domain'] | ansible.builtin.default('skipped') }}"
   register: __run_acmesh_deploy_check_result
 
-
 - name: "Cert | Default | Get the last result of the deploy service unit(s) (staged deployment)"
   # The command module is used here: ansible.builtin.systemd_service cannot
   # query a unit's last result without changing its state. A previously
@@ -1259,7 +1220,6 @@
     label: "{{ __run_acmesh_deploy_unit_result_item['__run_acmesh_deploy_manifest_item']['domain'] | ansible.builtin.default('skipped') }}"
   register: __run_acmesh_deploy_unit_result
 
-
 - name: "Cert | Default | Determine certificates requiring deployment (staged deployment)"
   ansible.builtin.set_fact:
     __run_acmesh_deploy_pending: >-
@@ -1282,7 +1242,6 @@
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
 
-
 - name: "Cert | Default | Deploy staged certificate file(s) via the deploy service unit(s)"
   # Deliberately started through systemd instead of calling the helper
   # directly: a failing deployment leaves the acmesh-deploy-* unit in a
@@ -1301,14 +1260,13 @@
     loop_var: "__run_acmesh_deploy_start_item"
     label: "{{ __run_acmesh_deploy_start_item['domain'] }}"
 
-
 - name: "Cert | Default | Manage (enable and start) acmesh-deploy-*.path unit(s)"
   # Armed after the first synchronous deployment; future renewals then
   # trigger the deployment automatically.
   ansible.builtin.systemd_service:
     name: "{{ __run_acmesh_deploy_unit_prefix }}{{ __run_acmesh_deploy_pathunit_item['__run_acmesh_deploy_manifest_item']['cert_id'] }}.path"
-    enabled: true
     state: "started"
+    enabled: true
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
@@ -1318,7 +1276,6 @@
   loop_control:
     loop_var: "__run_acmesh_deploy_pathunit_item"
     label: "{{ __run_acmesh_deploy_pathunit_item['__run_acmesh_deploy_manifest_item']['domain'] | ansible.builtin.default('skipped') }}"
-
 
 # Verification and reconciliation of the final files and their metadata, for
 # both strategies. For "staged" this is a no-op after a successful deployment
@@ -1340,7 +1297,6 @@
     loop_var: "__run_acmesh_installed_file_item"
     label: "{{ __run_acmesh_installed_file_item['domain'] }}: {{ __run_acmesh_installed_file_item['dest'] }}"
   register: __run_acmesh_installed_files_stat
-
 
 - name: "Cert | Default | Reconcile ownership and permissions of the installed certificate file(s)"
   ansible.builtin.file:
@@ -1386,7 +1342,6 @@
     - run_acmesh_certs is ansible.builtin.defined
     - not ansible_check_mode
 
-
 - name: "Cert | Default | Verify the staged deployment(s) are complete (staged deployment)"
   # The command module is used here: same read-only helper probe as above; a
   # nonzero exit (including remaining drift) fails the role because the
@@ -1412,7 +1367,6 @@
     loop_var: "__run_acmesh_deploy_verify_item"
     label: "{{ __run_acmesh_deploy_verify_item['__run_acmesh_deploy_manifest_item']['domain'] | ansible.builtin.default('skipped') }}"
   register: __run_acmesh_deploy_verify_result
-
 
 - name: "Cert | Default | Update certificate hook and reload cmd configurations"
   # The command or shell module is used here. This approach is justified:
@@ -1587,22 +1541,20 @@
     - __run_acmesh_hookconfig_item is ansible.builtin.defined
     - __run_acmesh_hookconfig_item['domains'] is ansible.builtin.defined
     - (__run_acmesh_hookconfig_item['domains'] | ansible.builtin.length) > 0
-  failed_when:
-    - (__run_acmesh_cmdupdates_result is ansible.builtin.failed) or
-      ((__run_acmesh_cmdupdates_result['stderr_lines'] | ansible.builtin.length) > 0)
   changed_when:
     - __run_acmesh_cmdupdates_result is ansible.builtin.success
     - __run_acmesh_cmdupdates_result['stdout'] | ansible.builtin.trim | ansible.builtin.length > 0
   # This task does not need the DNS API credentials, so it iterates over the
   # credential-free view to keep its (useful) output while avoiding leaking the
   # per-certificate "environment" values in item labels or on failure.
+  failed_when:
+    - (__run_acmesh_cmdupdates_result is ansible.builtin.failed) or ((__run_acmesh_cmdupdates_result['stderr_lines'] | ansible.builtin.length) > 0)
   loop: "{{ __run_acmesh_certs_no_secrets }}"
   loop_control:
     loop_var: "__run_acmesh_hookconfig_item"
   register: __run_acmesh_cmdupdates_result
   notify:
-    - "run_acmesh: set ownership and permissions"
-
+    - "run_acmesh_set_certificate_permissions"
 
 - name: "Cert | Default | Display hook and reload cmd configuration update results"
   ansible.builtin.debug:
@@ -1623,7 +1575,6 @@
   loop_control:
     loop_var: "__run_acmesh_hookconfig_output_item"
 
-
 - name: "Cert | Default | Gather certificate information"
   ansible.builtin.command:
     cmd: >
@@ -1636,7 +1587,6 @@
   changed_when:
     - false
   register: __run_acmesh_list_domains_result
-
 
 - name: "Cert | Default | Show certificate information"
   ansible.builtin.debug:

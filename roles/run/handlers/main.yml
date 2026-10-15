@@ -4,22 +4,21 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
-
 - name: "Handlers | systemd daemon-reload"
   ansible.builtin.systemd_service:
     daemon_reload: true
   listen:
+    - "run_acmesh_reload_systemd_daemon"
+    # Migration alias; remove in 5.0.0.
     - "run_acmesh: systemd daemon-reload"
-
-
 - name: "Handlers | Gather stats for directory: {{ run_acmesh_cfg_home }}"
   ansible.builtin.stat:
     path: "{{ run_acmesh_cfg_home }}"
   register: __run_acmesh_home_stat
   listen:
+    - "run_acmesh_set_certificate_permissions"
+    # Migration alias; remove in 5.0.0.
     - "run_acmesh: set ownership and permissions"
-
-
 - name: "Handlers | Set ownership and permissions of files and directories (restrict to user and/or group)"
   # The command or shell module is used here. This approach is justified:
   #
@@ -111,4 +110,6 @@
     - __run_acmesh_permissions_result['stdout'] | ansible.builtin.trim | ansible.builtin.length > 0
   register: __run_acmesh_permissions_result
   listen:
+    - "run_acmesh_set_certificate_permissions"
+    # Migration alias; remove in 5.0.0.
     - "run_acmesh: set ownership and permissions"

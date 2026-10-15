@@ -29,6 +29,26 @@ __run_acmesh_used_facts:
     - "distribution_version"
     - "os_family"
 
+__run_acmesh_certs_effective: |
+  {%- set _certs = [] -%}
+  {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+    {%- set _install = _cert['install'] | ansible.builtin.default({}) -%}
+    {%- if _install['fullcain_file'] is ansible.builtin.defined -%}
+      {%- set _install_normalized = (
+            _install
+            | ansible.builtin.dict2items
+            | ansible.builtin.rejectattr('key', 'ansible.builtin.equalto', 'fullcain_file')
+            | ansible.builtin.list
+            | ansible.builtin.items2dict
+            | ansible.builtin.combine({'fullchain_file': _install['fullcain_file']})
+          )
+      -%}
+      {%- set _ = _certs.append(_cert | ansible.builtin.combine({'install': _install_normalized})) -%}
+    {%- else -%}
+      {%- set _ = _certs.append(_cert) -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {{ _certs }}
 
 # Certificates of run_acmesh_certs the role manages (per-certificate "state"
 # is unset or "present"). Every task that registers, issues, installs or
@@ -37,7 +57,7 @@ __run_acmesh_used_facts:
 # __run_acmesh_certs_absent_cleanup).
 __run_acmesh_certs_managed: >-
   {%- set certs = [] -%}
-  {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+  {%- for _cert in (__run_acmesh_certs_effective | ansible.builtin.default(run_acmesh_certs | ansible.builtin.default([]))) -%}
   {%-   if (_cert['state'] | ansible.builtin.default('present')) != 'absent' -%}
   {%-     set _ = certs.append(_cert) -%}
   {%-   endif -%}
@@ -82,7 +102,7 @@ __run_acmesh_certs_no_secrets: >-
 # strategy: the certificate may have used "staged" before its removal.
 __run_acmesh_certs_absent_cleanup: >-
   {%- set entries = [] -%}
-  {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+  {%- for _cert in (__run_acmesh_certs_effective | ansible.builtin.default(run_acmesh_certs | ansible.builtin.default([]))) -%}
   {%-   if (_cert['state'] | ansible.builtin.default('present')) == 'absent' -%}
   {%-     set _domain = (_cert['domains'] | ansible.builtin.default([{}]))[0]['name'] | ansible.builtin.default('') -%}
   {%-     set _unit_name = _domain | ansible.builtin.lower | ansible.builtin.regex_replace('[^a-z0-9.-]', '-') -%}
@@ -117,7 +137,7 @@ __run_acmesh_certs_absent_cleanup: >-
 # run_acmesh_cfg_cert_home belong to a known certificate.
 __run_acmesh_certs_known_domains: >-
   {%- set domains = [] -%}
-  {%- for _cert in (run_acmesh_certs | ansible.builtin.default([])) -%}
+  {%- for _cert in (__run_acmesh_certs_effective | ansible.builtin.default(run_acmesh_certs | ansible.builtin.default([]))) -%}
   {%-   set _domain = (_cert['domains'] | ansible.builtin.default([{}]))[0]['name'] | ansible.builtin.default('') -%}
   {%-   if ((_domain | ansible.builtin.length) > 0) -%}
   {%-     set _ = domains.append(_domain) -%}
@@ -180,7 +200,6 @@ __run_acmesh_reload_unitfile_dir: "/etc/systemd/system"
 __run_acmesh_reload_unitfile_owner: "root"
 __run_acmesh_reload_unitfile_group: "root"
 __run_acmesh_reload_unitfile_mode: "u=rw,g=r,o=r" # 0644
-
 
 # List of reload units to manage, one entry per certificate with a non-empty
 # "reloadcmd". Each entry provides:
@@ -304,7 +323,6 @@ __run_acmesh_deploy_staging_filenames:
   fullchain_file: "fullchain.cer"
   key_file: "cert.key"
 
-
 # Internal defaults for the ownership and permissions of installed certificate
 # files and their destination directories. They preserve the pre-4.0.0
 # behavior and are the base layer of the per-certificate permission merge:
@@ -320,7 +338,6 @@ __run_acmesh_install_permissions_file_defaults:
   owner: "{{ run_acmesh_user }}"
   group: "{{ run_acmesh_group }}"
   mode: "0640" # u=rw,g=r,o=
-
 
 # Normalized installation data, one entry per managed certificate with at
 # least one configured install file path. This is the single source for
@@ -581,7 +598,6 @@ __run_acmesh_supported_platforms:
       - "24.04"
       - "26.04"
 
-
 # List of package names to be installed when run_acmesh_state is
 # set to "present".
 __run_acmesh_packages_install:
@@ -596,7 +612,6 @@ __run_acmesh_packages_install:
   - "curl" # Communicate with the CA
   - "openssl"
 
-
 # List of package names to be uninstalled when run_acmesh_state is
 # set to "absent". This variable is useful when __run_acmesh_packages_install
 # contains packages that are required for the managed software to function but
@@ -606,18 +621,15 @@ __run_acmesh_packages_install:
 # uninstalling the software managed by this role.
 __run_acmesh_packages_uninstall: []
 
-
 # List of package names to be removed unconditionally before installation
 # (e.g., to prevent conflicts or resolve incompatibilities).
 __run_acmesh_packages_removal: []
-
 
 # List of paths of files and directories to be removed unconditionally after
 # installation. This is useful for removing default configuration resources
 # that would otherwise create confusion or conflict with custom configurations
 # managed by this role.
 __run_acmesh_paths_removal: []
-
 
 # Dictionary of files to be overwritten with a managed comment instead of being
 # deleted. Keys are file paths; values are the single-line comment characters to
@@ -627,11 +639,9 @@ __run_acmesh_paths_removal: []
 # %config(noreplace) restores missing files but preserves modified ones.
 __run_acmesh_paths_neutralize: {}
 
-
 # Path to the environment file sourced in /etc/profile.d/. This file ensures
 # that acme.sh environment variables are set for all users.
 __run_acmesh_profiled_envfile_path: "/etc/profile.d/acme.sh.env.sh"
-
 
 # Path to the systemd service unit file for acme.sh certificate renewal. This
 # defines the command and execution environment for automated certificate renewal.
@@ -640,14 +650,12 @@ __run_acmesh_systemd_renewal_servicefile_owner: "root"
 __run_acmesh_systemd_renewal_servicefile_group: "root"
 __run_acmesh_systemd_renewal_servicefile_mode: "u=rw,g=r,o=r" # 0644
 
-
 # Path to the systemd timer unit file for acme.sh certificate renewal. This
 # timer schedules the execution of the renewal service at regular intervals.
 __run_acmesh_systemd_renewal_timerfile_path: "/etc/systemd/system/acmesh-renewal.timer"
 __run_acmesh_systemd_renewal_timerfile_owner: "root"
 __run_acmesh_systemd_renewal_timerfile_group: "root"
 __run_acmesh_systemd_renewal_timerfile_mode: "u=rw,g=r,o=r" # 0644
-
 
 # modes for differt acme.sh directories and files
 __run_acmesh_cfg_home_dir_mode: "u=rwx,g=rx,o=" # 0750; used for run_acmesh_cfg_home
@@ -663,7 +671,6 @@ __run_acmesh_cfg_cert_install_file_mode: "{{ __run_acmesh_cfg_cert_home_file_mod
 
 __run_acmesh_cfg_logfile_file_mode: "u=rw,g=,o=" # 0600; used for run_acmesh_cfg_logfile
 
-
 # Paths of misc executables and resources.
 __run_acmesh_sha1sum_exec_path: "/usr/bin/sha1sum"
 __run_acmesh_base64_exec_path: "/usr/bin/base64"
@@ -671,7 +678,6 @@ __run_acmesh_sed_exec_path: "/usr/bin/sed"
 __run_acmesh_grep_exec_path: "/usr/bin/grep"
 __run_acmesh_setpriv_exec_path: "/usr/bin/setpriv"
 __run_acmesh_systemctl_exec_path: "/usr/bin/systemctl"
-
 
 # Command prefix that switches to the unprivileged service user before running
 # acme.sh, so that issuance and installation run in the same context as the

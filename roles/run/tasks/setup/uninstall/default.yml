@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
-
 - name: "Setup | Uninstall | Default | Call uninstall action of acme.sh"
   # The command or shell module is used here. This approach is justified:
   #
@@ -27,7 +26,6 @@
   when:
     - __run_acmesh_is_installed
 
-
 - name: "Setup | Uninstall | Default | Remove packages"
   ansible.builtin.package:
     name: "{{ __run_acmesh_packages_uninstall }}"
@@ -36,7 +34,6 @@
     - __run_acmesh_packages_uninstall is ansible.builtin.defined
     - (__run_acmesh_packages_uninstall | ansible.builtin.length) > 0
 
-
 - name: "Setup | Uninstall | Default | Delete service user"
   ansible.builtin.user:
     name: "{{ run_acmesh_user }}"
@@ -44,13 +41,11 @@
     force: true
     remove: true # attempts to remove directories associated with the user (e.g. home)
 
-
 - name: "Setup | Uninstall | Default | Delete service user's primary group"
   ansible.builtin.group:
     name: "{{ run_acmesh_user }}" # username == primary group name
     state: "absent"
     force: true
-
 
 # The service user's supplementary group (run_acmesh_group) may differ from the
 # primary group (which shares the username). The following tasks query the group,
@@ -63,7 +58,6 @@
     fail_key: false
   when:
     - run_acmesh_group != run_acmesh_user
-
 
 - name: "Setup | Uninstall | Default | Determine remaining members of group: {{ run_acmesh_group }}"
   ansible.builtin.set_fact:
@@ -81,7 +75,6 @@
     - ansible_facts['getent_group'] is ansible.builtin.defined
     - ansible_facts['getent_group'][run_acmesh_group] is not ansible.builtin.none
 
-
 - name: "Setup | Uninstall | Default | Delete group if no other members: {{ run_acmesh_group }}"
   ansible.builtin.group:
     name: "{{ run_acmesh_group }}"
@@ -91,17 +84,15 @@
     - __run_acmesh_group_remaining_members is ansible.builtin.defined
     - (__run_acmesh_group_remaining_members | ansible.builtin.length) == 0
 
-
 - name: "Setup | Uninstall | Disable acmesh-renewal.timer (best-effort)"
   ansible.builtin.systemd_service:
     name: "acmesh-renewal.timer"
-    enabled: false
     state: "stopped"
+    enabled: false
   failed_when:
     - false
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 # The reload and deploy units are searched on the target (instead of being
 # derived from run_acmesh_certs) so that uninstall also removes units
@@ -118,12 +109,11 @@
     file_type: "file"
   register: __run_acmesh_reload_unitfiles_found
 
-
 - name: "Setup | Uninstall | Default | Disable acmesh-reload-*.path and acmesh-deploy-*.path unit(s) (best-effort)"
   ansible.builtin.systemd_service:
     name: "{{ __run_acmesh_unitfile_item['path'] | ansible.builtin.basename }}"
-    enabled: false
     state: "stopped"
+    enabled: false
   failed_when:
     - false
   loop: >-
@@ -136,8 +126,7 @@
     loop_var: "__run_acmesh_unitfile_item"
     label: "{{ __run_acmesh_unitfile_item['path'] | ansible.builtin.basename }}"
   notify:
-    - "run_acmesh: systemd daemon-reload"
-
+    - "run_acmesh_reload_systemd_daemon"
 
 - name: "Setup | Uninstall | Default | Delete files and directories (except certificates)"
   # The staged deployment resources (staging base, manifests, helper) are
@@ -164,4 +153,4 @@
   loop_control:
     loop_var: "__run_acmesh_removal_path_item"
   notify:
-    - "run_acmesh: systemd daemon-reload"
+    - "run_acmesh_reload_systemd_daemon"

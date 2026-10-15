@@ -1,0 +1,15 @@
+---
+minor_changes:
+  - >-
+    Add role-prefixed handler topics and use them for internal notifications.
+    Retain the previous topics as migration aliases until version 5.0.0.
+  - >-
+    Add the handler topic run_acmesh_reload_systemd_daemon
+    as the replacement for "run_acmesh: systemd daemon-reload".
+  - >-
+    Add the handler topic run_acmesh_set_certificate_permissions
+    as the replacement for "run_acmesh: set ownership and permissions".
+bugfixes:
+  - >-
+    Normalize the deprecated fullcain_file certificate option in internal state
+    without overwriting caller-provided run_acmesh_certs.

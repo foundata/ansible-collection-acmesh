@@ -1,3 +1,4 @@
+---
 # Check collection role "run" outcomes.
 #
 # SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
@@ -8,7 +9,6 @@
     name: "foundata.acmesh.run"
     tasks_from: "init"
     public: true
-
 
 ## Preparation
 
@@ -27,7 +27,6 @@
     # credentials (run_acmesh_environment, per-certificate environment).
     label: "{{ item['key'] }}"
 
-
 ## Check mode on the installed system
 #
 # A --check run against a host with acme.sh installed must succeed AND still
@@ -40,7 +39,6 @@
     name: "foundata.acmesh.run"
     apply:
       check_mode: true
-
 
 - name: "Molecule | Verify | Check mode: assert the installation was detected and the phases stayed enabled"
   ansible.builtin.assert:
@@ -84,7 +82,6 @@
         name: "foundata.acmesh.run"
         tasks_from: "config/default"
 
-
 ## Files and directories
 
 - name: "Molecule | Verify | Gather stats for directory: {{ run_acmesh_cfg_home }}"
@@ -93,7 +90,6 @@
     get_checksum: false
     get_mime: false
   register: __testing_run_acmesh_cfg_home_stat
-
 
 - name: >-
     Molecule | Verify | Check existence, permissions and ownership:
@@ -110,14 +106,12 @@
       - __testing_run_acmesh_cfg_home_stat['stat']['gr_name'] == run_acmesh_group
     fail_msg: "{{ run_acmesh_cfg_home }} does not exist or has incorrect permissions/ownership"
 
-
 - name: "Molecule | Verify | Gather stats for directory: {{ run_acmesh_cfg_config_home }}"
   ansible.builtin.stat:
     path: "{{ run_acmesh_cfg_config_home }}"
     get_checksum: false
     get_mime: false
   register: __testing_run_acmesh_cfg_config_home_stat
-
 
 - name: >-
     Molecule | Verify | Check existence, permissions and ownership:
@@ -133,7 +127,6 @@
       - __testing_run_acmesh_cfg_config_home_stat['stat']['pw_name'] == run_acmesh_user
       - __testing_run_acmesh_cfg_config_home_stat['stat']['gr_name'] == run_acmesh_group
     fail_msg: "{{ run_acmesh_cfg_config_home }} does not exist or has incorrect permissions/ownership"
-
 
 - name: "Molecule | Verify | Gather stats for directory: {{ run_acmesh_cfg_cert_home }}"
   ansible.builtin.stat:
@@ -157,14 +150,12 @@
       - __testing_run_acmesh_cfg_cert_home_stat['stat']['gr_name'] == run_acmesh_group
     fail_msg: "{{ run_acmesh_cfg_cert_home }} does not exist or has incorrect permissions/ownership"
 
-
 - name: "Molecule | Verify | Gather stats for file: account.conf"
   ansible.builtin.stat:
     path: "{{ run_acmesh_cfg_config_home }}/account.conf"
     get_checksum: false
     get_mime: false
   register: __testing_acmesh_account_conf_stat
-
 
 - name: >-
     Molecule | Verify | Check existence, permissions and ownership:
@@ -181,7 +172,6 @@
       - __testing_acmesh_account_conf_stat['stat']['gr_name'] == run_acmesh_group
     fail_msg: "{{ run_acmesh_cfg_config_home }}/account.conf does not exist or has incorrect permissions/ownership"
 
-
 ## Upstream acme.sh CA_NAMES drift detection
 #
 # The "Cert | Default | Pre-seed ACME account.key files, re-register ACME
@@ -196,7 +186,6 @@
   ansible.builtin.slurp:
     src: "{{ run_acmesh_cfg_home }}/acme.sh"
   register: __testing_acmesh_script_slurp
-
 
 - name: "Molecule | Verify | Capture CA_NAMES block from acme.sh"
   ansible.builtin.set_fact:
@@ -255,14 +244,12 @@
       - ansible_facts['services']['acmesh-renewal.service']['status'] in ['static']
     fail_msg: "acmesh-renewal.service is not existing as expected or wrong status"
 
-
 - name: "Molecule | Verify | Get acmesh-renewal.timer properties"
   ansible.builtin.systemd:
     name: "acmesh-renewal.timer"
   failed_when:
     - false
   register: __testing_acmesh_timer_result
-
 
 - name: "Molecule | Verify | Assert acmesh-renewal.timer configuration looks correct"
   ansible.builtin.assert:
@@ -274,7 +261,6 @@
       - __testing_acmesh_timer_result['status']['Unit'] == 'acmesh-renewal.service'
       - "'timers.target' in __testing_acmesh_timer_result['status']['WantedBy']"
     fail_msg: "acmesh-renewal.timer does not have the expected configuration"
-
 
 # The role owns the complete unit here, so there is no vendor schedule to
 # accumulate with. The parsed schedule is still worth asserting: it is the only
@@ -289,11 +275,10 @@
       - "show"
       - "--property=TimersCalendar"
       - "acmesh-renewal.timer"
-  register: __testing_acmesh_timer_calendar
   changed_when:
     - false
 
-
+  register: __testing_acmesh_timer_calendar
 - name: "Molecule | Verify | Assert acmesh-renewal.timer runs on the configured daily schedule"
   ansible.builtin.assert:
     that:
@@ -315,7 +300,6 @@
     - false
   register: __testing_acmesh_service_result
 
-
 - name: "Molecule | Verify | Assert acmesh-renewal.service configuration looks correct"
   ansible.builtin.assert:
     that:
@@ -332,7 +316,6 @@
       - ('--certhome ' ~ run_acmesh_cfg_cert_home) in __testing_acmesh_service_result['status']['ExecStart']
     fail_msg: "acmesh-renewal.service does not have the expected configuration"
 
-
 ## Renewal service capability handling for standalone/alpn challenges (issue #19)
 #
 # acme.sh binds a privileged port itself only for the "standalone" (HTTP-01) and
@@ -348,7 +331,6 @@
     src: "{{ __run_acmesh_systemd_renewal_servicefile_path }}"
   register: __testing_renewal_unit
 
-
 - name: "Molecule | Verify | Assert the renewal service got no capability for the configured (dns/webroot) certificates"
   ansible.builtin.assert:
     that:
@@ -362,11 +344,9 @@
   vars:
     __testing_renewal_unit_content: "{{ __testing_renewal_unit['content'] | ansible.builtin.b64decode }}"
 
-
 - name: "Molecule | Verify | Save the converged run_acmesh_certs before the capability detection cases"
   ansible.builtin.set_fact:
     __testing_saved_run_acmesh_certs: "{{ run_acmesh_certs | ansible.builtin.default([]) }}"
-
 
 - name: "Molecule | Verify | Assert the renewal capability is required exactly for privileged-port standalone/alpn"
   ansible.builtin.include_tasks:
@@ -378,73 +358,68 @@
       expect: true
       certs:
         - domains:
-            - name: x
+            - name: "x"
               challenge:
-                type: standalone
+                type: "standalone"
     - label: "standalone (httpport 8080)"
       expect: false
       certs:
         - domains:
-            - name: x
+            - name: "x"
               challenge:
-                type: standalone
+                type: "standalone"
                 httpport: 8080
     - label: "alpn (port 443)"
       expect: true
       certs:
         - domains:
-            - name: x
+            - name: "x"
               challenge:
-                type: alpn
+                type: "alpn"
     - label: "alpn (tlsport 8443)"
       expect: false
       certs:
         - domains:
-            - name: x
+            - name: "x"
               challenge:
-                type: alpn
+                type: "alpn"
                 tlsport: 8443
     - label: "webroot"
       expect: false
       certs:
         - domains:
-            - name: x
+            - name: "x"
               challenge:
-                type: webroot
-                webroot: /w
+                type: "webroot"
+                webroot: "/w"
     - label: "dns"
       expect: false
       certs:
         - domains:
-            - name: x
+            - name: "x"
               challenge:
-                type: dns
+                type: "dns"
   loop_control:
     loop_var: "__testing_capcase"
     label: "{{ __testing_capcase['label'] }}"
-
 
 - name: "Molecule | Verify | Restore the converged run_acmesh_certs after the capability detection cases"
   ansible.builtin.set_fact:
     run_acmesh_certs: "{{ __testing_saved_run_acmesh_certs }}"
 
-
 ## Files and directories: certificates of test domains (dns-01 challenge)
 
 - name: "Molecule | Verify | Certificates (dns-01 challenge, first test domain)"
   when:
-    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or
-      ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
+    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
     - (lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN1') | ansible.builtin.length) > 0
   block:
-
     - name: "Molecule | Verify | Gather stats for directory: certificate data dir (dns-01 challenge, first test domain)"
       ansible.builtin.stat:
         path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc/"
         get_checksum: false
         get_mime: false
       register: __testing_acmesh_testdomain1_certdir_stat
-
 
     - name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir (dns-01 challenge, first test domain)"
       ansible.builtin.assert:
@@ -468,18 +443,16 @@
         get_mime: false
       register: __testing_acmesh_domaincfg_stat_domain1
 
-
     - name: "Molecule | Verify | Read certificate config file content (dns-01 challenge, first test domain)"
       ansible.builtin.slurp:
         src: >-
           {{ run_acmesh_cfg_cert_home }}/{{ lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN1') }}_ecc/{{
           lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN1') }}.conf
-      register: __testing_acmesh_domaincfg_content_domain1
       when:
         - __testing_acmesh_domaincfg_stat_domain1 is ansible.builtin.defined
         - __testing_acmesh_domaincfg_stat_domain1['stat']['exists']
 
-
+      register: __testing_acmesh_domaincfg_content_domain1
     - name: "Molecule | Verify | Display certificate config file content (dns-01 challenge, first test domain)"
       ansible.builtin.debug:
         msg: "{{ __testing_acmesh_domaincfg_content_domain1_decoded.split('\n') }}"
@@ -491,21 +464,17 @@
         - __testing_acmesh_domaincfg_stat_domain1['stat']['exists']
         - __testing_acmesh_domaincfg_content_domain1 is ansible.builtin.defined
 
-
 - name: "Molecule | Verify | Certificates (dns-01 challenge, second test domain)"
   when:
-    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or
-      ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
+    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
     - (lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
   block:
-
     - name: "Molecule | Verify | Gather stats for directory: certificate data dir (dns-01 challenge, second test domain)"
       ansible.builtin.stat:
         path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/"
         get_checksum: false
         get_mime: false
       register: __testing_acmesh_testdomain2_certdir_stat
-
 
     - name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir (dns-01 challenge, second test domain)"
       ansible.builtin.assert:
@@ -529,18 +498,16 @@
         get_mime: false
       register: __testing_acmesh_domaincfg_stat_domain2
 
-
     - name: "Molecule | Verify | Read certificate config file content (dns-01 challenge, second test domain)"
       ansible.builtin.slurp:
         src: >-
           {{ run_acmesh_cfg_cert_home }}/{{ lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/{{
           lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN2') }}.conf
-      register: __testing_acmesh_domaincfg_content_domain2
       when:
         - __testing_acmesh_domaincfg_stat_domain2 is ansible.builtin.defined
         - __testing_acmesh_domaincfg_stat_domain2['stat']['exists']
 
-
+      register: __testing_acmesh_domaincfg_content_domain2
     - name: "Molecule | Verify | Display certificate config file content (dns-01 challenge, second test domain)"
       ansible.builtin.debug:
         msg: "{{ __testing_acmesh_domaincfg_content_domain2_decoded.split('\n') }}"
@@ -552,15 +519,12 @@
         - __testing_acmesh_domaincfg_stat_domain2['stat']['exists']
         - __testing_acmesh_domaincfg_content_domain2 is ansible.builtin.defined
 
-
 - name: "Molecule | Verify | Permissions of test domain certificates (dns-01 challenge)"
   when:
-    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or
-      ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
-    - ((lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN1') | ansible.builtin.length) > 0) or
-      ((lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0)
+    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
+    - ((lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN1') | ansible.builtin.length) > 0) or ((lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN2') |
+      ansible.builtin.length) > 0)
   block:
-
     - name: "Molecule | Verify | Build list of installed certificate files (dns-01 challenge)"
       ansible.builtin.set_fact:
         __testing_acmesh_cert_files_installed: |
@@ -591,7 +555,6 @@
       loop: "{{ __testing_acmesh_cert_files_installed | ansible.builtin.default([]) }}"
       register: __testing_acmesh_cert_files_installed_stat
 
-
     - name: "Molecule | Verify | Check existence, permissions and ownership: installed certificate files (dns-01 challenge)"
       ansible.builtin.assert:
         that:
@@ -601,29 +564,26 @@
           - item['stat']['pw_name'] == run_acmesh_user
           - item['stat']['gr_name'] == run_acmesh_group
         fail_msg: "{{ item['stat']['path'] }} does not exist or has incorrect permissions/ownership"
-      loop: "{{ __testing_acmesh_cert_files_installed_stat['results'] | ansible.builtin.default([]) }}"
-      loop_control:
-        label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
       when:
         - __testing_acmesh_cert_files_installed_stat is ansible.builtin.defined
         - __testing_acmesh_cert_files_installed_stat['results'] is ansible.builtin.defined
         - __testing_acmesh_cert_files_installed_stat['results'] | ansible.builtin.length > 0
 
-
 ## Files and directories: webroot (pebble) certificate
 
+      loop: "{{ __testing_acmesh_cert_files_installed_stat['results'] | ansible.builtin.default([]) }}"
+      loop_control:
+        label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
 - name: "Molecule | Verify | Certificates (webroot challenge)"
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
   block:
-
     - name: "Molecule | Verify | Gather stats for directory: certificate data dir (webroot challenge)"
       ansible.builtin.stat:
         path: "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc/"
         get_checksum: false
         get_mime: false
       register: __testing_acmesh_webroot_certdir_stat
-
 
     - name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir (webroot challenge)"
       ansible.builtin.assert:
@@ -634,7 +594,6 @@
           - __testing_acmesh_webroot_certdir_stat['stat']['pw_name'] == run_acmesh_user
           - __testing_acmesh_webroot_certdir_stat['stat']['gr_name'] == run_acmesh_group
         fail_msg: "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc/ does not exist or has incorrect permissions/ownership"
-
 
     # The webroot certificate uses the (default) "staged" strategy with
     # partial install.permissions overrides: directory and files root-owned
@@ -659,7 +618,6 @@
         label: "{{ item['path'] }}"
       register: __testing_acmesh_webroot_cert_files_stat
 
-
     - name: "Molecule | Verify | Check existence, permissions and ownership: installed certificate files (webroot challenge, staged)"
       ansible.builtin.assert:
         that:
@@ -672,14 +630,13 @@
           {{ item['stat']['path'] | ansible.builtin.default(item['item']['path']) }}
           does not exist or has incorrect permissions/ownership (expected
           root:molecule-ssl-cert {{ item['item']['mode'] }})
-      loop: "{{ __testing_acmesh_webroot_cert_files_stat['results'] | ansible.builtin.default([]) }}"
-      loop_control:
-        label: "{{ item['item']['path'] }}"
       when:
         - __testing_acmesh_webroot_cert_files_stat['results'] is ansible.builtin.defined
         - __testing_acmesh_webroot_cert_files_stat['results'] | ansible.builtin.length > 0
 
-
+      loop: "{{ __testing_acmesh_webroot_cert_files_stat['results'] | ansible.builtin.default([]) }}"
+      loop_control:
+        label: "{{ item['item']['path'] }}"
     - name: "Molecule | Verify | Gather stats for the destination directories (webroot challenge, staged)"
       ansible.builtin.stat:
         path: "{{ item }}"
@@ -689,7 +646,6 @@
         - "/etc/pki/tls/certs/acmesh-webroot.test"
         - "/etc/molecule-acmesh-protected/acmesh-webroot.test"
       register: __testing_acmesh_webroot_cert_dirs_stat
-
 
     - name: "Molecule | Verify | Check permissions and ownership: destination directories (webroot challenge, staged)"
       ansible.builtin.assert:
@@ -706,7 +662,6 @@
       loop_control:
         label: "{{ item['item'] }}"
 
-
     - name: "Molecule | Verify | Try to read the protected private key as the service user (must fail)"
       ansible.builtin.command:
         argv:
@@ -722,7 +677,6 @@
         - __testing_acmesh_protected_key_read is ansible.builtin.success
       register: __testing_acmesh_protected_key_read
 
-
     - name: "Molecule | Verify | Read certificate SAN (Subject Alternative Name) (webroot challenge)"
       ansible.builtin.command:
         argv:
@@ -733,9 +687,9 @@
           - "-noout"
           - "-ext"
           - "subjectAltName"
-      changed_when: false
+      changed_when:
+        - false
       register: __testing_acmesh_webroot_cert_san
-
 
     - name: "Molecule | Verify | Assert certificate SAN contains expected domain (webroot challenge)"
       ansible.builtin.assert:
@@ -748,14 +702,12 @@
       when:
         - __testing_acmesh_webroot_cert_san is ansible.builtin.defined
 
-
 ## Staged deployment resources (acmesh-deploy-*, staging area, manifest)
 
 - name: "Molecule | Verify | Staged deployment resources (webroot challenge)"
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
   block:
-
     - name: "Molecule | Verify | Gather stats for the staging base and certificate staging directory"
       ansible.builtin.stat:
         path: "{{ item }}"
@@ -765,7 +717,6 @@
         - "{{ run_acmesh_cfg_cert_deploy_base_dir }}"
         - "{{ run_acmesh_cfg_cert_deploy_base_dir }}/acmesh-webroot.test"
       register: __testing_acmesh_staging_dirs_stat
-
 
     - name: "Molecule | Verify | Assert the staging base is root-owned and the staging directory service-user owned"
       ansible.builtin.assert:
@@ -797,7 +748,6 @@
         - "cert.key"
       register: __testing_acmesh_staging_files_stat
 
-
     - name: "Molecule | Verify | Assert the staged certificate files exist and are service-user owned"
       ansible.builtin.assert:
         that:
@@ -812,7 +762,6 @@
       loop_control:
         label: "{{ item['item'] }}"
 
-
     - name: "Molecule | Verify | Gather stats for the deployment manifest and unit files"
       ansible.builtin.stat:
         path: "{{ item }}"
@@ -824,7 +773,6 @@
         - "/etc/systemd/system/acmesh-deploy-acmesh-webroot.test.service"
         - "/usr/libexec/acmesh-deploy"
       register: __testing_acmesh_deploy_files_stat
-
 
     - name: "Molecule | Verify | Assert manifest, units and helper are root-owned and not group/world-writable"
       ansible.builtin.assert:
@@ -840,18 +788,15 @@
       loop_control:
         label: "{{ item['item'] }}"
 
-
     - name: "Molecule | Verify | Read the deployment manifest"
       ansible.builtin.slurp:
         src: "/etc/acmesh-deploy.d/acmesh-webroot.test.json"
       register: __testing_acmesh_manifest_slurp
 
-
     - name: "Molecule | Verify | Get the GID of the install permission group"
       ansible.builtin.getent:
         database: "group"
         key: "molecule-ssl-cert"
-
 
     - name: "Molecule | Verify | Assert the manifest holds the expected normalized, numeric deployment data"
       ansible.builtin.assert:
@@ -872,7 +817,6 @@
       vars:
         __testing_acmesh_manifest: "{{ __testing_acmesh_manifest_slurp['content'] | ansible.builtin.b64decode | ansible.builtin.from_json }}"
 
-
     - name: "Molecule | Verify | Get acmesh-deploy path unit state"
       ansible.builtin.command:
         argv:
@@ -883,7 +827,6 @@
       changed_when:
         - false
       register: __testing_acmesh_deploy_path_state
-
 
     - name: "Molecule | Verify | Assert the acmesh-deploy path unit is active and enabled"
       ansible.builtin.assert:
@@ -907,7 +850,6 @@
       changed_when:
         - false
 
-
     - name: "Molecule | Verify | Check the deploy helper reports the deployment as in sync"
       ansible.builtin.command:
         argv:
@@ -917,7 +859,6 @@
           - "/etc/acmesh-deploy.d/acmesh-webroot.test.json"
       changed_when:
         - false
-
 
     - name: "Molecule | Verify | Search the acmesh-deploy journal for private key material and the canary credential"
       # The command or shell module is used intentionally:
@@ -932,7 +873,6 @@
       changed_when:
         - false
       register: __testing_acmesh_deploy_journal_leaks
-
 
     - name: "Molecule | Verify | Assert the acmesh-deploy journal contains no private key material or credentials"
       ansible.builtin.assert:
@@ -949,7 +889,6 @@
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
   block:
-
     - name: "Molecule | Verify | Gather stats for installed certificate files (direct strategy)"
       ansible.builtin.stat:
         path: "/etc/pki/tls/certs/acmesh-direct.test/{{ item }}"
@@ -961,7 +900,6 @@
         - "fullchain.cer"
         - "cert.key"
       register: __testing_acmesh_direct_cert_files_stat
-
 
     - name: "Molecule | Verify | Check existence, permissions and ownership: installed certificate files (direct strategy)"
       # The direct strategy keeps the pre-4.0.0 defaults: files written by the
@@ -978,7 +916,6 @@
       loop_control:
         label: "{{ item['item'] }}"
 
-
     - name: "Molecule | Verify | Gather stats for deploy resources of the direct certificate (must not exist)"
       ansible.builtin.stat:
         path: "{{ item }}"
@@ -991,7 +928,6 @@
         - "/etc/systemd/system/acmesh-deploy-acmesh-direct.test.service"
       register: __testing_acmesh_direct_deploy_stat
 
-
     - name: "Molecule | Verify | Assert the direct certificate has no staged deployment resources"
       ansible.builtin.assert:
         that:
@@ -1001,14 +937,12 @@
       loop_control:
         label: "{{ item['item'] }}"
 
-
 ## Reload decoupling: root-side acmesh-reload-* path/service units
 
 - name: "Molecule | Verify | Reload units (webroot challenge)"
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
   block:
-
     - name: "Molecule | Verify | Gather stats for the reload unit files (webroot challenge)"
       ansible.builtin.stat:
         path: "{{ item }}"
@@ -1018,7 +952,6 @@
         - "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.path"
         - "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.service"
       register: __testing_acmesh_reload_files_stat
-
 
     - name: "Molecule | Verify | Assert reload unit files exist with root ownership (webroot challenge)"
       ansible.builtin.assert:
@@ -1032,12 +965,10 @@
       loop_control:
         label: "{{ item['item'] }}"
 
-
     - name: "Molecule | Verify | Read the reload service unit file (webroot challenge)"
       ansible.builtin.slurp:
         src: "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.service"
       register: __testing_acmesh_reload_serviceunit_content
-
 
     - name: "Molecule | Verify | Assert the reload command is inlined into ExecStart (webroot challenge)"
       # Fidelity of the (systemd-escaped) inlined command is proven end-to-end
@@ -1050,7 +981,6 @@
             (__testing_acmesh_reload_serviceunit_content['content'] | ansible.builtin.b64decode)
         fail_msg: "The reload service unit does not inline the reload command into ExecStart."
 
-
     - name: "Molecule | Verify | Get acmesh-reload path unit state (webroot challenge)"
       ansible.builtin.command:
         argv:
@@ -1061,7 +991,6 @@
       changed_when:
         - false
       register: __testing_acmesh_reload_path_state
-
 
     - name: "Molecule | Verify | Assert acmesh-reload path unit is active and enabled (webroot challenge)"
       ansible.builtin.assert:
@@ -1082,7 +1011,6 @@
         get_checksum: false
         get_mime: false
       register: __testing_acmesh_reload_marker_stat
-
 
     - name: "Molecule | Verify | Assert the reload marker file was written during converge (webroot challenge)"
       ansible.builtin.assert:
@@ -1105,14 +1033,12 @@
         path: "/var/tmp/acmesh-reload-webroot-marker"
         state: "absent"
 
-
     - name: "Molecule | Verify | Record the final fullchain file state before the staging touch (webroot challenge)"
       ansible.builtin.stat:
         path: "/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer"
         get_checksum: false
         get_mime: false
       register: __testing_acmesh_fullchain_before
-
 
     - name: "Molecule | Verify | Count previous in-sync deploy runs in the journal (webroot challenge)"
       # The command or shell module is used intentionally:
@@ -1126,7 +1052,6 @@
       changed_when:
         - false
       register: __testing_acmesh_insync_count_before
-
 
     - name: "Molecule | Verify | Touch the staged completion file as the service user (webroot challenge)"
       ansible.builtin.command:
@@ -1142,7 +1067,6 @@
       changed_when:
         - true
 
-
     - name: "Molecule | Verify | Wait for the path-triggered deploy service run (webroot challenge)"
       # The command or shell module is used intentionally:
       # Ansible provides no dedicated module to perform this operation.
@@ -1156,11 +1080,10 @@
         - false
       register: __testing_acmesh_insync_count_after
       until:
-        - (__testing_acmesh_insync_count_after['stdout'] | ansible.builtin.trim | ansible.builtin.int)
-          > (__testing_acmesh_insync_count_before['stdout'] | ansible.builtin.trim | ansible.builtin.int)
+        - (__testing_acmesh_insync_count_after['stdout'] | ansible.builtin.trim | ansible.builtin.int) > (__testing_acmesh_insync_count_before['stdout'] |
+          ansible.builtin.trim | ansible.builtin.int)
       retries: 15
       delay: 2
-
 
     - name: "Molecule | Verify | Record the final fullchain file state after the staging touch (webroot challenge)"
       ansible.builtin.stat:
@@ -1169,14 +1092,12 @@
         get_mime: false
       register: __testing_acmesh_fullchain_after
 
-
     - name: "Molecule | Verify | Gather stats for the reload marker after the unchanged-content deployment (webroot challenge)"
       ansible.builtin.stat:
         path: "/var/tmp/acmesh-reload-webroot-marker"
         get_checksum: false
         get_mime: false
       register: __testing_acmesh_reload_marker_stat_unchanged
-
 
     - name: "Molecule | Verify | Assert unchanged content neither replaced the final files nor triggered a reload"
       ansible.builtin.assert:
@@ -1206,12 +1127,10 @@
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
   block:
-
     - name: "Molecule | Verify | Remove the reload marker file again (webroot challenge)"
       ansible.builtin.file:
         path: "/var/tmp/acmesh-reload-webroot-marker"
         state: "absent"
-
 
     - name: "Molecule | Verify | Force a renewal as the service user (webroot challenge)"
       ansible.builtin.command:
@@ -1232,7 +1151,6 @@
       changed_when:
         - true
       register: __testing_acmesh_forced_renewal
-
 
     - name: "Molecule | Verify | Assert the forced renewal succeeded (webroot challenge)"
       ansible.builtin.assert:
@@ -1256,12 +1174,10 @@
       retries: 15
       delay: 2
 
-
     - name: "Molecule | Verify | Read the reload marker file after the renewal (webroot challenge)"
       ansible.builtin.slurp:
         src: "/var/tmp/acmesh-reload-webroot-marker"
       register: __testing_acmesh_reload_marker_content_renewal
-
 
     - name: "Molecule | Verify | Assert the renewal reinstalled the certificate and triggered the root-side reload"
       ansible.builtin.assert:
@@ -1300,7 +1216,6 @@
         - false
       register: __testing_acmesh_foreign_owned_files
 
-
     - name: "Molecule | Verify | Assert no foreign-owned files exist after the unprivileged renewal"
       ansible.builtin.assert:
         that:
@@ -1323,7 +1238,6 @@
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
   block:
-
     - name: "Molecule | Verify | Install failure: create a protected parent directory"
       ansible.builtin.file:
         path: "/etc/molecule-acmesh-protected-fail"
@@ -1331,7 +1245,6 @@
         owner: "root"
         group: "root"
         mode: "u=rwx,g=,o=" # 0700
-
 
     - name: "Molecule | Verify | Install failure: reinstall with an inaccessible key destination (must fail)"
       # Uses the "direct" strategy on purpose: only there does the
@@ -1356,13 +1269,11 @@
               reloadcmd: ""
             server: "https://localhost:14000/dir"
 
-
     - name: "Molecule | Verify | Install failure: force a failure because the partial installation was accepted"
       ansible.builtin.fail:
         msg: "The role accepted a nonzero acme.sh --install-cert exit status (partial installation)."
 
   rescue:
-
     - name: "Molecule | Verify | Install failure: assert the run failed in the install task"
       ansible.builtin.assert:
         that:
@@ -1373,13 +1284,11 @@
           '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
         success_msg: "A partially failing acme.sh --install-cert fails the role."
 
-
 - name: "Molecule | Verify | Install failure: restore the original installation settings"
   ansible.builtin.include_role:
     name: "foundata.acmesh.run"
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
-
 
 - name: "Molecule | Verify | Install failure: remove the protected parent directory"
   ansible.builtin.file:
@@ -1387,7 +1296,6 @@
     state: "absent"
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
-
 
 ## Strict issuance failure handling
 #
@@ -1414,12 +1322,10 @@
           reloadcmd: ""
         server: "https://127.0.0.1:1/dir"
 
-
 - name: "Molecule | Verify | Strict issuance failure handling"
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
   block:
-
     - name: "Molecule | Verify | Issuance failure: issue against an unreachable ACME server (must fail)"
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
@@ -1431,7 +1337,6 @@
         msg: "The role accepted a nonzero acme.sh --issue exit status."
 
   rescue:
-
     - name: "Molecule | Verify | Issuance failure: assert the run failed in the issuance task"
       ansible.builtin.assert:
         that:
@@ -1441,7 +1346,6 @@
           (failed task:
           '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
         success_msg: "A failing acme.sh --issue fails the role."
-
 
 - name: "Molecule | Verify | Issuance failure: remove the throwaway certificate resources"
   ansible.builtin.include_role:
@@ -1456,14 +1360,12 @@
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
 
-
 ## Strategy transitions (direct -> staged -> direct)
 
 - name: "Molecule | Verify | Installation strategy transitions (webroot challenge)"
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
   block:
-
     - name: "Molecule | Verify | Transitions: switch the direct certificate to the staged strategy"
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
@@ -1483,7 +1385,6 @@
               reloadcmd: ""
             server: "https://localhost:14000/dir"
 
-
     - name: "Molecule | Verify | Transitions: gather stats for the staged deployment resources"
       ansible.builtin.stat:
         path: "{{ item }}"
@@ -1497,7 +1398,6 @@
         - "/etc/systemd/system/acmesh-deploy-acmesh-direct.test.service"
       register: __testing_acmesh_transition_staged_stat
 
-
     - name: "Molecule | Verify | Transitions: assert the staged deployment resources were created"
       ansible.builtin.assert:
         that:
@@ -1506,7 +1406,6 @@
       loop: "{{ __testing_acmesh_transition_staged_stat['results'] }}"
       loop_control:
         label: "{{ item['item'] }}"
-
 
     - name: "Molecule | Verify | Transitions: switch the certificate back to the direct strategy"
       ansible.builtin.include_role:
@@ -1527,7 +1426,6 @@
               reloadcmd: ""
             server: "https://localhost:14000/dir"
 
-
     - name: "Molecule | Verify | Transitions: gather stats for the staged deployment resources again"
       ansible.builtin.stat:
         path: "{{ item }}"
@@ -1540,7 +1438,6 @@
         - "/etc/systemd/system/acmesh-deploy-acmesh-direct.test.service"
       register: __testing_acmesh_transition_direct_stat
 
-
     - name: "Molecule | Verify | Transitions: assert the staged deployment resources were removed again"
       ansible.builtin.assert:
         that:
@@ -1549,7 +1446,6 @@
       loop: "{{ __testing_acmesh_transition_direct_stat['results'] }}"
       loop_control:
         label: "{{ item['item'] }}"
-
 
     - name: "Molecule | Verify | Transitions: gather stats for the final certificate files"
       ansible.builtin.stat:
@@ -1561,7 +1457,6 @@
         - "cert.key"
       register: __testing_acmesh_transition_files_stat
 
-
     - name: "Molecule | Verify | Transitions: assert the final certificate files survived both transitions"
       ansible.builtin.assert:
         that:
@@ -1572,7 +1467,6 @@
       loop_control:
         label: "{{ item['item'] }}"
 
-
 ## Regression: role included in a loop with item-templated configuration
 #
 # Role-internal loops must not shadow "item".
@@ -1581,7 +1475,6 @@
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
   block:
-
     - name: "Molecule | Verify | Loop include: include the role once per outer loop item"
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
@@ -1614,12 +1507,10 @@
       loop_control:
         label: "{{ item['cert_dir_name'] }}"
 
-
     - name: "Molecule | Verify | Loop include: read account.conf to check the environment passthrough"
       ansible.builtin.slurp:
         src: "{{ run_acmesh_cfg_config_home }}/account.conf"
       register: __testing_acmesh_loopinclude_accountconf
-
 
     - name: "Molecule | Verify | Loop include: assert the environment reached acme.sh"
       ansible.builtin.assert:
@@ -1637,7 +1528,6 @@
       ansible.builtin.slurp:
         src: "{{ run_acmesh_cfg_cert_home }}/acmesh-direct.test_ecc/acmesh-direct.test.conf"
       register: __testing_acmesh_loopinclude_conf
-
 
     - name: "Molecule | Verify | Loop include: assert the installation configuration was stored, not cleared"
       ansible.builtin.assert:
@@ -1669,7 +1559,6 @@
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
   block:
-
     - name: "Molecule | Verify | Helper: fixtures, initial deployment, idempotence and metadata reconciliation"
       # The command or shell module is used intentionally: this exercises the
       # helper binary end-to-end with openssl-crafted fixtures; dedicated
@@ -1736,7 +1625,6 @@
       changed_when:
         - false
 
-
     - name: "Molecule | Verify | Helper: staged content attacks are rejected and preserve the previous deployment"
       # The command or shell module is used intentionally: this exercises the
       # helper binary end-to-end with crafted attack inputs.
@@ -1794,7 +1682,6 @@
         executable: "/bin/bash"
       changed_when:
         - false
-
 
     - name: "Molecule | Verify | Helper: malformed and untrusted manifests are rejected"
       # The command or shell module is used intentionally: this exercises the
@@ -1869,7 +1756,6 @@
       changed_when:
         - false
 
-
     - name: "Molecule | Verify | Helper: concurrent invocations serialize on the lock, publish failures roll back"
       # The command or shell module is used intentionally: this exercises the
       # helper binary end-to-end, including an injected rename failure via a
@@ -1940,7 +1826,6 @@
       changed_when:
         - false
 
-
     - name: "Molecule | Verify | Helper: remove the fixtures"
       ansible.builtin.file:
         path: "{{ item }}"
@@ -1950,7 +1835,6 @@
         - "{{ run_acmesh_cfg_cert_deploy_base_dir }}/helper-fixture"
         - "/var/tmp/acmesh-helper-dest"
         - "/etc/acmesh-deploy.d/helper-fixture.json"
-
 
 ## Declarative certificate removal
 #
@@ -1962,16 +1846,13 @@
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
   block:
-
     - name: "Molecule | Verify | Plant stray certificate data directory"
       ansible.builtin.file:
         path: "{{ run_acmesh_cfg_cert_home }}/stray-reap.test_ecc"
         state: "directory"
         owner: "{{ run_acmesh_user }}"
         group: "{{ run_acmesh_group }}"
-        mode: "u=rwx,g=rx,o="
-
-
+        mode: "u=rwx,g=rx,o=" # 0750
     - name: "Molecule | Verify | Plant stray certificate config file"
       ansible.builtin.copy:
         dest: "{{ run_acmesh_cfg_cert_home }}/stray-reap.test_ecc/stray-reap.test.conf"
@@ -1979,9 +1860,7 @@
           Le_Domain='stray-reap.test'
         owner: "{{ run_acmesh_user }}"
         group: "{{ run_acmesh_group }}"
-        mode: "u=rw,g=r,o="
-
-
+        mode: "u=rw,g=r,o=" # 0640
     - name: "Molecule | Verify | Plant stray reload path unit file"
       ansible.builtin.copy:
         dest: "/etc/systemd/system/acmesh-reload-stray-reap.test.path"
@@ -1998,7 +1877,6 @@
         group: "root"
         mode: "u=rw,g=r,o=r" # 0644
 
-
     - name: "Molecule | Verify | Plant stray reload service unit file"
       ansible.builtin.copy:
         dest: "/etc/systemd/system/acmesh-reload-stray-reap.test.service"
@@ -2012,7 +1890,6 @@
         owner: "root"
         group: "root"
         mode: "u=rw,g=r,o=r" # 0644
-
 
     - name: "Molecule | Verify | Plant stray deploy path unit file"
       ansible.builtin.copy:
@@ -2030,7 +1907,6 @@
         group: "root"
         mode: "u=rw,g=r,o=r" # 0644
 
-
     - name: "Molecule | Verify | Plant stray deploy service unit file"
       ansible.builtin.copy:
         dest: "/etc/systemd/system/acmesh-deploy-stray-reap.test.service"
@@ -2045,7 +1921,6 @@
         group: "root"
         mode: "u=rw,g=r,o=r" # 0644
 
-
     - name: "Molecule | Verify | Plant stray deployment manifest and staging directory"
       ansible.builtin.file:
         path: "{{ run_acmesh_cfg_cert_deploy_base_dir }}/stray-reap.test"
@@ -2053,7 +1928,6 @@
         owner: "root"
         group: "root"
         mode: "u=rwx,g=rx,o=" # 0750
-
 
     - name: "Molecule | Verify | Plant stray deployment manifest"
       ansible.builtin.copy:
@@ -2063,13 +1937,11 @@
         group: "root"
         mode: "u=rw,g=,o=" # 0600
 
-
     - name: "Molecule | Verify | Include the foundata.acmesh.run role (with run_acmesh_certs_delete_unmanaged)"
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
       vars:
         run_acmesh_certs_delete_unmanaged: true
-
 
     - name: "Molecule | Verify | Gather stats for stray and managed resources after the sweep"
       ansible.builtin.stat:
@@ -2105,7 +1977,6 @@
         label: "{{ item['path'] }}"
       register: __testing_acmesh_sweep_stat
 
-
     - name: "Molecule | Verify | Assert the sweep removed stray resources and kept managed ones"
       ansible.builtin.assert:
         that:
@@ -2118,12 +1989,10 @@
       loop_control:
         label: "{{ item['item']['path'] }}"
 
-
 - name: "Molecule | Verify | Per-certificate removal (state 'absent', webroot challenge)"
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
   block:
-
     - name: "Molecule | Verify | Include the foundata.acmesh.run role (webroot certificate with state 'absent')"
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
@@ -2160,7 +2029,6 @@
         - "/etc/molecule-acmesh-protected/acmesh-webroot.test/cert.key"
       register: __testing_acmesh_certabsent_stat
 
-
     - name: "Molecule | Verify | Assert all data of the removed certificate is gone"
       ansible.builtin.assert:
         that:
@@ -2170,14 +2038,12 @@
       loop_control:
         label: "{{ item['item'] }}"
 
-
     - name: "Molecule | Verify | Gather stats for the installation directory of the removed certificate"
       ansible.builtin.stat:
         path: "/etc/pki/tls/certs/acmesh-webroot.test"
         get_checksum: false
         get_mime: false
       register: __testing_acmesh_certabsent_installdir_stat
-
 
     - name: "Molecule | Verify | Assert the installation directory of the removed certificate is kept"
       # Only the installed files get removed; the directory may be shared
@@ -2193,10 +2059,8 @@
 
 - name: "Molecule | Verify | Reload units: negative check (dns-persist-01 certificate, empty reloadcmd)"
   when:
-    - __testing_missing_envvars_dnspersist is not ansible.builtin.defined or
-      ((__testing_missing_envvars_dnspersist | ansible.builtin.length) <= 0)
+    - __testing_missing_envvars_dnspersist is not ansible.builtin.defined or ((__testing_missing_envvars_dnspersist | ansible.builtin.length) <= 0)
   block:
-
     - name: "Molecule | Verify | Gather stats for a reload path unit of the dns-persist certificate"
       ansible.builtin.stat:
         # The role derives unit names from the lowercased primary domain
@@ -2204,7 +2068,6 @@
         get_checksum: false
         get_mime: false
       register: __testing_acmesh_reload_dnspersist_path_stat
-
 
     - name: "Molecule | Verify | Assert no reload units exist for a certificate with an empty reloadcmd"
       ansible.builtin.assert:
@@ -2219,17 +2082,14 @@
 
 - name: "Molecule | Verify | Certificates (dns-persist-01 challenge)"
   when:
-    - __testing_missing_envvars_dnspersist is not ansible.builtin.defined or
-      ((__testing_missing_envvars_dnspersist | ansible.builtin.length) <= 0)
+    - __testing_missing_envvars_dnspersist is not ansible.builtin.defined or ((__testing_missing_envvars_dnspersist | ansible.builtin.length) <= 0)
   block:
-
     - name: "Molecule | Verify | Gather stats for directory: certificate data dir of dns-persist test domain"
       ansible.builtin.stat:
         path: "{{ run_acmesh_cfg_cert_home }}/{{ lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN3') }}_ecc/"
         get_checksum: false
         get_mime: false
       register: __testing_acmesh_dnspersist_certdir_stat
-
 
     - name: "Molecule | Verify | Check existence, permissions and ownership: certificate data dir (dns-persist-01 challenge)"
       ansible.builtin.assert:
@@ -2246,7 +2106,6 @@
         - __testing_acmesh_dnspersist_certdir_stat is ansible.builtin.defined
         - __testing_acmesh_dnspersist_certdir_stat['stat'] is ansible.builtin.defined
 
-
     - name: "Molecule | Verify | Gather stats for installed certificate files (dns-persist-01 challenge)"
       ansible.builtin.stat:
         path: "{{ item }}"
@@ -2259,7 +2118,6 @@
         - "/etc/pki/tls/certs/{{ lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN3') }}/cert.key"
       register: __testing_acmesh_dnspersist_cert_files_stat
 
-
     - name: "Molecule | Verify | Check existence, permissions and ownership: installed certificate files (dns-persist-01 challenge)"
       ansible.builtin.assert:
         that:
@@ -2269,15 +2127,14 @@
           - item['stat']['pw_name'] == run_acmesh_user
           - item['stat']['gr_name'] == run_acmesh_group
         fail_msg: "{{ item['stat']['path'] }} does not exist or has incorrect permissions/ownership"
-      loop: "{{ __testing_acmesh_dnspersist_cert_files_stat['results'] | ansible.builtin.default([]) }}"
-      loop_control:
-        label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
       when:
         - __testing_acmesh_dnspersist_cert_files_stat is ansible.builtin.defined
         - __testing_acmesh_dnspersist_cert_files_stat['results'] is ansible.builtin.defined
         - __testing_acmesh_dnspersist_cert_files_stat['results'] | ansible.builtin.length > 0
 
-
+      loop: "{{ __testing_acmesh_dnspersist_cert_files_stat['results'] | ansible.builtin.default([]) }}"
+      loop_control:
+        label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
     - name: "Molecule | Verify | Find account.key files in CA config directory (dns-persist-01 challenge)"
       ansible.builtin.find:
         paths: "{{ run_acmesh_cfg_config_home }}/ca"
@@ -2286,22 +2143,20 @@
         file_type: "file"
       register: __testing_acmesh_account_key_files
 
-
     - name: "Molecule | Verify | Gather stats for account.key files (dns-persist-01 challenge)"
       ansible.builtin.stat:
         path: "{{ item['path'] }}"
         get_checksum: false
         get_mime: false
-      loop: "{{ __testing_acmesh_account_key_files['files'] | ansible.builtin.default([]) }}"
-      loop_control:
-        label: "{{ item['path'] }}"
-      register: __testing_acmesh_account_key_files_stat
       when:
         - __testing_acmesh_account_key_files is ansible.builtin.defined
         - __testing_acmesh_account_key_files['files'] is ansible.builtin.defined
         - __testing_acmesh_account_key_files['files'] | ansible.builtin.length > 0
 
-
+      loop: "{{ __testing_acmesh_account_key_files['files'] | ansible.builtin.default([]) }}"
+      loop_control:
+        label: "{{ item['path'] }}"
+      register: __testing_acmesh_account_key_files_stat
     - name: "Molecule | Verify | Check permissions and ownership: account.key files (dns-persist-01 challenge)"
       ansible.builtin.assert:
         that:
@@ -2312,37 +2167,34 @@
           - item['stat']['gr_name'] == run_acmesh_group
         fail_msg: "{{ item['stat']['path'] }} has incorrect permissions (expected 0600, {{ run_acmesh_user }}:{{ run_acmesh_group }})"
         success_msg: "{{ item['stat']['path'] }} has correct permissions (0600, {{ run_acmesh_user }}:{{ run_acmesh_group }})"
-      loop: "{{ __testing_acmesh_account_key_files_stat['results'] | ansible.builtin.default([]) }}"
-      loop_control:
-        label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
       when:
         - __testing_acmesh_account_key_files_stat is ansible.builtin.defined
         - __testing_acmesh_account_key_files_stat['results'] is ansible.builtin.defined
         - __testing_acmesh_account_key_files_stat['results'] | ansible.builtin.length > 0
 
-
 ## Environment verification
 
+      loop: "{{ __testing_acmesh_account_key_files_stat['results'] | ansible.builtin.default([]) }}"
+      loop_control:
+        label: "{{ item['stat']['path'] | ansible.builtin.default('undefined') }}"
 - name: "Molecule | Verify | Verify current reloadcmd and hook values in certificate config file (dns-01 challenge, second test domain)"
   ansible.builtin.assert:
     that:
-      - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_PreHook='__ACME_BASE64__START_dHJ1ZSBwcmU=__ACME_BASE64__END_'")
-      - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_PostHook='__ACME_BASE64__START_dHJ1ZSBwb3N0__ACME_BASE64__END_'")
-      - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_RenewHook='__ACME_BASE64__START_dHJ1ZSByZW5ldw==__ACME_BASE64__END_'")
+      - __testing_acmesh_domaincfg_content_domain2_decoded is ansible.builtin.search("Le_PreHook='__ACME_BASE64__START_dHJ1ZSBwcmU=__ACME_BASE64__END_'")
+      - __testing_acmesh_domaincfg_content_domain2_decoded is ansible.builtin.search("Le_PostHook='__ACME_BASE64__START_dHJ1ZSBwb3N0__ACME_BASE64__END_'")
+      - __testing_acmesh_domaincfg_content_domain2_decoded is ansible.builtin.search("Le_RenewHook='__ACME_BASE64__START_dHJ1ZSByZW5ldw==__ACME_BASE64__END_'")
       # Reload commands run via root-side acmesh-reload-* units; the value
       # stored in the acme.sh certificate config must always be cleared.
-      - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_ReloadCmd=''")
+      - __testing_acmesh_domaincfg_content_domain2_decoded is ansible.builtin.search("Le_ReloadCmd=''")
     fail_msg: "The certificate config file does not contain the expected hook values (and a cleared Le_ReloadCmd)."
     success_msg: "All hook values have been found in the certificate config file and Le_ReloadCmd is cleared."
   vars:
     __testing_acmesh_domaincfg_content_domain2_decoded: "{{ __testing_acmesh_domaincfg_content_domain2['content'] | ansible.builtin.b64decode }}"
   when:
-    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or
-      ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
+    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
     - __testing_acmesh_domaincfg_stat_domain2 is ansible.builtin.defined
     - __testing_acmesh_domaincfg_stat_domain2['stat']['exists']
     - __testing_acmesh_domaincfg_content_domain2 is ansible.builtin.defined
-
 
 # The per-cert environment merge feature (run_acmesh_certs[].environment) works
 # at the Ansible level: per-cert values override global ones via
@@ -2357,11 +2209,10 @@
 - name: "Molecule | Verify | Read account.conf content"
   ansible.builtin.slurp:
     src: "{{ run_acmesh_cfg_config_home }}/account.conf"
-  register: __testing_acmesh_account_conf_content
   when:
     - __testing_acmesh_account_conf_stat['stat']['exists']
 
-
+  register: __testing_acmesh_account_conf_content
 - name: "Molecule | Verify | Display account.conf content"
   ansible.builtin.debug:
     msg: "{{ __testing_acmesh_account_conf_decoded.split('\n') }}"
@@ -2371,7 +2222,6 @@
   when:
     - __testing_acmesh_account_conf_stat['stat']['exists']
     - __testing_acmesh_account_conf_content is ansible.builtin.defined
-
 
 # When both dns-01 (TEST_ACMESH_TESTDOMAIN1/2 via INWX) and dns-persist-01
 # (TEST_ACMESH_TESTDOMAIN3 via TEST_ACMESH_ACCOUNT_KEY) tests are active
@@ -2396,41 +2246,37 @@
       Skipping SAVED_INWX_User/Password assertion: dns-persist-01 account key
       pre-seeding is active (TEST_ACMESH_ACCOUNT_KEY is set) as the pre-seeded
       key shares the letsencrypt_test CA with dns-01 certificates
+    verbosity: 0
   when:
     - (lookup('ansible.builtin.env', 'TEST_ACMESH_INWX_User') | ansible.builtin.length) > 0
     - (lookup('ansible.builtin.env', 'TEST_ACMESH_ACCOUNT_KEY') | ansible.builtin.length) > 0
 
-
 - name: "Molecule | Verify | Assert account.conf contains expected INWX credentials"
   ansible.builtin.assert:
     that:
-      - __testing_acmesh_account_conf_decoded is search("SAVED_INWX_User='" ~ lookup('ansible.builtin.env', 'TEST_ACMESH_INWX_User') ~ "'")
-      - __testing_acmesh_account_conf_decoded is search("SAVED_INWX_Password='" ~ lookup('ansible.builtin.env', 'TEST_ACMESH_INWX_Password') ~ "'")
+      - __testing_acmesh_account_conf_decoded is ansible.builtin.search("SAVED_INWX_User='" ~ lookup('ansible.builtin.env', 'TEST_ACMESH_INWX_User') ~ "'")
+      - __testing_acmesh_account_conf_decoded is ansible.builtin.search("SAVED_INWX_Password='" ~ lookup('ansible.builtin.env', 'TEST_ACMESH_INWX_Password') ~
+        "'")
     fail_msg: "account.conf does not contain the expected SAVED_INWX_User/Password values."
     success_msg: "account.conf contains the expected INWX credentials."
   vars:
     __testing_acmesh_account_conf_decoded: "{{ __testing_acmesh_account_conf_content['content'] | ansible.builtin.b64decode }}"
   when:
-    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or
-      ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
+    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
     - (lookup('ansible.builtin.env', 'TEST_ACMESH_INWX_User') | ansible.builtin.length) > 0
     - (lookup('ansible.builtin.env', 'TEST_ACMESH_ACCOUNT_KEY') | ansible.builtin.length) <= 0
     - __testing_acmesh_account_conf_stat['stat']['exists']
     - __testing_acmesh_account_conf_content is ansible.builtin.defined
 
-
 ## Test feature: Update reloadcmd and hooks of test domain config
 
 - name: "Molecule | Verify | Permissions of test domain certificates (dns-01 challenge)"
   when:
-    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or
-      ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
+    - __testing_missing_envvars_dns01 is not ansible.builtin.defined or ((__testing_missing_envvars_dns01 | ansible.builtin.length) <= 0)
     - (lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN2') | ansible.builtin.length) > 0
   block:
-
     - name: "Molecule | Verify | Flush handlers now"
       ansible.builtin.meta: "flush_handlers"
-
 
     - name: "Molecule | Verify | Adapt second domain certificate config: Update reloadcmd and hooks"
       ansible.builtin.include_role:
@@ -2483,11 +2329,11 @@
         src: >-
           {{ run_acmesh_cfg_cert_home }}/{{ lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN2') }}_ecc/{{
           lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN2') }}.conf
-      register: __testing_acmesh_domaincfg_content_domain2
       when:
         - __testing_acmesh_domaincfg_stat_domain2 is ansible.builtin.defined
         - __testing_acmesh_domaincfg_stat_domain2['stat']['exists']
 
+      register: __testing_acmesh_domaincfg_content_domain2
     - name: "Molecule | Verify | Display certificate config file content (dns-01 challenge, second test domain)"
       ansible.builtin.debug:
         msg: "{{ __testing_acmesh_domaincfg_content_domain2_decoded.split('\n') }}"
@@ -2499,17 +2345,19 @@
         - __testing_acmesh_domaincfg_stat_domain2['stat']['exists']
         - __testing_acmesh_domaincfg_content_domain2 is ansible.builtin.defined
 
-
     - name: "Molecule | Verify | Verify updated reloadcmd and hook values in certificate config file (dns-01 challenge, second test domain)"
       ansible.builtin.assert:
         that:
-          - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_PreHook='__ACME_BASE64__START_dHJ1ZSBwcmVfdXBkYXRl__ACME_BASE64__END_'")
-          - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_PostHook='__ACME_BASE64__START_dHJ1ZSBwb3N0X3VwZGF0ZQ==__ACME_BASE64__END_'")
-          - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_RenewHook='__ACME_BASE64__START_dHJ1ZSByZW5ld191cGRhdGU=__ACME_BASE64__END_'")
+          - __testing_acmesh_domaincfg_content_domain2_decoded is
+            ansible.builtin.search("Le_PreHook='__ACME_BASE64__START_dHJ1ZSBwcmVfdXBkYXRl__ACME_BASE64__END_'")
+          - __testing_acmesh_domaincfg_content_domain2_decoded is
+            ansible.builtin.search("Le_PostHook='__ACME_BASE64__START_dHJ1ZSBwb3N0X3VwZGF0ZQ==__ACME_BASE64__END_'")
+          - __testing_acmesh_domaincfg_content_domain2_decoded is
+            ansible.builtin.search("Le_RenewHook='__ACME_BASE64__START_dHJ1ZSByZW5ld191cGRhdGU=__ACME_BASE64__END_'")
           # Reload commands run via root-side acmesh-reload-* units; the value
           # stored in the acme.sh certificate config must stay cleared even
           # when the configured reloadcmd changes.
-          - __testing_acmesh_domaincfg_content_domain2_decoded is search("Le_ReloadCmd=''")
+          - __testing_acmesh_domaincfg_content_domain2_decoded is ansible.builtin.search("Le_ReloadCmd=''")
         fail_msg: "The certificate config file does not contain the expected, updated hook values (and a cleared Le_ReloadCmd)."
         success_msg: "All updated hook values have been found in the certificate config file and Le_ReloadCmd is cleared."
       vars:
@@ -2518,7 +2366,6 @@
         - __testing_acmesh_domaincfg_stat_domain2 is ansible.builtin.defined
         - __testing_acmesh_domaincfg_stat_domain2['stat']['exists']
         - __testing_acmesh_domaincfg_content_domain2 is ansible.builtin.defined
-
 
 ## Supplementary group management (run_acmesh_user_supplementary_groups)
 
@@ -2531,7 +2378,6 @@
   changed_when:
     - false
   register: __testing_acmesh_id_groups
-
 
 - name: "Molecule | Verify | Assert the configured supplementary group is assigned"
   ansible.builtin.assert:
@@ -2562,7 +2408,6 @@
     - false
   register: __testing_acmesh_setpriv_groups
 
-
 - name: "Molecule | Verify | Assert setpriv --init-groups sees the supplementary group"
   ansible.builtin.assert:
     that:
@@ -2581,7 +2426,6 @@
     state: "present"
     system: true
 
-
 - name: "Molecule | Verify | Add the service user to the stray group"
   ansible.builtin.user:
     name: "{{ run_acmesh_user }}"
@@ -2589,11 +2433,9 @@
       - "molecule-acmesh-stray"
     append: true
 
-
 - name: "Molecule | Verify | Include the foundata.acmesh.run role (supplementary group reconciliation)"
   ansible.builtin.include_role:
     name: "foundata.acmesh.run"
-
 
 - name: "Molecule | Verify | Get the service user's group memberships after the reconciliation run"
   ansible.builtin.command:
@@ -2604,7 +2446,6 @@
   changed_when:
     - false
   register: __testing_acmesh_id_groups_reconciled
-
 
 - name: "Molecule | Verify | Assert the stray membership was removed and the configured one kept"
   ansible.builtin.assert:
@@ -2621,12 +2462,10 @@
     name: "molecule-acmesh-stray"
     state: "absent"
 
-
 ## Regression test: missing supplementary groups are rejected (init-only)
 
 - name: "Molecule | Verify | Validate rejection of missing supplementary groups (init-only)"
   block:
-
     - name: "Molecule | Verify | Supplementary groups: include the role's init with a missing group (must fail)"
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
@@ -2640,7 +2479,6 @@
         msg: "The role's init accepted a non-existing supplementary group."
 
   rescue:
-
     - name: "Molecule | Verify | Supplementary groups: assert the run failed in the group existence check"
       ansible.builtin.assert:
         that:
@@ -2651,12 +2489,10 @@
           '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
         success_msg: "Missing supplementary groups are rejected by the role's init."
 
-
 ## Test uninstall: additional, non-primary group removal (no additional members)
 
 - name: "Molecule | Verify | Flush handlers now"
   ansible.builtin.meta: "flush_handlers"
-
 
 - name: "Molecule | Verify | Include the foundata.acmesh.run role (with additional, non-primary group)"
   ansible.builtin.include_role:
@@ -2665,20 +2501,17 @@
     run_acmesh_state: "present"
     run_acmesh_group: "acmesh-foobar"
 
-
 - name: "Molecule | Verify | Query user existence after install: {{ run_acmesh_user }}"
   ansible.builtin.getent:
     database: "passwd"
     key: "{{ run_acmesh_user }}"
     fail_key: false
 
-
 - name: "Molecule | Verify | Query group existence after install: acmesh-foobar"
   ansible.builtin.getent:
     database: "group"
     key: "acmesh-foobar"
     fail_key: false
-
 
 - name: "Molecule | Verify | Assert user and group exist after install"
   ansible.builtin.assert:
@@ -2687,7 +2520,6 @@
       - ansible_facts['getent_group']['acmesh-foobar'] is not ansible.builtin.none
     fail_msg: "User {{ run_acmesh_user }} or group acmesh-foobar does not exist after install"
 
-
 - name: "Molecule | Verify | Include the foundata.acmesh.run role (uninstall with additional, non-primary group)"
   ansible.builtin.include_role:
     name: "foundata.acmesh.run"
@@ -2695,20 +2527,17 @@
     run_acmesh_state: "absent"
     run_acmesh_group: "acmesh-foobar"
 
-
 - name: "Molecule | Verify | Query user existence after uninstall: {{ run_acmesh_user }}"
   ansible.builtin.getent:
     database: "passwd"
     key: "{{ run_acmesh_user }}"
     fail_key: false
 
-
 - name: "Molecule | Verify | Query group existence after uninstall: acmesh-foobar"
   ansible.builtin.getent:
     database: "group"
     key: "acmesh-foobar"
     fail_key: false
-
 
 - name: "Molecule | Verify | Assert user and group (which was empty) do not exist after uninstall"
   ansible.builtin.assert:
@@ -2717,12 +2546,10 @@
       - ansible_facts['getent_group']['acmesh-foobar'] is ansible.builtin.none
     fail_msg: "User {{ run_acmesh_user }} or group acmesh-foobar still exists after uninstall"
 
-
 ## Test uninstall: additional, no non-primary group removal (additional members)
 
 - name: "Molecule | Verify | Flush handlers now"
   ansible.builtin.meta: "flush_handlers"
-
 
 - name: "Molecule | Verify | Include the foundata.acmesh.run role (with additional, non-primary group)"
   ansible.builtin.include_role:
@@ -2730,7 +2557,6 @@
   vars:
     run_acmesh_state: "present"
     run_acmesh_group: "acmesh-foobar"
-
 
 - name: "Molecule | Verify | Create dummy user for group membership test: acmesh-dummyuser"
   ansible.builtin.user:
@@ -2740,14 +2566,12 @@
     create_home: false
     shell: "/sbin/nologin"
 
-
 - name: "Molecule | Verify | Add acmesh-dummyuser to group: acmesh-foobar"
   ansible.builtin.user:
     name: "acmesh-dummyuser"
     groups:
       - "acmesh-foobar"
     append: true
-
 
 - name: "Molecule | Verify | Add root to group: acmesh-foobar"
   ansible.builtin.user:
@@ -2756,13 +2580,11 @@
       - "acmesh-foobar"
     append: true
 
-
 - name: "Molecule | Verify | Query group members before uninstall: acmesh-foobar"
   ansible.builtin.getent:
     database: "group"
     key: "acmesh-foobar"
     fail_key: false
-
 
 - name: "Molecule | Verify | Set group members fact before uninstall: acmesh-foobar"
   ansible.builtin.set_fact:
@@ -2783,7 +2605,6 @@
       - "'root' in __testing_acmesh_foobar_members"
     fail_msg: "Not all expected users are members of group acmesh-foobar"
 
-
 - name: "Molecule | Verify | Include the foundata.acmesh.run role (uninstall with additional, non-empty non-primary group)"
   ansible.builtin.include_role:
     name: "foundata.acmesh.run"
@@ -2791,20 +2612,17 @@
     run_acmesh_state: "absent"
     run_acmesh_group: "acmesh-foobar"
 
-
 - name: "Molecule | Verify | Query user existence after uninstall: {{ run_acmesh_user }}"
   ansible.builtin.getent:
     database: "passwd"
     key: "{{ run_acmesh_user }}"
     fail_key: false
 
-
 - name: "Molecule | Verify | Query group existence after uninstall: acmesh-foobar"
   ansible.builtin.getent:
     database: "group"
     key: "acmesh-foobar"
     fail_key: false
-
 
 - name: "Molecule | Verify | Set group members fact after uninstall: acmesh-foobar"
   ansible.builtin.set_fact:
@@ -2813,12 +2631,11 @@
         ansible_facts['getent_group']['acmesh-foobar'][2]
         | ansible.builtin.default('', true)
         | ansible.builtin.split(',')
-        | ansible.builtin.reject('equalto', '')
+        | ansible.builtin.reject('ansible.builtin.equalto', '')
         | ansible.builtin.list
       }}
   when:
     - ansible_facts['getent_group']['acmesh-foobar'] is not ansible.builtin.none
-
 
 - name: "Molecule | Verify | Assert user does not exist but group retained with other members"
   ansible.builtin.assert:
@@ -2829,100 +2646,104 @@
       - "'root' in __testing_acmesh_foobar_members"
     fail_msg: "Expected user {{ run_acmesh_user }} to be absent and group acmesh-foobar to be retained with acmesh-dummyuser and root as members"
 
-
 - name: "Molecule | Verify | Clean up dummy user: acmesh-dummyuser"
   ansible.builtin.user:
     name: "acmesh-dummyuser"
     state: "absent"
-
 
 - name: "Molecule | Verify | Clean up dummy group: acmesh-dummyuser"
   ansible.builtin.group:
     name: "acmesh-foobar"
     state: "absent"
 
-
 ## Regression tests: init-only variable normalization
 
 - name: "Molecule | Verify | Validate deprecated fullcain_file alias normalization"
-  block:
+  vars:
+    __run_acmesh_deprecated_fullcain_file_pause_seconds: 1
+    __testing_alias_input:
+      - domains:
+          - name: "fullcain-alias.test"
+            challenge:
+              type: "dns"
+              dns_provider: "dns_inwx"
+              challenge_alias: "_acme-challenge.fullcain-alias.test.example.net"
+              domain_alias: "fullcain-alias-validation.test"
+          - name: "www.fullcain-alias.test"
+            challenge:
+              type: "webroot"
+              webroot: "/var/www/acmesh-test/www"
+              httpport: 8080
+          - name: "alpn.fullcain-alias.test"
+            challenge:
+              type: "alpn"
+              tlsport: 8443
+          - name: "persist.fullcain-alias.test"
+            challenge:
+              type: "dns_persist"
+              dns_persist_wildcard: true
+              dns_persist_ca_name: "letsencrypt-test"
+              dns_persist_days: 14
+        install:
+          ca_file: "/tmp/fullcain-alias.test/ca.cer"
+          cert_file: "/tmp/fullcain-alias.test/cert.cer"
+          fullcain_file: "/tmp/fullcain-alias.test/fullchain.cer"
+          key_file: "/tmp/fullcain-alias.test/cert.key"
+          reloadcmd: "true reload_alias"
+        server: "letsencrypt_test"
+        force: true
+        debug: true
+        dnssleep: 15
+        pre_hook: "true pre_alias"
+        post_hook: "true post_alias"
+        renew_hook: "true renew_alias"
+        extra_flags: "--preferred-chain 'ISRG Root X1' --keylength ec-256"
+        environment:
+          INWX_User: "alias-user"
+          INWX_Password: "alias-password"
+          CUSTOM_FLAG: "alias"
+      - domains:
+          - name: "canonical-fullchain.test"
+            challenge:
+              type: "standalone"
+              httpport: 8081
+        install:
+          ca_file: "/tmp/canonical-fullchain.test/ca.cer"
+          cert_file: "/tmp/canonical-fullchain.test/cert.cer"
+          fullchain_file: "/tmp/canonical-fullchain.test/fullchain.cer"
+          key_file: "/tmp/canonical-fullchain.test/cert.key"
+          reloadcmd: ""
+        server: "https://acme-staging-v02.api.letsencrypt.org/directory"
+        force: false
+        debug: false
+        dnssleep: 0
+        pre_hook: ""
+        post_hook: ""
+        renew_hook: ""
+        extra_flags: ""
+        environment: {}
 
+
+  block:
+    - name: "Molecule | Verify | Save certificate input before alias normalization"
+      ansible.builtin.set_fact:
+        __testing_certs_before_alias_normalization: "{{ run_acmesh_certs }}"
+
+    - name: "Molecule | Verify | Set the unmodified deprecated certificate input"
+      ansible.builtin.set_fact:
+        run_acmesh_certs: "{{ __testing_alias_input }}"
     - name: "Molecule | Verify | Initialize run role with deprecated fullcain_file alias"
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
         tasks_from: "init"
         public: true
-      vars:
-        __run_acmesh_deprecated_fullcain_file_pause_seconds: 1
-        run_acmesh_certs:
-          - domains:
-              - name: "fullcain-alias.test"
-                challenge:
-                  type: "dns"
-                  dns_provider: "dns_inwx"
-                  challenge_alias: "_acme-challenge.fullcain-alias.test.example.net"
-                  domain_alias: "fullcain-alias-validation.test"
-              - name: "www.fullcain-alias.test"
-                challenge:
-                  type: "webroot"
-                  webroot: "/var/www/acmesh-test/www"
-                  httpport: 8080
-              - name: "alpn.fullcain-alias.test"
-                challenge:
-                  type: "alpn"
-                  tlsport: 8443
-              - name: "persist.fullcain-alias.test"
-                challenge:
-                  type: "dns_persist"
-                  dns_persist_wildcard: true
-                  dns_persist_ca_name: "letsencrypt-test"
-                  dns_persist_days: 14
-            install:
-              ca_file: "/tmp/fullcain-alias.test/ca.cer"
-              cert_file: "/tmp/fullcain-alias.test/cert.cer"
-              fullcain_file: "/tmp/fullcain-alias.test/fullchain.cer"
-              key_file: "/tmp/fullcain-alias.test/cert.key"
-              reloadcmd: "true reload_alias"
-            server: "letsencrypt_test"
-            force: true
-            debug: true
-            dnssleep: 15
-            pre_hook: "true pre_alias"
-            post_hook: "true post_alias"
-            renew_hook: "true renew_alias"
-            extra_flags: "--preferred-chain 'ISRG Root X1' --keylength ec-256"
-            environment:
-              INWX_User: "alias-user"
-              INWX_Password: "alias-password"
-              CUSTOM_FLAG: "alias"
-          - domains:
-              - name: "canonical-fullchain.test"
-                challenge:
-                  type: "standalone"
-                  httpport: 8081
-            install:
-              ca_file: "/tmp/canonical-fullchain.test/ca.cer"
-              cert_file: "/tmp/canonical-fullchain.test/cert.cer"
-              fullchain_file: "/tmp/canonical-fullchain.test/fullchain.cer"
-              key_file: "/tmp/canonical-fullchain.test/cert.key"
-              reloadcmd: ""
-            server: "https://acme-staging-v02.api.letsencrypt.org/directory"
-            force: false
-            debug: false
-            dnssleep: 0
-            pre_hook: ""
-            post_hook: ""
-            renew_hook: ""
-            extra_flags: ""
-            environment: {}
-
-
     - name: "Molecule | Verify | Assert deprecated fullcain_file alias was normalized"
       ansible.builtin.assert:
         that:
-          - run_acmesh_certs == __testing_run_acmesh_certs_fullcain_alias_expected
-          - run_acmesh_certs[0]['install']['fullcain_file'] is not ansible.builtin.defined
-          - run_acmesh_certs[1]['install']['fullcain_file'] is not ansible.builtin.defined
+          - run_acmesh_certs == __testing_alias_input
+          - __run_acmesh_certs_effective == __testing_run_acmesh_certs_fullcain_alias_expected
+          - __run_acmesh_certs_effective[0]['install']['fullcain_file'] is not ansible.builtin.defined
+          - __run_acmesh_certs_effective[1]['install']['fullcain_file'] is not ansible.builtin.defined
         fail_msg: "Deprecated fullcain_file alias normalization disturbed run_acmesh_certs."
         success_msg: "Deprecated fullcain_file alias was normalized without disturbing run_acmesh_certs."
       vars:
@@ -2996,9 +2817,12 @@
 # domain names and colliding identities with an actionable message instead of
 # failing midway with a templating error or silently skipping cleanups.
 
+  always:
+    - name: "Molecule | Verify | Restore certificate input after alias normalization"
+      ansible.builtin.set_fact:
+        run_acmesh_certs: "{{ __testing_certs_before_alias_normalization }}"
 - name: "Molecule | Verify | Validate rejection of certificates without usable domain names (init-only)"
   block:
-
     - name: "Molecule | Verify | Cert identity: include the role's init with unnamed certificates (must fail)"
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
@@ -3018,7 +2842,6 @@
         msg: "The role's init accepted run_acmesh_certs entries without usable domain names."
 
   rescue:
-
     - name: "Molecule | Verify | Cert identity: assert the run failed in the domain name check"
       ansible.builtin.assert:
         that:
@@ -3028,10 +2851,8 @@
           (failed task: '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
         success_msg: "Certificates without usable domain names are rejected by the role's init."
 
-
 - name: "Molecule | Verify | Validate rejection of colliding certificate identities (init-only)"
   block:
-
     - name: "Molecule | Verify | Cert identity: include the role's init with colliding identities (must fail)"
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
@@ -3064,7 +2885,6 @@
         msg: "The role's init accepted run_acmesh_certs entries with colliding certificate identities."
 
   rescue:
-
     - name: "Molecule | Verify | Cert identity: assert the run failed in the uniqueness check"
       ansible.builtin.assert:
         that:
@@ -3073,7 +2893,6 @@
           The run failed, but not in the identity uniqueness check as expected
           (failed task: '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
         success_msg: "Colliding certificate identities are rejected by the role's init."
-
 
 ## Regression tests: install strategy and permission normalization (init-only)
 #
@@ -3112,13 +2931,11 @@
           strategy: "direct"
           cert_file: "/tmp/direct/cert.pem"
 
-
 - name: "Molecule | Verify | Normalization: initialize the role with the crafted configuration"
   ansible.builtin.include_role:
     name: "foundata.acmesh.run"
     tasks_from: "init"
     public: true
-
 
 - name: "Molecule | Verify | Normalization: assert defaults, partial overrides and precedence"
   ansible.builtin.assert:
@@ -3180,15 +2997,12 @@
         domains:
           - "direct.example.test"
 
-
 - name: "Molecule | Verify | Normalization: restore the converged certificate configuration"
   ansible.builtin.set_fact:
     run_acmesh_certs: "{{ __testing_state['run_acmesh_certs'] | ansible.builtin.default([]) }}"
 
-
 - name: "Molecule | Verify | Validate rejection of unknown permission keys (init-only)"
   block:
-
     - name: "Molecule | Verify | Permissions: include the role's init with an unknown permissions key (must fail)"
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
@@ -3211,7 +3025,6 @@
         msg: "The role's init accepted an unknown install.permissions key."
 
   rescue:
-
     - name: "Molecule | Verify | Permissions: assert the run failed in the structure check"
       ansible.builtin.assert:
         that:
@@ -3222,10 +3035,8 @@
           '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
         success_msg: "Unknown install.permissions keys are rejected by the role's init."
 
-
 - name: "Molecule | Verify | Validate rejection of unsafe private key modes (init-only)"
   block:
-
     - name: "Molecule | Verify | Permissions: include the role's init with a world-readable key mode (must fail)"
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
@@ -3248,7 +3059,6 @@
         msg: "The role's init accepted a world-readable private key mode."
 
   rescue:
-
     - name: "Molecule | Verify | Permissions: assert the run failed in the permission value check"
       ansible.builtin.assert:
         that:
@@ -3259,10 +3069,8 @@
           '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
         success_msg: "World-readable private key modes are rejected by the role's init."
 
-
 - name: "Molecule | Verify | Validate rejection of ownership overrides with the direct strategy (init-only)"
   block:
-
     - name: "Molecule | Verify | Permissions: include the role's init with a direct-strategy ownership override (must fail)"
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
@@ -3286,7 +3094,6 @@
         msg: "The role's init accepted an ownership override with strategy 'direct'."
 
   rescue:
-
     - name: "Molecule | Verify | Permissions: assert the run failed in the permission value check (direct strategy)"
       ansible.builtin.assert:
         that:
@@ -3297,10 +3104,8 @@
           '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
         success_msg: "Ownership overrides with the direct strategy are rejected by the role's init."
 
-
 - name: "Molecule | Verify | Validate rejection of a nested deploy base directory (init-only)"
   block:
-
     - name: "Molecule | Verify | Deploy base: include the role's init with a nested staging base (must fail)"
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
@@ -3313,7 +3118,6 @@
         msg: "The role's init accepted a staging base below run_acmesh_cfg_cert_home."
 
   rescue:
-
     - name: "Molecule | Verify | Deploy base: assert the run failed in the deploy base directory check"
       ansible.builtin.assert:
         that:
@@ -3323,7 +3127,6 @@
           expected (failed task:
           '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
         success_msg: "A staging base below the acme.sh directories is rejected by the role's init."
-
 
 ## No-secret-leak check (manual)
 #
@@ -3337,6 +3140,7 @@
   ansible.builtin.debug:
     # split() to improve readability for humans
     msg: "{{ __testing_canary_msg.split('\n') }}"
+    verbosity: 0
   vars:
     __testing_canary_msg: |-
       Manual check for leaked DNS API credentials:
@@ -3349,7 +3153,6 @@
       The check is only meaningful for credential-bearing runs, so with the
       TEST_ACMESH_* environment variables set.
   run_once: true # noqa: run-once[task]
-
 
 - name: "Molecule | Verify | No-secret-leak check: pause so the hint is not scrolled away"
   ansible.builtin.pause:

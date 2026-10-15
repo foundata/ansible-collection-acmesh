@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
-
 - name: "Setup | Install | Default | Remove unwanted packages (e.g., to prevent conflicts or resolve incompatibilities)"
   ansible.builtin.package:
     name: "{{ __run_acmesh_packages_removal }}"
@@ -12,7 +11,6 @@
   when:
     - __run_acmesh_packages_removal is ansible.builtin.defined
     - (__run_acmesh_packages_removal | ansible.builtin.length) > 0
-
 
 - name: "Setup | Install | Default | Install or upgrade packages"
   ansible.builtin.package:
@@ -24,7 +22,6 @@
     - __run_acmesh_packages_install is ansible.builtin.defined
     - (__run_acmesh_packages_install | ansible.builtin.length) > 0
 
-
 - name: "Setup | Install | Default | Remove unwanted files and directories (e.g., to prevent conflicts or resolve incompatibilities)"
   ansible.builtin.file:
     path: "{{ __run_acmesh_removal_path_item }}"
@@ -35,7 +32,6 @@
   loop: "{{ __run_acmesh_paths_removal }}"
   loop_control:
     loop_var: "__run_acmesh_removal_path_item"
-
 
 - name: "Setup | Install | Default | Neutralize distribution config files (overwrite to survive package updates)"
   ansible.builtin.copy:
@@ -70,7 +66,6 @@
     loop_var: "__run_acmesh_neutralize_item"
     label: "{{ __run_acmesh_neutralize_item['key'] }}"
 
-
 - name: "Setup | Install | Default | Get upstream version tags from git repository"
   # The command module is used here. This approach is justified:
   #
@@ -92,7 +87,6 @@
     - false
   ignore_errors: true
   register: __run_acmesh_git_tags_result
-
 
 - name: "Setup | Install | Default | Set latest upstream version as fact"
   ansible.builtin.set_fact:
@@ -123,19 +117,16 @@
   when:
     - (run_acmesh_git_version | ansible.builtin.default('', true) | ansible.builtin.trim | ansible.builtin.length) == 0
 
-
 - name: "Setup | Install | Default | Use user-specified version override as upstream version"
   ansible.builtin.set_fact:
     __run_acmesh_version_upstream: "{{ run_acmesh_git_version | ansible.builtin.trim }}"
   when:
     - (run_acmesh_git_version | ansible.builtin.default('', true) | ansible.builtin.trim | ansible.builtin.length) > 0
 
-
 - name: "Setup | Install | Default | Display latest upstream version (if any, empty string means \"nothing detected\")"
   ansible.builtin.debug:
     var: __run_acmesh_version_upstream
     verbosity: 1
-
 
 - name: "Setup | Install | Default | Create the service user"
   ansible.builtin.user:
@@ -157,18 +148,16 @@
     update_password: "always"
     umask: "0027"
 
-
-  # Most systems automatically create the (primary) group for a new user when
-  # the "group" parameter of ansible.builtin.user is omitted, usually with a GID
-  # matching the UID. openSUSE is an exception to this rule and requires
-  # explicit group creation.
+# Most systems automatically create the (primary) group for a new user when
+# the "group" parameter of ansible.builtin.user is omitted, usually with a GID
+# matching the UID. openSUSE is an exception to this rule and requires
+# explicit group creation.
 - name: "Setup | Install | Default | Create the group for the service user"
   ansible.builtin.group:
     name: "{{ run_acmesh_group }}"
     state: "present"
     system: false
     force: false
-
 
 - name: "Setup | Install | Default | Add service user to the group(s)"
   ansible.builtin.user:
@@ -185,18 +174,16 @@
       }}
     append: false # remove from all groups (except the primary one)
 
-
 - name: "Setup | Install | Default | Create a temporary working directory"
   ansible.builtin.tempfile:
     state: "directory"
     suffix: "-acmesh"
-  changed_when:
-    - false
   when:
     - not __run_acmesh_is_installed
     - not ansible_check_mode # the module does not support check mode
+  changed_when:
+    - false
   register: __run_acmesh_tempdir
-
 
 # Check mode cannot predict the installation: ansible.builtin.tempfile does
 # not support check mode, so no temporary directory (and no clone) exists and
@@ -209,10 +196,10 @@
       acme.sh is not installed yet. A real run would clone
       {{ run_acmesh_git_url }} into a temporary directory and install it;
       check mode skips this installation sequence entirely.
+    verbosity: 0
   when:
     - not __run_acmesh_is_installed
     - __run_acmesh_tempdir['path'] is not ansible.builtin.defined
-
 
 - name: "Setup | Install | Default | Display the temporary working directory's path"
   ansible.builtin.debug:
@@ -223,7 +210,6 @@
     # the temporary directory exists only outside check mode (tempfile does
     # not support it); guards --check as well as task-scoped check_mode
     - __run_acmesh_tempdir['path'] is ansible.builtin.defined
-
 
 - name: "Setup | Install | Default | git clone {{ run_acmesh_git_url }}"
   ansible.builtin.git:
@@ -237,7 +223,6 @@
     # the temporary directory exists only outside check mode (tempfile does
     # not support it); guards --check as well as task-scoped check_mode
     - __run_acmesh_tempdir['path'] is ansible.builtin.defined
-
 
 - name: "Setup | Install | Default | Hand the temporary working directory over to the service user"
   # The installation below runs acme.sh as the service user (like every other
@@ -253,7 +238,6 @@
     # the temporary directory exists only outside check mode (tempfile does
     # not support it); guards --check as well as task-scoped check_mode
     - __run_acmesh_tempdir['path'] is ansible.builtin.defined
-
 
 - name: "Setup | Install | Default | Ensure existence and permissions of main directories"
   ansible.builtin.file:
@@ -272,23 +256,21 @@
   loop_control:
     loop_var: "__run_acmesh_main_directory_item"
   notify:
-    - "run_acmesh: set ownership and permissions"
-
+    - "run_acmesh_set_certificate_permissions"
 
 - name: "Setup | Install | Default | Ensure log file existence"
   ansible.builtin.copy:
     dest: "{{ __run_acmesh_logfile_item['path'] }}"
     content: ""
-    force: false # create file only if it is not already existing
     owner: "{{ run_acmesh_user }}"
     group: "{{ run_acmesh_group }}"
     mode: "{{ __run_acmesh_logfile_item['mode'] }}"
+    force: false # create file only if it is not already existing
   loop:
     - path: "{{ run_acmesh_cfg_logfile }}"
       mode: "{{ __run_acmesh_cfg_logfile_file_mode }}"
   loop_control:
     loop_var: "__run_acmesh_logfile_item"
-
 
 - name: "Setup | Install | Default | Install acme.sh"
   # The command or shell module is used here. This approach is justified:
@@ -341,8 +323,7 @@
     # not support it); guards --check as well as task-scoped check_mode
     - __run_acmesh_tempdir['path'] is ansible.builtin.defined
   notify:
-    - "run_acmesh: set ownership and permissions"
-
+    - "run_acmesh_set_certificate_permissions"
 
 - name: "Setup | Install | Default | Upgrade acme.sh"
   # The command or shell module is used here. This approach is justified:
@@ -390,16 +371,15 @@
     # The upstream version stays empty when the remote could not be queried
     # (git ls-remote is best-effort and skipped in check mode). Comparing
     # against it would abort the whole run with an unrelated error message.
-    - (run_acmesh_git_version | ansible.builtin.default('', true) | ansible.builtin.trim | ansible.builtin.length) > 0 or
-      (((__run_acmesh_version_upstream | ansible.builtin.default('', true) | ansible.builtin.trim) | ansible.builtin.length) > 0 and
-       __run_acmesh_version_installed is ansible.builtin.version(__run_acmesh_version_upstream, 'lt', version_type='semver'))
+    - (run_acmesh_git_version | ansible.builtin.default('', true) | ansible.builtin.trim | ansible.builtin.length) > 0 or (((__run_acmesh_version_upstream |
+      ansible.builtin.default('', true) | ansible.builtin.trim) | ansible.builtin.length) > 0 and __run_acmesh_version_installed is
+      ansible.builtin.version(__run_acmesh_version_upstream, 'lt', version_type='semver'))
   changed_when:
     - __run_acmesh_upgrade_result is ansible.builtin.success
     - ('Upgrade success') in __run_acmesh_upgrade_result['stdout']
   register: __run_acmesh_upgrade_result
   notify:
-    - "run_acmesh: set ownership and permissions"
-
+    - "run_acmesh_set_certificate_permissions"
 
 # update facts related to state of the local installation
 - name: "Setup | Install | Default | Determine installed version again"
@@ -437,7 +417,6 @@
   # read-only probe; run it under "--check" too (see the init counterpart)
   check_mode: false
 
-
 - name: "Setup | Install | Default | Update / overwrite installed version facts"
   ansible.builtin.set_fact:
     __run_acmesh_is_installed: >-
@@ -463,7 +442,6 @@
     var: __run_acmesh_version_installed
     verbosity: 1
 
-
 - name: "Setup | Install | Default | Check if acme.sh.env file exists"
   ansible.builtin.stat:
     path: "{{ run_acmesh_cfg_home }}/acme.sh.env" # Might be missing if acme.sh was installed with --no-profile
@@ -472,19 +450,17 @@
     get_attributes: false
   register: __run_acmesh_envfile_stat_result
 
-
 # Modifying the calling user's .bashrc is the default installer behavior.
 # Let's remove the source-calls in individual user .bashrc file and create a
 # system-wide alias for acme.sh with all required options instead.
 - name: "Setup | Install | Default | Symlink env file for profile.d"
   ansible.builtin.file:
-    src: "{{ run_acmesh_cfg_home }}/acme.sh.env"
-    dest: "{{ __run_acmesh_profiled_envfile_path }}"
     state: "link"
+    dest: "{{ __run_acmesh_profiled_envfile_path }}"
+    src: "{{ run_acmesh_cfg_home }}/acme.sh.env"
   when:
     - __run_acmesh_envfile_stat_result is ansible.builtin.defined
     - __run_acmesh_envfile_stat_result['stat']['exists']
-
 
 - name: "Setup | Install | Default | Remove redundant env file sourcing from the user's .bashrc"
   ansible.builtin.lineinfile:
@@ -495,7 +471,6 @@
     - __run_acmesh_envfile_stat_result is ansible.builtin.defined
     - __run_acmesh_envfile_stat_result['stat']['exists']
 
-
 - name: "Setup | Install | Default | Clean-up temporary working directory"
   ansible.builtin.file:
     path: "{{ __run_acmesh_tempdir['path'] }}"
@@ -503,7 +478,6 @@
   when:
     - __run_acmesh_tempdir is ansible.builtin.defined
     - __run_acmesh_tempdir['path'] is ansible.builtin.defined
-
 
 # Whether acme.sh is usable for the configuration and certificate phases:
 # either it was installed before this run or the fresh installation above
