@@ -458,34 +458,37 @@ There are also tags that are generally not intended to be called directly but ar
 
 Main entry point for the foundata.acmesh.run role
 
+Manage acme.sh (shell script implementing the ACME client protocol).
+Issue and maintain X.509 certificates.
+
 The following variables can be configured for this role:
 
-| Variable | Type | Required | Default | Description (abstract) |
-|----------|------|----------|---------|------------------------|
-| `run_acmesh_state` | `str` | No | `"present"` | Determines whether the managed resources should be `present` or `absent`.<br><br>`present` ensures that required components, such as software packages, are installed and configured.<br><br>`absent` reverts changes as much as possible, such as […](#variable-run_acmesh_state) |
-| `run_acmesh_autoupgrade` | `bool` | No | `false` | If set to `true`, all managed packages will be upgraded during each Ansible run (e.g., when the package provider detects a newer version than the currently installed one). |
-| `run_acmesh_autorenewal` | `bool` | No | `true` | Enables daily automatic certificate renewal via systemd timer (this role is not using acme.sh's cronjob function). |
-| `run_acmesh_environment` 🔒 | `dict` | No | `{}` | Defines environment variables required for ACME DNS challenges.<br><br>This is typically needed for DNS challenge plugins, such as those requiring DNS API credentials (e.g., `HETZNER_Token`, `INWX_User`, `INWX_Password`). Multiple variables can be […](#variable-run_acmesh_environment) |
-| `run_acmesh_git_url` | `str` | No | `"https://github.com/acmesh-official/acme.sh.git"` | The Git repository URL for acme.sh. The role uses this URL to clone the source code during installation or updates and to query available version tags via `git ls-remote`.<br><br>Can be set to an internal Git mirror for air-gapped environments or to […](#variable-run_acmesh_git_url) |
-| `run_acmesh_git_fallback_version_branch` | `str` | No | `"master"` | The Git branch to clone when no version tag could be determined from the remote repository (e.g. because `git ls-remote` failed or returned no matching tags).<br><br>See https://github.com/acmesh-official/acme.sh/issues/1162 for why acme.sh uses […](#variable-run_acmesh_git_fallback_version_branch) |
-| `run_acmesh_git_version` | `str` | No | `""` | Overrides the automatically detected acme.sh version with a specific Git ref (tag, branch, or commit hash). When set (non-empty string), the role skips the upstream version tag detection via `git ls-remote` and uses this value directly for the […](#variable-run_acmesh_git_version) |
-| `run_acmesh_certs` | `list` | No | `[]` | Defines certificates to be requested, their associated domains, challenge methods, and installation details. Each item in the list is a dictionary with suboptions / keys.<br><br>Example:<br><br>``` run_acmesh_certs: # first certificate: "example.org" […](#variable-run_acmesh_certs) |
-| `run_acmesh_certs_delete_unmanaged` | `bool` | No | `false` | If set to `true`, certificate data below `run_acmesh_cfg_cert_home` that does not belong to any certificate listed in `run_acmesh_certs` gets removed (which also stops the automated renewal for it), as do `acmesh-reload-*` and `acmesh-deploy-*` […](#variable-run_acmesh_certs_delete_unmanaged) |
-| `run_acmesh_user` | `str` | No | `"acmesh"` | Specifies the service user account that runs acme.sh and owns relevant files and directories.<br><br>All acme.sh operations run as this account: account registration, certificate issuance and installation during the Ansible run as well as the […](#variable-run_acmesh_user) |
-| `run_acmesh_group` | `str` | No | `"acmesh"` | Specifies the group associated with the service user for managing acme.sh and the corresponding file permissions. |
-| `run_acmesh_user_supplementary_groups` | `list` | No | `[]` | Exact list of supplementary groups for the service user account (`run_acmesh_user`) beyond `run_acmesh_group`. The role manages the account's supplementary groups as the exact unique union of `run_acmesh_group` and this list; group memberships added […](#variable-run_acmesh_user_supplementary_groups) |
-| `run_acmesh_cfg_accountemail` | `str` | No | `""` | Specifies the email address to be associated with the ACME account. This email is used for expiration notices and recovery purposes. Some ACME providers might refuse to issue certificates if not set. |
-| `run_acmesh_cfg_home` | `str` | No | `"/opt/acme.sh"` | Specifies the installation directory for the acme.sh software (relates to acme.sh option --home). Will also be used as home directory of the service user defined (see `run_acmesh_user`). |
-| `run_acmesh_cfg_config_home` | `str` | No | `"/etc/acme.sh"` | Defines where configuration files are stored (relates to acme.sh option --config-home). |
-| `run_acmesh_cfg_cert_home` | `str` | No | `"/var/opt/acme.sh"` | Specifies the directory where certificates are maintained by acme.sh (relates to acme.sh option --certhome). ⚠️ Do not rely on the files in this directory directly. Instead, copy the certificates where needed using the "install" key of […](#variable-run_acmesh_cfg_cert_home) |
-| `run_acmesh_cfg_cert_deploy_base_dir` | `str` | No | `"/var/opt/acme.sh-deploy"` | Base directory for the internal staging areas of certificates using the `staged` installation strategy. The directory itself is root-owned and holds one subdirectory per certificate which is writable by the service user: acme.sh installs into that […](#variable-run_acmesh_cfg_cert_deploy_base_dir) |
-| `run_acmesh_cfg_logfile` | `str` | No | `"/var/log/acme.sh.log"` | Path to the log file where acme.sh logs its operations (relates to acme.sh option --log). |
-| `run_acmesh_cfg_log_level` | `int` | No | `1` | Specifies the log level (relates to acme.sh option --log-level). Possible values are 1 (less logging) and 2 (more logging). |
-| `run_acmesh_cfg_syslog` | `int` | No | `3` | Specifies what to log (relates to acme.sh option --syslog). Possible values are 0 (disable syslog), 3 (errors), 6 (info) and 7 (debug) |
-| `run_acmesh_cfg_ca_bundle` | `str` | No | `""` | Path to a custom CA certificate bundle file on the remote host. Passed as `--ca-bundle` to all acme.sh commands that make HTTPS requests (issue, register-account). Needed when the ACME server uses a certificate signed by a private or non-standard […](#variable-run_acmesh_cfg_ca_bundle) |
-| `run_acmesh_cfg_ca_path` | `str` | No | `""` | Path to a directory of CA certificates in PEM format on the remote host. Passed as `--ca-path` to all acme.sh commands that make HTTPS requests. Alternative to `run_acmesh_cfg_ca_bundle` when the HTTP client (curl/wget) requires a directory of […](#variable-run_acmesh_cfg_ca_path) |
-| `run_acmesh_cfg_account_keys` | `list` | No | `[]` | List of ACME account keys to pre-seed. This is useful for `dns-persist-01` challenges where the TXT record is bound to a specific account key, and you want to reuse the same key across multiple servers or after re-installations.<br><br>Each item must […](#variable-run_acmesh_cfg_account_keys) |
-| `run_acmesh_dns_persist_pause` | `int` | No | `600` | Controls the pause duration (in seconds) after displaying dns-persist-01 TXT record instructions. Set to `0` to disable the pause (useful for CI/CD pipelines or environments where TXT records are guaranteed to already be published).<br><br>If the […](#variable-run_acmesh_dns_persist_pause) |
+|                 Variable                 |  Type  | Required |                      Default                       | Description (abstract) |
+| ---------------------------------------- | ------ | -------- | -------------------------------------------------- | ---------------------- |
+| `run_acmesh_state`                       | `str`  | No       | `"present"`                                        | Determines whether the managed resources should be `present` or `absent`.<br><br>`present` ensures that required components, such as software packages, are installed and configured.<br><br>`absent` reverts changes as much as possible, such as […](#variable-run_acmesh_state) |
+| `run_acmesh_autoupgrade`                 | `bool` | No       | `false`                                            | If set to `true`, all managed packages will be upgraded during each Ansible run (e.g., when the package provider detects a newer version than the currently installed one). |
+| `run_acmesh_autorenewal`                 | `bool` | No       | `true`                                             | Enables daily automatic certificate renewal via systemd timer (this role is not using acme.sh's cronjob function). |
+| `run_acmesh_environment` 🔒              | `dict` | No       | `{}`                                               | Defines environment variables required for ACME DNS challenges.<br><br>This is typically needed for DNS challenge plugins, such as those requiring DNS API credentials (e.g., `HETZNER_Token`, `INWX_User`, `INWX_Password`). Multiple variables can be […](#variable-run_acmesh_environment) |
+| `run_acmesh_git_url`                     | `str`  | No       | `"https://github.com/acmesh-official/acme.sh.git"` | The Git repository URL for acme.sh. The role uses this URL to clone the source code during installation or updates and to query available version tags via `git ls-remote`.<br><br>Can be set to an internal Git mirror for air-gapped environments or to […](#variable-run_acmesh_git_url) |
+| `run_acmesh_git_fallback_version_branch` | `str`  | No       | `"master"`                                         | The Git branch to clone when no version tag could be determined from the remote repository (e.g. because `git ls-remote` failed or returned no matching tags).<br><br>See <https://github.com/acmesh-official/acme.sh/issues/1162> for why acme.sh uses […](#variable-run_acmesh_git_fallback_version_branch) |
+| `run_acmesh_git_version`                 | `str`  | No       | `""`                                               | Overrides the automatically detected acme.sh version with a specific Git ref (tag, branch, or commit hash). When set (non-empty string), the role skips the upstream version tag detection via `git ls-remote` and uses this value directly for the […](#variable-run_acmesh_git_version) |
+| `run_acmesh_certs`                       | `list` | No       | `[]`                                               | Defines certificates to be requested, their associated domains, challenge methods, and installation details. Each item in the list is a dictionary with suboptions / keys.<br><br>Example:<br><br>``` run_acmesh_certs: # first certificate: "example.org" […](#variable-run_acmesh_certs) |
+| `run_acmesh_certs_delete_unmanaged`      | `bool` | No       | `false`                                            | If set to `true`, certificate data below `run_acmesh_cfg_cert_home` that does not belong to any certificate listed in `run_acmesh_certs` gets removed (which also stops the automated renewal for it), as do `acmesh-reload-*` and `acmesh-deploy-*` […](#variable-run_acmesh_certs_delete_unmanaged) |
+| `run_acmesh_user`                        | `str`  | No       | `"acmesh"`                                         | Specifies the service user account that runs acme.sh and owns relevant files and directories.<br><br>All acme.sh operations run as this account: account registration, certificate issuance and installation during the Ansible run as well as the […](#variable-run_acmesh_user) |
+| `run_acmesh_group`                       | `str`  | No       | `"acmesh"`                                         | Specifies the group associated with the service user for managing acme.sh and the corresponding file permissions. |
+| `run_acmesh_user_supplementary_groups`   | `list` | No       | `[]`                                               | Exact list of supplementary groups for the service user account (`run_acmesh_user`) beyond `run_acmesh_group`. The role manages the account's supplementary groups as the exact unique union of `run_acmesh_group` and this list; group memberships added […](#variable-run_acmesh_user_supplementary_groups) |
+| `run_acmesh_cfg_accountemail`            | `str`  | No       | `""`                                               | Specifies the email address to be associated with the ACME account. This email is used for expiration notices and recovery purposes. Some ACME providers might refuse to issue certificates if not set. |
+| `run_acmesh_cfg_home`                    | `str`  | No       | `"/opt/acme.sh"`                                   | Specifies the installation directory for the acme.sh software (relates to acme.sh option --home). Will also be used as home directory of the service user defined (see `run_acmesh_user`). |
+| `run_acmesh_cfg_config_home`             | `str`  | No       | `"/etc/acme.sh"`                                   | Defines where configuration files are stored (relates to acme.sh option --config-home). |
+| `run_acmesh_cfg_cert_home`               | `str`  | No       | `"/var/opt/acme.sh"`                               | Specifies the directory where certificates are maintained by acme.sh (relates to acme.sh option --certhome). ⚠️ Do not rely on the files in this directory directly. Instead, copy the certificates where needed using the "install" key of […](#variable-run_acmesh_cfg_cert_home) |
+| `run_acmesh_cfg_cert_deploy_base_dir`    | `str`  | No       | `"/var/opt/acme.sh-deploy"`                        | Base directory for the internal staging areas of certificates using the `staged` installation strategy. The directory itself is root-owned and holds one subdirectory per certificate which is writable by the service user: acme.sh installs into that […](#variable-run_acmesh_cfg_cert_deploy_base_dir) |
+| `run_acmesh_cfg_logfile`                 | `str`  | No       | `"/var/log/acme.sh.log"`                           | Path to the log file where acme.sh logs its operations (relates to acme.sh option --log). |
+| `run_acmesh_cfg_log_level`               | `int`  | No       | `1`                                                | Specifies the log level (relates to acme.sh option --log-level). Possible values are 1 (less logging) and 2 (more logging). |
+| `run_acmesh_cfg_syslog`                  | `int`  | No       | `3`                                                | Specifies what to log (relates to acme.sh option --syslog). Possible values are 0 (disable syslog), 3 (errors), 6 (info) and 7 (debug) |
+| `run_acmesh_cfg_ca_bundle`               | `str`  | No       | `""`                                               | Path to a custom CA certificate bundle file on the remote host. Passed as `--ca-bundle` to all acme.sh commands that make HTTPS requests (issue, register-account). Needed when the ACME server uses a certificate signed by a private or non-standard […](#variable-run_acmesh_cfg_ca_bundle) |
+| `run_acmesh_cfg_ca_path`                 | `str`  | No       | `""`                                               | Path to a directory of CA certificates in PEM format on the remote host. Passed as `--ca-path` to all acme.sh commands that make HTTPS requests. Alternative to `run_acmesh_cfg_ca_bundle` when the HTTP client (curl/wget) requires a directory of […](#variable-run_acmesh_cfg_ca_path) |
+| `run_acmesh_cfg_account_keys`            | `list` | No       | `[]`                                               | List of ACME account keys to pre-seed. This is useful for `dns-persist-01` challenges where the TXT record is bound to a specific account key, and you want to reuse the same key across multiple servers or after re-installations.<br><br>Each item must […](#variable-run_acmesh_cfg_account_keys) |
+| `run_acmesh_dns_persist_pause`           | `int`  | No       | `600`                                              | Controls the pause duration (in seconds) after displaying dns-persist-01 TXT record instructions. Set to `0` to disable the pause (useful for CI/CD pipelines or environments where TXT records are guaranteed to already be published).<br><br>If the […](#variable-run_acmesh_dns_persist_pause) |
 
 ### `run_acmesh_state`<a id="variable-run_acmesh_state"></a>
 
@@ -543,11 +546,11 @@ This is typically needed for DNS challenge plugins, such as those requiring
 DNS API credentials (e.g., `HETZNER_Token`, `INWX_User`, `INWX_Password`).
 Multiple variables can be defined in parallel to support different providers
 for different domains on the same server. For more details on acme.sh's
-DNS API support see https://github.com/acmesh-official/acme.sh/wiki/dnsapi
+DNS API support see <https://github.com/acmesh-official/acme.sh/wiki/dnsapi>
 
 Example:
 
-```
+```text
 run_acmesh_environment:
   "HETZNER_Token": "\{\{ lookup('ansible.builtin.unvault', '...') | ansible.builtin.string | ansible.builtin.trim \}\}"
 ```
@@ -584,7 +587,7 @@ The Git branch to clone when no version tag could be determined from the
 remote repository (e.g. because `git ls-remote` failed or returned no
 matching tags).
 
-See https://github.com/acmesh-official/acme.sh/issues/1162 for why
+See <https://github.com/acmesh-official/acme.sh/issues/1162> for why
 acme.sh uses `master` as the branch for the latest release.
 
 - **Type**: `str`
@@ -626,7 +629,7 @@ dictionary with suboptions / keys.
 
 Example:
 
-```
+```text
 run_acmesh_certs:
   # first certificate: "example.org"
   - domains:
@@ -723,20 +726,23 @@ parameters depend on the challenge type
 
 [*⇑ Back to ToC ⇑*](#toc)
 
-Challenge method. See https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
-for details.
+Challenge method. See
+<https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert> for
+details.
 
 - **Type**: `str`
 - **Required**: No
 - **Choices**: `alpn`, `dns`, `dns_persist`, `standalone`, `webroot`
 
-###### `run_acmesh_certs['domains']['challenge']['dns_provider']`<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-dns_provider"></a>
+<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-dns_provider"></a>
+
+###### `run_acmesh_certs['domains']['challenge']['dns_provider']`
 
 [*⇑ Back to ToC ⇑*](#toc)
 
 Optional. Required for "dns" challenges. Specifies
 the DNS provider for API-based verification. See
-https://github.com/acmesh-official/acme.sh/wiki/dnsapi for supported
+<https://github.com/acmesh-official/acme.sh/wiki/dnsapi> for supported
 providers and their name. You usually have to provide credentials for
 their APIs via the global `run_acmesh_environment` variable or the
 per-certificate `environment` key.
@@ -744,33 +750,39 @@ per-certificate `environment` key.
 - **Type**: `str`
 - **Required**: No
 
-###### `run_acmesh_certs['domains']['challenge']['challenge_alias']`<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-challenge_alias"></a>
+<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-challenge_alias"></a>
+
+###### `run_acmesh_certs['domains']['challenge']['challenge_alias']`
 
 [*⇑ Back to ToC ⇑*](#toc)
 
 Optional. Used with "dns" challenges when using CNAME delegation. Requires
 a CNAME record such as:
 `_acme-challenge.example.com` -> `_acme-challenge.example.com.example.net`
-See https://github.com/acmesh-official/acme.sh/wiki/DNS-alias-mode for
+See <https://github.com/acmesh-official/acme.sh/wiki/DNS-alias-mode> for
 details.
 
 - **Type**: `str`
 - **Required**: No
 
-###### `run_acmesh_certs['domains']['challenge']['domain_alias']`<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-domain_alias"></a>
+<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-domain_alias"></a>
+
+###### `run_acmesh_certs['domains']['challenge']['domain_alias']`
 
 [*⇑ Back to ToC ⇑*](#toc)
 
 Optional. Used with "dns" challenges as an alternative to
 `challenge_alias`. Instead of CNAME delegation, the alias domain is
 set directly as the domain to use for the DNS challenge validation.
-See https://github.com/acmesh-official/acme.sh/wiki/DNS-alias-mode
+See <https://github.com/acmesh-official/acme.sh/wiki/DNS-alias-mode>
 for details.
 
 - **Type**: `str`
 - **Required**: No
 
-###### `run_acmesh_certs['domains']['challenge']['webroot']`<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-webroot"></a>
+<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-webroot"></a>
+
+###### `run_acmesh_certs['domains']['challenge']['webroot']`
 
 [*⇑ Back to ToC ⇑*](#toc)
 
@@ -782,13 +794,15 @@ there (acme.sh creates `.well-known/acme-challenge` below it
 during issuance and renewal), e.g. via group membership or a
 pre-created, service-user owned `.well-known/acme-challenge`
 directory.
-See https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
+See <https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert>
 for details.
 
 - **Type**: `str`
 - **Required**: No
 
-###### `run_acmesh_certs['domains']['challenge']['httpport']`<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-httpport"></a>
+<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-httpport"></a>
+
+###### `run_acmesh_certs['domains']['challenge']['httpport']`
 
 [*⇑ Back to ToC ⇑*](#toc)
 
@@ -799,7 +813,9 @@ might be needed behind a reverse proxy or load balancer.
 - **Type**: `int`
 - **Required**: No
 
-###### `run_acmesh_certs['domains']['challenge']['tlsport']`<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-tlsport"></a>
+<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-tlsport"></a>
+
+###### `run_acmesh_certs['domains']['challenge']['tlsport']`
 
 [*⇑ Back to ToC ⇑*](#toc)
 
@@ -810,40 +826,46 @@ reverse proxy or load balancer.
 - **Type**: `int`
 - **Required**: No
 
-###### `run_acmesh_certs['domains']['challenge']['dns_persist_wildcard']`<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-dns_persist_wildcard"></a>
+<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-dns_persist_wildcard"></a>
+
+###### `run_acmesh_certs['domains']['challenge']['dns_persist_wildcard']`
 
 [*⇑ Back to ToC ⇑*](#toc)
 
 Optional. Used with "dns_persist" challenges. If true, the persistent
 TXT record will also authorize wildcard certificates and matching
 subdomains for this domain. Corresponds to acme.sh --dns-persist-wildcard.
-See https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode
+See <https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode>
 for details.
 
 - **Type**: `bool`
 - **Required**: No
 
-###### `run_acmesh_certs['domains']['challenge']['dns_persist_ca_name']`<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-dns_persist_ca_name"></a>
+<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-dns_persist_ca_name"></a>
+
+###### `run_acmesh_certs['domains']['challenge']['dns_persist_ca_name']`
 
 [*⇑ Back to ToC ⇑*](#toc)
 
 Optional. Used with "dns_persist" challenges. Specifies a custom CA
 identity domain name for the TXT record value (instead of deriving it
 from the server URL). Corresponds to acme.sh --dns-persist-ca-name.
-See https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode
+See <https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode>
 for details.
 
 - **Type**: `str`
 - **Required**: No
 
-###### `run_acmesh_certs['domains']['challenge']['dns_persist_days']`<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-dns_persist_days"></a>
+<a id="variable-run_acmesh_certs-sub-domains-sub-challenge-sub-dns_persist_days"></a>
+
+###### `run_acmesh_certs['domains']['challenge']['dns_persist_days']`
 
 [*⇑ Back to ToC ⇑*](#toc)
 
 Optional. Used with "dns_persist" challenges. Specifies the number of
 days the TXT record should be considered valid (adds a persistUntil
 field to the record). Corresponds to acme.sh --dns-persist-days.
-See https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode
+See <https://github.com/acmesh-official/acme.sh/wiki/DNS-persist-mode>
 for details.
 
 - **Type**: `int`
@@ -859,6 +881,7 @@ Dictionary defining where and how to install the issued
 certificates. The following keys specify file paths, the
 installation strategy, ownership and permission overrides and a
 reload command:
+
 - ca_file: String. Path to the certificate authority (CA) file.
 - cert_file: String. Path to the certificate file.
 - fullchain_file: String. Path to the full certificate chain file.
@@ -873,7 +896,6 @@ reload command:
   files change, so no sudo or polkit setup is needed. Requires at least
   one of the install file paths to be set. See the README of this role
   for details.
-
 - **Type**: `dict`
 - **Required**: No
 
@@ -908,7 +930,8 @@ reload command:
 
 [*⇑ Back to ToC ⇑*](#toc)
 
-Deprecated alias of `fullchain_file` (typo, "cain" instead of "chain"). Do not use.
+Deprecated alias of `fullchain_file` (typo, "cain" instead of "chain"). Do not
+use.
 
 - **Type**: `str`
 - **Required**: No
@@ -981,7 +1004,7 @@ numeric ID strings and must exist on the target.
 
 Example:
 
-```
+```text
 permissions:
   directory:
     owner: "root"
@@ -1000,7 +1023,9 @@ permissions:
 - **Type**: `dict`
 - **Required**: No
 
-###### `run_acmesh_certs['install']['permissions']['directory']`<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-directory"></a>
+<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-directory"></a>
+
+###### `run_acmesh_certs['install']['permissions']['directory']`
 
 [*⇑ Back to ToC ⇑*](#toc)
 
@@ -1012,9 +1037,12 @@ as `/etc/ssl` or `/etc/ssl/private`) are never changed.
 - **Type**: `dict`
 - **Required**: No
 
-> **Note**: This option has more options but this README shows nested options up to level 3. Please refer to the argument_specs file for complete details.
+> **Note**: This option has more options but this README shows nested options up
+> to level 3. Please refer to the argument_specs file for complete details.
 
-###### `run_acmesh_certs['install']['permissions']['default']`<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-default"></a>
+<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-default"></a>
+
+###### `run_acmesh_certs['install']['permissions']['default']`
 
 [*⇑ Back to ToC ⇑*](#toc)
 
@@ -1024,9 +1052,12 @@ certificate files (overridable per artifact).
 - **Type**: `dict`
 - **Required**: No
 
-> **Note**: This option has more options but this README shows nested options up to level 3. Please refer to the argument_specs file for complete details.
+> **Note**: This option has more options but this README shows nested options up
+> to level 3. Please refer to the argument_specs file for complete details.
 
-###### `run_acmesh_certs['install']['permissions']['ca_file']`<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-ca_file"></a>
+<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-ca_file"></a>
+
+###### `run_acmesh_certs['install']['permissions']['ca_file']`
 
 [*⇑ Back to ToC ⇑*](#toc)
 
@@ -1035,9 +1066,12 @@ Ownership and mode overrides for the installed `ca_file`.
 - **Type**: `dict`
 - **Required**: No
 
-> **Note**: This option has more options but this README shows nested options up to level 3. Please refer to the argument_specs file for complete details.
+> **Note**: This option has more options but this README shows nested options up
+> to level 3. Please refer to the argument_specs file for complete details.
 
-###### `run_acmesh_certs['install']['permissions']['cert_file']`<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-cert_file"></a>
+<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-cert_file"></a>
+
+###### `run_acmesh_certs['install']['permissions']['cert_file']`
 
 [*⇑ Back to ToC ⇑*](#toc)
 
@@ -1046,9 +1080,12 @@ Ownership and mode overrides for the installed `cert_file`.
 - **Type**: `dict`
 - **Required**: No
 
-> **Note**: This option has more options but this README shows nested options up to level 3. Please refer to the argument_specs file for complete details.
+> **Note**: This option has more options but this README shows nested options up
+> to level 3. Please refer to the argument_specs file for complete details.
 
-###### `run_acmesh_certs['install']['permissions']['fullchain_file']`<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-fullchain_file"></a>
+<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-fullchain_file"></a>
+
+###### `run_acmesh_certs['install']['permissions']['fullchain_file']`
 
 [*⇑ Back to ToC ⇑*](#toc)
 
@@ -1058,9 +1095,12 @@ Ownership and mode overrides for the installed
 - **Type**: `dict`
 - **Required**: No
 
-> **Note**: This option has more options but this README shows nested options up to level 3. Please refer to the argument_specs file for complete details.
+> **Note**: This option has more options but this README shows nested options up
+> to level 3. Please refer to the argument_specs file for complete details.
 
-###### `run_acmesh_certs['install']['permissions']['key_file']`<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-key_file"></a>
+<a id="variable-run_acmesh_certs-sub-install-sub-permissions-sub-key_file"></a>
+
+###### `run_acmesh_certs['install']['permissions']['key_file']`
 
 [*⇑ Back to ToC ⇑*](#toc)
 
@@ -1069,7 +1109,8 @@ Ownership and mode overrides for the installed `key_file`.
 - **Type**: `dict`
 - **Required**: No
 
-> **Note**: This option has more options but this README shows nested options up to level 3. Please refer to the argument_specs file for complete details.
+> **Note**: This option has more options but this README shows nested options up
+> to level 3. Please refer to the argument_specs file for complete details.
 
 
 ##### `run_acmesh_certs['install']['reloadcmd']`<a id="variable-run_acmesh_certs-sub-install-sub-reloadcmd"></a>
@@ -1107,11 +1148,11 @@ everything gets removed when `run_acmesh_state` is `absent`.
 
 Optional. Specifies the ACME CA server to use. Defaults
 to `letsencrypt`. Other options include:
+
 - "letsencrypt_test", "buypass_test", "google_test" for staging environments.
 - Custom CA URLs can also be used. See
-  https://github.com/acmesh-official/acme.sh/wiki/Server for a full list
+  <https://github.com/acmesh-official/acme.sh/wiki/Server> for a full list
   and details.
-
 - **Type**: `str`
 - **Required**: No
 - **Default**: `"letsencrypt"`
@@ -1154,7 +1195,7 @@ user defined by `run_acmesh_user` (during issuance as well as
 automated renewal), so it must not require root privileges. Use
 `reloadcmd` for reloading or restarting services (it runs as root).
 See
-https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
+<https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd>
 for details.
 
 - **Type**: `str`
@@ -1169,7 +1210,7 @@ or renewal. Executed by acme.sh as the unprivileged service user
 defined by `run_acmesh_user` (during issuance as well as automated
 renewal), so it must not require root privileges. Use `reloadcmd`
 for reloading or restarting services (it runs as root). See
-https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
+<https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd>
 for details.
 
 - **Type**: `str`
@@ -1184,7 +1225,7 @@ Executed by acme.sh as the unprivileged service user defined by
 `run_acmesh_user`, so it must not require root privileges. Use
 `reloadcmd` for reloading or restarting services (it runs as root).
 See
-https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd
+<https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd>
 for details.
 
 - **Type**: `str`
@@ -1194,9 +1235,9 @@ for details.
 
 [*⇑ Back to ToC ⇑*](#toc)
 
-Optional. Additional CLI flags for edge cases. Useful for passing custom parameters during
-certificate issuance wich are not natively supported by this role, just pass them as
-"--foo --bar 'baz'".
+Optional. Additional CLI flags for edge cases. Useful for passing custom
+parameters during certificate issuance wich are not natively supported by this
+role, just pass them as "--foo --bar 'baz'".
 
 - **Type**: `str`
 - **Required**: No
@@ -1207,10 +1248,10 @@ certificate issuance wich are not natively supported by this role, just pass the
 
 Optional. Dictionary of environment variables specific to this certificate.
 Setting environment variables per certificate can improve readability, as
-it clearly shows which certificate  or domain is using which credentials
+it clearly shows which certificate or domain is using which credentials
 in setups that involve multiple DNS provider credentials.
 
-These are merged with the  global`run_acmesh_environment`, with
+These are merged with the global`run_acmesh_environment`, with
 per-certificate values taking precedence on key conflicts.
 
 Please note that acme.sh DNS API plugins usually persist credentials per
@@ -1367,8 +1408,8 @@ Some ACME providers might refuse to issue certificates if not set.
 
 [*⇑ Back to ToC ⇑*](#toc)
 
-Specifies the installation directory for the acme.sh software  (relates
-to acme.sh option --home). Will also  be used as home directory of the
+Specifies the installation directory for the acme.sh software (relates
+to acme.sh option --home). Will also be used as home directory of the
 service user defined (see `run_acmesh_user`).
 
 - **Type**: `str`
@@ -1401,7 +1442,7 @@ the certificates where needed using the "install" key of `run_acmesh_certs`
 (relates to acme.sh option --install-cert). This ensures that the
 certificates are properly maintained and automatically reinstalled
 upon renewal. See the following for more information:
-https://github.com/acmesh-official/acme.sh/issues/2350#issuecomment-1449235599
+<https://github.com/acmesh-official/acme.sh/issues/2350#issuecomment-1449235599>
 
 - **Type**: `str`
 - **Required**: No
@@ -1526,7 +1567,7 @@ identifies accounts by their public key).
 
 Example:
 
-```
+```text
 run_acmesh_cfg_account_keys:
   - server: "letsencrypt"
     account_key: "\{\{ lookup('ansible.builtin.unvault', 'files/acmesh_account_key_letsencrypt.pem') \}\}"
@@ -1575,7 +1616,6 @@ If the pause expires without user confirmation, the play continues.
 - **Type**: `int`
 - **Required**: No
 - **Default**: `600`
-
 
 
 
