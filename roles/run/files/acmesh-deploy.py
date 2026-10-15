@@ -95,7 +95,7 @@ class DeployError(Exception):
 
 def log(message):
     """Write a concise message to stderr (journal via SyslogIdentifier)."""
-    print("acmesh-deploy: {0}".format(message), file=sys.stderr, flush=True)
+    print(f"acmesh-deploy: {message}", file=sys.stderr, flush=True)
 
 
 def run_openssl(arguments, data):
@@ -106,33 +106,26 @@ def run_openssl(arguments, data):
     """
     try:
         return subprocess.run(
-            [OPENSSL] + arguments,
+            [OPENSSL, *arguments],
             input=data,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             shell=False,
             check=False,
         )
     except OSError as exc:
-        raise DeployError(
-            EXIT_ERROR, "cannot execute {0}: {1}".format(OPENSSL, exc)
-        ) from exc
+        raise DeployError(EXIT_ERROR, f"cannot execute {OPENSSL}: {exc}") from exc
 
 
 def check_no_traversal(code, label, path):
     """Reject relative, empty, non-normalized or traversing paths."""
     if not isinstance(path, str) or not path:
-        raise DeployError(code, "{0}: path must be a non-empty string".format(label))
+        raise DeployError(code, f"{label}: path must be a non-empty string")
     if not path.startswith("/"):
-        raise DeployError(code, "{0}: path is not absolute: {1}".format(label, path))
+        raise DeployError(code, f"{label}: path is not absolute: {path}")
     if path != os.path.normpath(path):
-        raise DeployError(
-            code, "{0}: path is not normalized: {1}".format(label, path)
-        )
+        raise DeployError(code, f"{label}: path is not normalized: {path}")
     if ".." in path.split("/"):
-        raise DeployError(
-            code, "{0}: path contains traversal: {1}".format(label, path)
-        )
+        raise DeployError(code, f"{label}: path contains traversal: {path}")
 
 
 def open_locked_manifest(path):
@@ -147,52 +140,42 @@ def open_locked_manifest(path):
     if os.path.dirname(absolute) != MANIFEST_DIR:
         raise DeployError(
             EXIT_MANIFEST,
-            "manifest must reside directly below {0}: {1}".format(
-                MANIFEST_DIR, absolute
-            ),
+            f"manifest must reside directly below {MANIFEST_DIR}: {absolute}",
         )
     try:
         fd = os.open(absolute, os.O_RDONLY | os.O_NOFOLLOW)
     except OSError as exc:
         raise DeployError(
-            EXIT_MANIFEST, "cannot open manifest {0}: {1}".format(absolute, exc)
+            EXIT_MANIFEST, f"cannot open manifest {absolute}: {exc}"
         ) from exc
     file_stat = os.fstat(fd)
     if not stat.S_ISREG(file_stat.st_mode):
         os.close(fd)
-        raise DeployError(
-            EXIT_MANIFEST, "manifest is not a regular file: {0}".format(absolute)
-        )
+        raise DeployError(EXIT_MANIFEST, f"manifest is not a regular file: {absolute}")
     if file_stat.st_uid != 0:
         os.close(fd)
-        raise DeployError(
-            EXIT_MANIFEST, "manifest is not owned by root: {0}".format(absolute)
-        )
+        raise DeployError(EXIT_MANIFEST, f"manifest is not owned by root: {absolute}")
     if file_stat.st_mode & 0o022:
         os.close(fd)
         raise DeployError(
             EXIT_MANIFEST,
-            "manifest is group- or world-writable: {0}".format(absolute),
+            f"manifest is group- or world-writable: {absolute}",
         )
     deadline = time.monotonic() + LOCK_TIMEOUT_SECONDS
     while True:
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             break
-        except OSError:
+        except OSError as exc:
             if time.monotonic() >= deadline:
                 os.close(fd)
                 raise DeployError(
                     EXIT_ERROR,
-                    "timeout waiting for the deployment lock on {0}".format(
-                        absolute
-                    ),
-                )
+                    f"timeout waiting for the deployment lock on {absolute}",
+                ) from exc
             time.sleep(0.5)
     if file_stat.st_size > MAX_MANIFEST_SIZE:
-        raise DeployError(
-            EXIT_MANIFEST, "manifest exceeds size limit: {0}".format(absolute)
-        )
+        raise DeployError(EXIT_MANIFEST, f"manifest exceeds size limit: {absolute}")
     raw = b""
     while True:
         chunk = os.read(fd, 65536)
@@ -200,15 +183,11 @@ def open_locked_manifest(path):
             break
         raw += chunk
         if len(raw) > MAX_MANIFEST_SIZE:
-            raise DeployError(
-                EXIT_MANIFEST, "manifest exceeds size limit: {0}".format(absolute)
-            )
+            raise DeployError(EXIT_MANIFEST, f"manifest exceeds size limit: {absolute}")
     try:
         manifest = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, ValueError) as exc:
-        raise DeployError(
-            EXIT_MANIFEST, "manifest is not valid JSON: {0}".format(exc)
-        ) from exc
+        raise DeployError(EXIT_MANIFEST, f"manifest is not valid JSON: {exc}") from exc
     return fd, manifest
 
 
@@ -220,23 +199,22 @@ def validate_manifest(manifest):
     if unknown:
         raise DeployError(
             EXIT_MANIFEST,
-            "manifest contains unknown key(s): {0}".format(", ".join(sorted(unknown))),
+            "manifest contains unknown key(s): {}".format(", ".join(sorted(unknown))),
         )
     missing = MANIFEST_KEYS - set(manifest)
     if missing:
         raise DeployError(
             EXIT_MANIFEST,
-            "manifest misses key(s): {0}".format(", ".join(sorted(missing))),
+            "manifest misses key(s): {}".format(", ".join(sorted(missing))),
         )
     if manifest["version"] != 1:
         raise DeployError(
             EXIT_MANIFEST,
-            "unsupported manifest version: {0!r}".format(manifest["version"]),
+            "unsupported manifest version: {!r}".format(manifest["version"]),
         )
     certificate_id = manifest["certificate_id"]
-    if (
-        not isinstance(certificate_id, str)
-        or not re.fullmatch(r"[a-z0-9.-]{1,200}", certificate_id)
+    if not isinstance(certificate_id, str) or not re.fullmatch(
+        r"[a-z0-9.-]{1,200}", certificate_id
     ):
         raise DeployError(EXIT_MANIFEST, "invalid certificate_id")
     domains = manifest["domains"]
@@ -257,7 +235,7 @@ def validate_manifest(manifest):
     if unknown:
         raise DeployError(
             EXIT_MANIFEST,
-            "unknown artifact key(s): {0}".format(", ".join(sorted(unknown))),
+            "unknown artifact key(s): {}".format(", ".join(sorted(unknown))),
         )
     if manifest["completion_artifact"] not in artifacts:
         raise DeployError(
@@ -265,13 +243,13 @@ def validate_manifest(manifest):
         )
     destinations = set()
     for artifact, spec in artifacts.items():
-        label = "artifacts.{0}".format(artifact)
+        label = f"artifacts.{artifact}"
         if not isinstance(spec, dict):
-            raise DeployError(EXIT_MANIFEST, "{0} must be an object".format(label))
+            raise DeployError(EXIT_MANIFEST, f"{label} must be an object")
         if set(spec) != ARTIFACT_SPEC_KEYS:
             raise DeployError(
                 EXIT_MANIFEST,
-                "{0} must have exactly the keys: {1}".format(
+                "{} must have exactly the keys: {}".format(
                     label, ", ".join(sorted(ARTIFACT_SPEC_KEYS))
                 ),
             )
@@ -280,23 +258,21 @@ def validate_manifest(manifest):
         if os.path.dirname(staging) != staging_dir or not os.path.basename(staging):
             raise DeployError(
                 EXIT_MANIFEST,
-                "{0}.staging must reside directly below staging_dir".format(label),
+                f"{label}.staging must reside directly below staging_dir",
             )
         destination = spec["destination"]
         check_no_traversal(EXIT_MANIFEST, label + ".destination", destination)
         if destination == staging_dir or destination.startswith(staging_dir + "/"):
             raise DeployError(
                 EXIT_MANIFEST,
-                "{0}.destination must not reside below staging_dir".format(label),
+                f"{label}.destination must not reside below staging_dir",
             )
         if not os.path.dirname(destination) or not os.path.basename(destination):
-            raise DeployError(
-                EXIT_MANIFEST, "{0}.destination is invalid".format(label)
-            )
+            raise DeployError(EXIT_MANIFEST, f"{label}.destination is invalid")
         if destination in destinations:
             raise DeployError(
                 EXIT_MANIFEST,
-                "duplicate destination: {0}".format(destination),
+                f"duplicate destination: {destination}",
             )
         destinations.add(destination)
         for id_key in ("uid", "gid"):
@@ -304,30 +280,29 @@ def validate_manifest(manifest):
             if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                 raise DeployError(
                     EXIT_MANIFEST,
-                    "{0}.{1} must be a non-negative integer".format(label, id_key),
+                    f"{label}.{id_key} must be a non-negative integer",
                 )
         mode = spec["mode"]
         if not isinstance(mode, str) or not re.fullmatch(r"[0-7]{3,4}", mode):
             raise DeployError(
                 EXIT_MANIFEST,
-                "{0}.mode must be an octal string such as \"0640\"".format(label),
+                f'{label}.mode must be an octal string such as "0640"',
             )
         mode_int = int(mode, 8)
         if mode_int & 0o7111:
             raise DeployError(
                 EXIT_MANIFEST,
-                "{0}.mode must not contain execute or setuid/setgid/sticky "
-                "bits".format(label),
+                f"{label}.mode must not contain execute or setuid/setgid/sticky bits",
             )
         if mode_int & 0o022:
             raise DeployError(
                 EXIT_MANIFEST,
-                "{0}.mode must not be group- or world-writable".format(label),
+                f"{label}.mode must not be group- or world-writable",
             )
         if artifact == "key_file" and mode_int & 0o007:
             raise DeployError(
                 EXIT_MANIFEST,
-                "{0}.mode must not grant world access to a private key".format(label),
+                f"{label}.mode must not grant world access to a private key",
             )
 
 
@@ -353,8 +328,8 @@ def open_staging_dir(staging_dir):
             except OSError as exc:
                 raise DeployError(
                     EXIT_VALIDATION,
-                    "cannot open staging path component {0!r} below {1}: "
-                    "{2}".format(part, walked, exc),
+                    f"cannot open staging path component {part!r} below {walked}: "
+                    f"{exc}",
                 ) from exc
             os.close(fd)
             fd = next_fd
@@ -365,12 +340,12 @@ def open_staging_dir(staging_dir):
                     raise DeployError(
                         EXIT_VALIDATION,
                         "untrusted staging path component (must be root-owned "
-                        "and not group/world-writable): {0}".format(walked),
+                        f"and not group/world-writable): {walked}",
                     )
             elif dir_stat.st_mode & 0o002:
                 raise DeployError(
                     EXIT_VALIDATION,
-                    "staging directory is world-writable: {0}".format(walked),
+                    f"staging directory is world-writable: {walked}",
                 )
         return fd
     except DeployError:
@@ -392,19 +367,19 @@ def read_staging_file(staging_dir_fd, staging_path):
     except OSError as exc:
         raise DeployError(
             EXIT_VALIDATION,
-            "cannot open staged file {0}: {1}".format(staging_path, exc),
+            f"cannot open staged file {staging_path}: {exc}",
         ) from exc
     try:
         file_stat = os.fstat(fd)
         if not stat.S_ISREG(file_stat.st_mode):
             raise DeployError(
                 EXIT_VALIDATION,
-                "staged file is not a regular file: {0}".format(staging_path),
+                f"staged file is not a regular file: {staging_path}",
             )
         if file_stat.st_size > MAX_ARTIFACT_SIZE:
             raise DeployError(
                 EXIT_VALIDATION,
-                "staged file exceeds the size limit: {0}".format(staging_path),
+                f"staged file exceeds the size limit: {staging_path}",
             )
         os.set_blocking(fd, True)
         data = b""
@@ -416,12 +391,10 @@ def read_staging_file(staging_dir_fd, staging_path):
             if len(data) > MAX_ARTIFACT_SIZE:
                 raise DeployError(
                     EXIT_VALIDATION,
-                    "staged file exceeds the size limit: {0}".format(staging_path),
+                    f"staged file exceeds the size limit: {staging_path}",
                 )
         if not data:
-            raise DeployError(
-                EXIT_VALIDATION, "staged file is empty: {0}".format(staging_path)
-            )
+            raise DeployError(EXIT_VALIDATION, f"staged file is empty: {staging_path}")
         return data
     finally:
         os.close(fd)
@@ -436,13 +409,9 @@ def certificate_names(data):
             r"DNS:([^\s,]+)", result.stdout.decode("utf-8", "replace")
         ):
             names.add(match.group(1).lower())
-    result = run_openssl(
-        ["x509", "-noout", "-subject", "-nameopt", "RFC2253"], data
-    )
+    result = run_openssl(["x509", "-noout", "-subject", "-nameopt", "RFC2253"], data)
     if result.returncode == 0:
-        match = re.search(
-            r"CN=([^,\n]+)", result.stdout.decode("utf-8", "replace")
-        )
+        match = re.search(r"CN=([^,\n]+)", result.stdout.decode("utf-8", "replace"))
         if match:
             names.add(match.group(1).strip().lower())
     return names
@@ -454,24 +423,20 @@ def validate_staged(manifest, staged):
         if artifact == "key_file":
             result = run_openssl(["pkey", "-noout"], data)
             if result.returncode != 0:
-                raise DeployError(
-                    EXIT_VALIDATION, "staged private key does not parse"
-                )
+                raise DeployError(EXIT_VALIDATION, "staged private key does not parse")
         else:
             blocks = PEM_CERT_RE.findall(data)
             if not blocks:
                 raise DeployError(
                     EXIT_VALIDATION,
-                    "staged {0} contains no PEM certificate".format(artifact),
+                    f"staged {artifact} contains no PEM certificate",
                 )
             for block in blocks:
                 result = run_openssl(["x509", "-noout"], block)
                 if result.returncode != 0:
                     raise DeployError(
                         EXIT_VALIDATION,
-                        "staged {0} contains an invalid certificate".format(
-                            artifact
-                        ),
+                        f"staged {artifact} contains an invalid certificate",
                     )
     # The leaf certificate is the cert_file and/or the first certificate of
     # the fullchain_file. Both (if configured) must cover the certificate's
@@ -497,23 +462,19 @@ def validate_staged(manifest, staged):
             if domain.lower() not in names:
                 raise DeployError(
                     EXIT_VALIDATION,
-                    "staged {0} does not cover the configured domain "
-                    "{1}".format(artifact, domain),
+                    f"staged {artifact} does not cover the configured domain {domain}",
                 )
         if key_pubkey is not None:
             result = run_openssl(["x509", "-noout", "-pubkey"], leaf)
             if result.returncode != 0:
                 raise DeployError(
                     EXIT_VALIDATION,
-                    "cannot derive the public key of the staged {0}".format(
-                        artifact
-                    ),
+                    f"cannot derive the public key of the staged {artifact}",
                 )
             if result.stdout != key_pubkey:
                 raise DeployError(
                     EXIT_VALIDATION,
-                    "the staged private key does not match the staged "
-                    "{0}".format(artifact),
+                    f"the staged private key does not match the staged {artifact}",
                 )
 
 
@@ -533,8 +494,8 @@ def examine_destination(artifact, spec):
     except OSError as exc:
         raise DeployError(
             EXIT_VALIDATION,
-            "cannot open destination directory {0}: {1} (the Ansible role "
-            "creates and manages it)".format(directory, exc),
+            f"cannot open destination directory {directory}: {exc} (the Ansible role "
+            "creates and manages it)",
         ) from exc
     entry = {
         "artifact": artifact,
@@ -553,12 +514,12 @@ def examine_destination(artifact, spec):
     if stat.S_ISLNK(leaf_stat.st_mode):
         raise DeployError(
             EXIT_VALIDATION,
-            "destination is a symlink: {0}".format(destination),
+            f"destination is a symlink: {destination}",
         )
     if not stat.S_ISREG(leaf_stat.st_mode):
         raise DeployError(
             EXIT_VALIDATION,
-            "destination is not a regular file: {0}".format(destination),
+            f"destination is not a regular file: {destination}",
         )
     fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=dir_fd)
     try:
@@ -604,13 +565,15 @@ def write_replacement(entry, data):
     """
     spec = entry["spec"]
     dir_fd = entry["dir_fd"]
-    temp_name = ".{0}.acmesh-deploy.tmp".format(entry["name"])
+    temp_name = ".{}.acmesh-deploy.tmp".format(entry["name"])
     try:
         os.unlink(temp_name, dir_fd=dir_fd)
     except FileNotFoundError:
         pass
     fd = os.open(
-        temp_name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600,
+        temp_name,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+        0o600,
         dir_fd=dir_fd,
     )
     try:
@@ -642,9 +605,7 @@ def write_replacement(entry, data):
 def apply_metadata(entry):
     """Fix ownership/mode on the existing inode (no rename, no path events)."""
     spec = entry["spec"]
-    fd = os.open(
-        entry["name"], os.O_RDONLY | os.O_NOFOLLOW, dir_fd=entry["dir_fd"]
-    )
+    fd = os.open(entry["name"], os.O_RDONLY | os.O_NOFOLLOW, dir_fd=entry["dir_fd"])
     try:
         os.fchown(fd, spec["uid"], spec["gid"])
         os.fchmod(fd, int(spec["mode"], 8))
@@ -670,14 +631,14 @@ def rollback(published):
                     },
                 }
                 write_replacement(restore, entry["old_data"])
-                log("rollback: restored {0}".format(destination))
+                log(f"rollback: restored {destination}")
             else:
                 os.unlink(entry["name"], dir_fd=entry["dir_fd"])
-                log("rollback: removed {0}".format(destination))
+                log(f"rollback: removed {destination}")
         except OSError as exc:
             log(
-                "rollback of {0} failed: {1} (manual intervention may be "
-                "required)".format(destination, exc)
+                f"rollback of {destination} failed: {exc} (manual intervention may be "
+                "required)"
             )
 
 
@@ -736,17 +697,13 @@ def main(argv=None):
         if args.check:
             if drift:
                 for artifact, state in drift.items():
-                    log(
-                        "check {0}: {1} drift on {2}".format(
-                            certificate_id, state, artifact
-                        )
-                    )
+                    log(f"check {certificate_id}: {state} drift on {artifact}")
                 return EXIT_DRIFT
-            log("check {0}: in sync".format(certificate_id))
+            log(f"check {certificate_id}: in sync")
             return EXIT_OK
 
         if not drift:
-            log("{0}: already in sync, nothing to do".format(certificate_id))
+            log(f"{certificate_id}: already in sync, nothing to do")
             return EXIT_OK
 
         published = []
@@ -756,7 +713,7 @@ def main(argv=None):
                     write_replacement(entry, staged[entry["artifact"]])
                     published.append(entry)
                     log(
-                        "{0}: published {1} to {2}".format(
+                        "{}: published {} to {}".format(
                             certificate_id,
                             entry["artifact"],
                             entry["spec"]["destination"],
@@ -765,26 +722,26 @@ def main(argv=None):
                 elif entry["state"] == "metadata":
                     apply_metadata(entry)
                     log(
-                        "{0}: reconciled ownership/mode of {1}".format(
+                        "{}: reconciled ownership/mode of {}".format(
                             certificate_id, entry["spec"]["destination"]
                         )
                     )
         except OSError as exc:
-            log("{0}: publishing failed: {1}".format(certificate_id, exc))
+            log(f"{certificate_id}: publishing failed: {exc}")
             rollback(published)
             raise DeployError(
                 EXIT_PUBLISH,
-                "incomplete deployment of {0}, previous state restored as far "
-                "as possible".format(certificate_id),
+                f"incomplete deployment of {certificate_id}, previous state restored as far "
+                "as possible",
             ) from exc
 
-        log("{0}: deployment complete".format(certificate_id))
+        log(f"{certificate_id}: deployment complete")
         return EXIT_OK
     except DeployError as exc:
         log(str(exc))
         return exc.code
     except Exception as exc:  # pylint: disable=broad-except
-        log("unexpected error: {0!r}".format(exc))
+        log(f"unexpected error: {exc!r}")
         return EXIT_ERROR
     finally:
         for entry in entries:
