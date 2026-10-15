@@ -37,6 +37,16 @@ test environment setup and how to add verification tasks.
 
 ## Testing
 
+Run Python helper checks from the collection root:
+
+```sh
+CI=true uv run noxfile.py -s helper-lint
+```
+
+`helper-lint` covers Python in `extensions/molecule/`, `roles/*/files/`,
+`tools/` and `scripts/`, using [ruff.toml](ruff.toml).
+It runs by default; add it to CI configurations that list sessions explicitly.
+
 After setting up the required test tools, run the collection's Molecule scenario
 from the repository root:
 
