@@ -1,2 +1,3 @@
+---
 bugfixes:
   - "Check the minimum ansible-core version before gathering role facts so unsupported versions fail with the intended diagnostic."
