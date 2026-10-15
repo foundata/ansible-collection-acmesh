@@ -7,6 +7,11 @@
 ---
 extends: "default"
 
+# Generator-owned output is validated by the changelog session.
+ignore:
+  - "changelogs/changelog.yaml"
+  - "changelogs/.plugin-cache.yaml"
+
 rules:
   document-start:
     present: true
