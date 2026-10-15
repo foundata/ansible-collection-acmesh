@@ -63,6 +63,16 @@ git diff --check
 
 ## Changelog and releases
 
+Releases require `releasing>=7.0.0` for the `release` command. Install the
+development requirement in the maintainer's Python environment:
+
+```sh
+python -m pip install -r requirements-dev.txt
+```
+
+`release build` runs the committed revision's Ansible sanity tests before
+building the archive.
+
 Write user-visible changes as YAML fragments under
 [`changelogs/fragments/`](./changelogs/fragments/). Start from the
 [fragment template](./changelogs/fragments/00-fragment-template.txt), keep the
