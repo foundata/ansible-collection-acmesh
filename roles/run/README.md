@@ -634,7 +634,7 @@ are included for completeness and to cover edge cases:
 
 ## Role variables<a id="variables"></a>
 
-Main entry point for the foundata.acmesh.run role
+Main entry point for the foundata.acmesh.run role.
 
 Manage acme.sh (shell script implementing the ACME client protocol).
 Issue and maintain X.509 certificates.
@@ -644,7 +644,7 @@ The following variables can be configured for this role:
 |                 Variable                 |  Type  | Required |                      Default                       | Description (abstract) |
 | ---------------------------------------- | ------ | -------- | -------------------------------------------------- | ---------------------- |
 | `run_acmesh_state`                       | `str`  | No       | `"present"`                                        | Determines whether the managed resources should be `present` or `absent`.<br><br>`present` ensures that required components, such as software packages, are installed and configured.<br><br>`absent` reverts changes as much as possible, such as […](#variable-run_acmesh_state) |
-| `run_acmesh_autoupgrade`                 | `bool` | No       | `false`                                            | If set to `true`, all managed packages will be upgraded during each Ansible run (e.g., when the package provider detects a newer version than the currently installed one). |
+| `run_acmesh_autoupgrade`                 | `bool` | No       | `false`                                            | If set to `true`, each Ansible run upgrades the managed packages to the newest version the package provider offers. |
 | `run_acmesh_autorenewal`                 | `bool` | No       | `true`                                             | Enables daily automatic certificate renewal via systemd timer (this role is not using acme.sh's cronjob function). |
 | `run_acmesh_environment` 🔒              | `dict` | No       | `{}`                                               | Defines environment variables required for ACME DNS challenges.<br><br>This is typically needed for DNS challenge plugins, such as those requiring DNS API credentials (e.g., `HETZNER_Token`, `INWX_User`, `INWX_Password`). Multiple variables can be […](#variable-run_acmesh_environment) |
 | `run_acmesh_git_url`                     | `str`  | No       | `"https://github.com/acmesh-official/acme.sh.git"` | The Git repository URL for acme.sh. The role uses this URL to clone the source code during installation or updates and to query available version tags via `git ls-remote`.<br><br>Can be set to an internal Git mirror for air-gapped environments or to […](#variable-run_acmesh_git_url) |
@@ -678,7 +678,7 @@ Determines whether the managed resources should be `present` or `absent`.
 installed and configured.
 
 `absent` reverts changes as much as possible, such as removing packages,
-deleting created users, stopping services, restoring modified settings, …
+deleting created users, stopping services and restoring modified settings.
 
 - **Type**: `str`
 - **Required**: No
@@ -691,9 +691,8 @@ deleting created users, stopping services, restoring modified settings, …
 
 [*⇑ Back to ToC ⇑*](#toc)
 
-If set to `true`, all managed packages will be upgraded during each Ansible
-run (e.g., when the package provider detects a newer version than the
-currently installed one).
+If set to `true`, each Ansible run upgrades the managed packages to the
+newest version the package provider offers.
 
 - **Type**: `bool`
 - **Required**: No
