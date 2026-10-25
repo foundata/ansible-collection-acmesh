@@ -13,6 +13,7 @@ argument_specs:
   # foundata.acmesh/roles/run/tasks/main.yml entry point
   main:
     short_description: "Main entry point for the foundata.acmesh.run role."
+    version_added: "1.0.0"
     description: |
       Manage acme.sh (shell script implementing the ACME client protocol).
       Issue and maintain X.509 certificates.
