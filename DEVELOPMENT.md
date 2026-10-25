@@ -59,6 +59,10 @@ CI=true uv run noxfile.py -s helper-lint
 `tools/`, `scripts/` and `tests/runtime_check.py`, using [ruff.toml](ruff.toml).
 It runs by default; add it to CI configurations that list sessions explicitly.
 
+Below a deep checkout, nox gives each session a short symbolic link as
+`TMPDIR`, because Unix socket paths are limited in length. A test of code that
+refuses symbolic links in a path resolves `TMPDIR` first.
+
 After setting up the required test tools, run the collection's Molecule scenario
 from the repository root:
 
