@@ -104,7 +104,9 @@ Write user-visible changes as YAML fragments under
 [fragment template](./changelogs/fragments/00-fragment-template.txt), keep the
 applicable categories, and use reStructuredText in entry text.
 
-Antsibull owns [`CHANGELOG.rst`](./CHANGELOG.rst); its configuration is in
+`release` turns the fragments into [`CHANGELOG.rst`](./CHANGELOG.rst) and
+[`changelogs/changelog.yaml`](./changelogs/changelog.yaml), so neither file is
+edited by hand. Antsibull's configuration is in
 [`changelogs/config.yaml`](./changelogs/config.yaml). Release metadata comes
 from [`galaxy.yml`](./galaxy.yml) and [`.releasing.toml`](./.releasing.toml).
 
