@@ -44,6 +44,10 @@ Paths are relative to this directory unless stated otherwise.
 
 ## Requirements<a id="requirements"></a>
 
+When product tests refuse symlinked paths, use a short real checkout path such
+as `/var/tmp/<owner-directory>` on disk, never tmpfs. Resolving the short link
+Nox supplies for a long `TMPDIR` exposes the long path again.
+
 Install [Molecule](https://docs.ansible.com/projects/molecule/installation/).
 The scenarios use Molecule's `default` driver with their own create and destroy
 playbooks, so they need no Molecule driver plugin. Before each run, Molecule
