@@ -46,9 +46,8 @@ used for securing HTTPS/TLS/SSL services on web servers.
 
 ### Role: `foundata.acmesh.run`
 
-The primary role in this collection for issuing and managing certificates.
-[Its `README.md`](./roles/run/README.md) covers configuration, usage examples,
-and more:
+The primary role in this collection for issuing and managing certificates. [Its
+`README.md`](./roles/run/README.md) covers configuration and usage examples.
 
 <!-- ANSIBLE DOCSMITH TOC-FULL run START -->
 - [Ansible role: `foundata.acmesh.run`](./roles/run/README.md#ansible-role-foundataacmeshrun)
