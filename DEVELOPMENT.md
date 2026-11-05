@@ -55,9 +55,15 @@ Run Python helper checks from the collection root:
 CI=true uv run noxfile.py -s helper-lint
 ```
 
-`helper-lint` covers Python in `extensions/molecule/`, `roles/*/files/`,
-`tools/`, `scripts/` and `tests/runtime_check.py`, using [ruff.toml](ruff.toml).
-It runs by default; add it to CI configurations that list sessions explicitly.
+`helper-lint` checks the Python outside `plugins/` with
+[ruff.toml](./ruff.toml): `extensions/molecule/`, the roles' `files/`,
+`tools/`, `scripts/` and `tests/` apart from `tests/unit/`,
+`tests/integration/` and `tests/output/`. Add it to CI configurations that
+list sessions explicitly.
+
+Put the collection's own pytest suites below `tests/unit/` so ansible-test
+runs them. Other Python below `tests/` is linted by `helper-lint` but is not
+run as a test suite.
 
 Below a deep checkout, nox gives each session a short symbolic link as
 `TMPDIR`, because Unix socket paths are limited in length. A test of code that
@@ -117,6 +123,20 @@ to Ansible Galaxy, and verification. Publishing requires the maintainer's Galaxy
 and GitHub credentials.
 
 ## Troubleshooting
+
+To recover a short-path directory left by a killed Nox invocation, find it as
+`nox.*` below `XDG_RUNTIME_DIR`, or below `/var/tmp` without one;
+`uv run noxfile.py` leaves two. Read its `owner.json` at the exact path. It
+records the path, the creator's host, PID and creation time and the directory's
+device and inode. On that host, the invocation ended if no process has the PID
+or the process holding it started after the creation time. Also confirm that
+none of your processes has the path in its environment or working directory,
+because a session's children outlive Nox. Compare the path without following
+links. It holds only `owner.json` and numbered links to temporary directories.
+Delete those entries by name, keep the link targets, and remove the directory
+with `rmdir`. Leave symlinked or replaced paths and uncertain creators for
+investigation. Nox itself removes only the unchanged directory its invocation
+created.
 
 See the [Molecule troubleshooting guide](./extensions/molecule/README.md#faq)
 for role-path detection, air-gapped environments, container limits, and VM
