@@ -1,0 +1,6 @@
+---
+bugfixes:
+  - >-
+    run role - Refresh systemd directly before staged deployment instead of
+    flushing all pending play handlers, preserving unrelated services' setup
+    order during fresh provisioning.

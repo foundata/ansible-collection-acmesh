@@ -364,6 +364,17 @@
     # credentials (run_acmesh_environment, per-certificate environment).
     label: "{{ item['key'] }}"
 
+- name: "Molecule | Converge | Queue an unrelated handler before ACME setup"
+  ansible.builtin.debug:
+    msg: "The consumer becomes ready after the ACME role."
+    verbosity: 1
+  changed_when:
+    - true
+  notify:
+    - "testing_acmesh_check_handler_order"
+  tags:
+    - "molecule-idempotence-notest"
+
 - name: "Molecule | Converge | Include the foundata.acmesh.run role"
   ansible.builtin.include_role:
     name: "foundata.acmesh.run"
@@ -371,3 +382,7 @@
   #       the role. This enables persisting the values in __testing_state
   #       and restoring them in later stages (e.g. verify) without manually
   #       duplicating data across playbooks.
+
+- name: "Molecule | Converge | Mark the later consumer ready for its handler"
+  ansible.builtin.set_fact:
+    __testing_acmesh_setup_complete: true

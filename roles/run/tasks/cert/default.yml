@@ -1104,7 +1104,11 @@
 # when its last (possibly path-triggered) run failed, so converged runs stay
 # idempotent while earlier failures still resurface here.
 - name: "Cert | Default | Apply pending systemd changes before staged deployment"
-  ansible.builtin.meta: "flush_handlers"
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when:
+    - __run_acmesh_is_installed
+    - (__run_acmesh_install_normalized_staged | ansible.builtin.length) > 0
 
 - name: "Cert | Default | Get information about the deployment manifest(s) (staged deployment)"
   ansible.builtin.stat:

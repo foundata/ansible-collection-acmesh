@@ -12,6 +12,14 @@
   hosts: "molecule"
   gather_facts: false
   no_log: "{{ molecule_no_log | ansible.builtin.default(false) }}"
+  handlers:
+    - name: "Molecule | Converge | Check unrelated handler runs after ACME setup"
+      ansible.builtin.assert:
+        that:
+          - __testing_acmesh_setup_complete | ansible.builtin.default(false)
+        fail_msg: "ACME setup flushed an unrelated handler before its consumer was ready."
+      listen:
+        - "testing_acmesh_check_handler_order"
   pre_tasks:
     - name: "Molecule | Converge | Restore __testing_state (if any) from YAML file from localhost"
       # Although this task is delegated to localhost, the play itself targets
