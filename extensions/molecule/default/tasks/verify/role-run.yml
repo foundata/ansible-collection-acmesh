@@ -949,7 +949,6 @@
         get_checksum: false
         get_mime: false
       loop:
-        - "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.path"
         - "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.service"
       register: __testing_acmesh_reload_files_stat
 
@@ -981,29 +980,18 @@
             (__testing_acmesh_reload_serviceunit_content['content'] | ansible.builtin.b64decode)
         fail_msg: "The reload service unit does not inline the reload command into ExecStart."
 
-    - name: "Molecule | Verify | Get acmesh-reload path unit state (webroot challenge)"
-      ansible.builtin.command:
-        argv:
-          - "systemctl"
-          - "show"
-          - "acmesh-reload-acmesh-webroot.test.path"
-          - "--property=ActiveState,UnitFileState"
-      changed_when:
-        - false
-      register: __testing_acmesh_reload_path_state
+    - name: "Molecule | Verify | Check staged deployments have no installed-file watcher"
+      ansible.builtin.stat:
+        path: "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.path"
+      register: __testing_acmesh_reload_path_stat
 
-    - name: "Molecule | Verify | Assert acmesh-reload path unit is active and enabled (webroot challenge)"
+    - name: "Molecule | Verify | Assert staged reloads only follow explicit publication"
       ansible.builtin.assert:
         that:
-          - "'ActiveState=active' in __testing_acmesh_reload_path_state['stdout']"
-          - "'UnitFileState=enabled' in __testing_acmesh_reload_path_state['stdout']"
-        fail_msg: >-
-          The acmesh-reload path unit is not active/enabled:
-          {{ __testing_acmesh_reload_path_state['stdout'] }}
-
+          - not __testing_acmesh_reload_path_stat['stat']['exists']
 
     # The converge run installed the certificate files, which must have
-    # triggered the path unit; the reloadcmd writes the executing username
+    # started the reload service; the reloadcmd writes the executing username
     # into the marker file, proving the reload ran as root.
     - name: "Molecule | Verify | Gather stats for the reload marker file written during converge (webroot challenge)"
       ansible.builtin.stat:
@@ -1018,7 +1006,7 @@
           - __testing_acmesh_reload_marker_stat['stat']['exists']
         fail_msg: >-
           /var/tmp/acmesh-reload-webroot-marker does not exist: installing the
-          certificate files did not trigger the acmesh-reload path unit.
+          certificate files did not start the reload service.
 
 
     # Functional round-trip, negative direction: an unprivileged write to the
@@ -1122,6 +1110,12 @@
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
 
+- name: "Molecule | Verify | Test served TLS certificates"
+  ansible.builtin.include_tasks:
+    file: "checks/staged-renewal.yml"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+
 ## Renewal parity
 #
 # A forced renewal as the unprivileged service user must work end-to-end (issue
@@ -1154,6 +1148,8 @@
       environment:
         # Mirror the Environment= of acmesh-renewal.service
         HOME: "{{ run_acmesh_cfg_home }}"
+        # Repeated forced renewals exercise publication, not Pebble's ARI state.
+        NO_ARI: "1"
       changed_when:
         - true
       register: __testing_acmesh_forced_renewal
@@ -1438,6 +1434,7 @@
         get_checksum: false
         get_mime: false
       loop:
+        - "/var/lib/acmesh-deploy/acmesh-direct.test"
         - "{{ run_acmesh_cfg_cert_deploy_base_dir }}/acmesh-direct.test"
         - "/etc/acmesh-deploy.d/acmesh-direct.test.json"
         - "/etc/systemd/system/acmesh-deploy-acmesh-direct.test.path"
@@ -1927,13 +1924,16 @@
         group: "root"
         mode: "u=rw,g=r,o=r" # 0644
 
-    - name: "Molecule | Verify | Plant stray deployment manifest and staging directory"
+    - name: "Molecule | Verify | Plant stray staging and reload state directories"
       ansible.builtin.file:
-        path: "{{ run_acmesh_cfg_cert_deploy_base_dir }}/stray-reap.test"
+        path: "{{ item }}"
         state: "directory"
         owner: "root"
         group: "root"
         mode: "u=rwx,g=rx,o=" # 0750
+      loop:
+        - "{{ run_acmesh_cfg_cert_deploy_base_dir }}/stray-reap.test"
+        - "/var/lib/acmesh-deploy/stray-reap.test"
 
     - name: "Molecule | Verify | Plant stray deployment manifest"
       ansible.builtin.copy:
@@ -1969,15 +1969,19 @@
           expect: false
         - path: "{{ run_acmesh_cfg_cert_deploy_base_dir }}/stray-reap.test"
           expect: false
+        - path: "/var/lib/acmesh-deploy/stray-reap.test"
+          expect: false
         - path: "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc"
           expect: true
-        - path: "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.path"
+        - path: "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.service"
           expect: true
         - path: "/etc/systemd/system/acmesh-deploy-acmesh-webroot.test.path"
           expect: true
         - path: "/etc/acmesh-deploy.d/acmesh-webroot.test.json"
           expect: true
         - path: "{{ run_acmesh_cfg_cert_deploy_base_dir }}/acmesh-webroot.test"
+          expect: true
+        - path: "/var/lib/acmesh-deploy/acmesh-webroot.test"
           expect: true
       loop_control:
         label: "{{ item['path'] }}"
@@ -2029,6 +2033,7 @@
         - "/etc/systemd/system/acmesh-deploy-acmesh-webroot.test.service"
         - "/etc/acmesh-deploy.d/acmesh-webroot.test.json"
         - "{{ run_acmesh_cfg_cert_deploy_base_dir }}/acmesh-webroot.test"
+        - "/var/lib/acmesh-deploy/acmesh-webroot.test"
         - "/etc/pki/tls/certs/acmesh-webroot.test/ca.cer"
         - "/etc/pki/tls/certs/acmesh-webroot.test/cert.cer"
         - "/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer"
@@ -2959,6 +2964,7 @@
       - domain: "Normalize.Example.test"
         cert_id: "normalize.example.test"
         strategy: "staged"
+        reload_service: ""
         staging_dir: "{{ run_acmesh_cfg_cert_deploy_base_dir }}/normalize.example.test"
         completion_key: "fullchain_file"
         directory:
@@ -2985,6 +2991,7 @@
       - domain: "direct.example.test"
         cert_id: "direct.example.test"
         strategy: "direct"
+        reload_service: ""
         staging_dir: "{{ run_acmesh_cfg_cert_deploy_base_dir }}/direct.example.test"
         completion_key: "cert_file"
         directory:

@@ -1,0 +1,48 @@
+# Regression coverage for renewal convergence and serving staged publications.
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+- name: "Molecule | Verify | Configure NGINX to serve the staged certificate"
+  ansible.builtin.include_role:
+    name: "foundata.nginx.run"
+  vars:
+    run_nginx_sites_config:
+      - name: "acmesh-webroot-test"
+        enabled: true
+        content: |
+          server {
+              listen 80;
+              server_name acmesh-webroot.test acmesh-direct.test;
+              root /var/www/acmesh-test;
+          }
+      - name: "acmesh-tls-test"
+        enabled: true
+        content: |
+          server {
+              listen 127.0.0.1:8443 ssl;
+              server_name acmesh-webroot.test;
+              ssl_certificate /etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer;
+              ssl_certificate_key /etc/molecule-acmesh-protected/acmesh-webroot.test/cert.key;
+              return 200 'acmesh';
+          }
+  when:
+    - (lookup('ansible.builtin.env', 'TEST_ACMESH_WEBROOT_BACKEND') | ansible.builtin.default('nginx', true)) == 'nginx'
+
+- name: "Molecule | Verify | Activate the TLS test consumer"
+  ansible.builtin.meta: "flush_handlers"
+
+- name: "Molecule | Verify | Compare served serials through renewal and no-op deployment"
+  ansible.builtin.script:
+    cmd: >-
+      {{ molecule_scenario_directory }}/files/check-served-renewal.py
+      {{ run_acmesh_cfg_home | ansible.builtin.quote }}
+      {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
+      {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
+      {{ run_acmesh_user | ansible.builtin.quote }}
+    executable: "{{ __run_acmesh_deploy_python_exec_path }}"
+  when:
+    - (lookup('ansible.builtin.env', 'TEST_ACMESH_WEBROOT_BACKEND') | ansible.builtin.default('nginx', true)) == 'nginx'
+  changed_when:
+    - true

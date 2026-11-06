@@ -143,6 +143,7 @@
         run_acmesh_cfg_logfile,
         run_acmesh_cfg_cert_deploy_base_dir,
         __run_acmesh_deploy_manifest_dir_path,
+        __run_acmesh_deploy_state_dir_path,
         __run_acmesh_deploy_helper_path,
         __run_acmesh_profiled_envfile_path,
         __run_acmesh_systemd_renewal_servicefile_path,

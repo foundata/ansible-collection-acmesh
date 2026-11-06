@@ -474,24 +474,26 @@ argument_specs:
                 description: |
                   Optional. Command to reload or restart services after the certificate
                   was installed or renewed. It is not executed by `acme.sh` but by a
-                  root-side systemd path unit (`acmesh-reload-<primary domain>.path`)
-                  which watches the installed certificate files and runs the command
-                  (as `root`, via a companion service unit) whenever they change. This
-                  works identically for the initial issuance, automated renewal and
-                  manual `acme.sh` runs, without granting the service user defined by
-                  `run_acmesh_user` any privileges (no sudo or polkit setup needed).
-                  A failing reload command leaves the `acmesh-reload-<primary
-                  domain>.service` unit in a failed state, visible via
-                  `systemctl --failed` and the journal.
+                  root-side systemd service (`acmesh-reload-<primary domain>.service`).
+                  With `staged`, the deploy helper starts this service after
+                  successful content publication and waits for its result. No-op
+                  and metadata-only deployments do not reload consumers. Failed
+                  reloads remain pending and are retried by the next deployment
+                  or role run without reissuing the certificate.
 
-                  Requires at least one of `fullchain_file`, `key_file`, `ca_file` or
-                  `cert_file` to be set (the unit watches the last one of these files
-                  `acme.sh` writes). Reload units of certificates that are no longer
-                  listed in `run_acmesh_certs` are kept by default (`acme.sh` keeps
-                  renewing and reinstalling issued certificates until they are
-                  actively removed). Remove a certificate with its `state: absent` or
-                  enable `run_acmesh_certs_delete_unmanaged` to reap such leftovers;
-                  everything gets removed when `run_acmesh_state` is `absent`.
+                  With `direct`, a companion path unit watches the last installed
+                  file written by acme.sh and starts the reload asynchronously.
+                  Both strategies run the command as root without granting the
+                  service user sudo or polkit privileges. Reload failures remain
+                  visible through `systemctl --failed` and the journal.
+
+                  Requires at least one install file path. The consumer must be
+                  ready when publication runs; use a command such as
+                  `systemctl try-reload-or-restart nginx.service` if it should
+                  reload only an already running service during bootstrap.
+                  Units of unlisted certificates are retained unless removed via
+                  `state: absent`, `run_acmesh_certs_delete_unmanaged`, or
+                  `run_acmesh_state: absent`.
                 type: "str"
           server:
             description: |

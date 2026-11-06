@@ -116,8 +116,8 @@ Main features:
   - By default, other users cannot read certificates managed by `acme.sh`. See
     the [usage examples](#examples-cert-access) for ways to grant access if
     needed.
-  - The `reloadcmd` of each certificate runs as `root` via a systemd path unit
-    watching the installed certificate files, so services get reloaded reliably
+  - The `reloadcmd` of each certificate runs as `root` via a systemd service
+    after certificate publication, so services get reloaded reliably
     after issuance and renewal without granting the service user any privileges.
     See the [usage examples](#examples-reload-permissions) for details.
 - **Staged certificate installation (default since version 4.0.0)**: `acme.sh`
@@ -296,7 +296,7 @@ The deployment chain of the staged strategy is an extension of the
 renewal (unprivileged acme.sh) → staging files
   → acmesh-deploy-<id>.path → acmesh-deploy-<id>.service (root helper, validates + publishes)
   → final files (completion artifact last)
-  → acmesh-reload-<id>.path → reloadcmd (root)
+  → acmesh-reload-<id>.service → reloadcmd (root, awaited by the helper)
 ```
 
 The helper (`/usr/libexec/acmesh-deploy`) validates all staged input before
@@ -408,28 +408,31 @@ merely to deploy a certificate.
 
 ### Service reloads after certificate changes (reloadcmd)<a id="examples-reload-permissions"></a>
 
-The `reloadcmd` of a certificate is **not** executed by `acme.sh`. Instead, the
-role creates a systemd path unit (`acmesh-reload-<primary domain>.path`) which
-watches the installed certificate files and starts a companion service unit that
-runs the `reloadcmd` **as `root`** whenever the files change:
+The role runs `reloadcmd` **as root** through
+`acmesh-reload-<primary domain>.service`, without granting privileges to the
+acme.sh service user.
 
-- No sudo or polkit setup is needed; plain commands like
-  `reloadcmd: "systemctl reload nginx.service"` just work. The unprivileged
-  service user defined by `run_acmesh_user` does not get any privileges: it only
-  writes the certificate files, root reacts to the change.
-- The behavior is identical no matter how the certificate files change: initial
-  issuance through this role, automated renewal (`acmesh-renewal.service`, which
-  runs unprivileged), manual `acme.sh` runs, or restoring
-  [pre-seeded files](#examples-preseed).
-- A failing `reloadcmd` leaves `acmesh-reload-<primary domain>.service` in a
-  failed state, visible via `systemctl --failed` and the journal
-  (`journalctl -t acmesh-reload`), instead of being silently swallowed during
-  renewal.
-- The command is inlined into the service unit's `ExecStart=` (systemd-escaped
-  so the shell receives it exactly as configured, single line only);
-  `systemctl cat acmesh-reload-<primary domain>.service` shows it.
-- The reload happens asynchronously (typically within milliseconds) after the
-  certificate files were written, not synchronously as part of the Ansible task.
+With `staged`, the deploy helper explicitly starts this service after validating
+and publishing the complete set of certificate files, then waits for its result.
+Metadata-only repairs and no-op deployments do not reload consumers. Installed
+files do not need a watcher, including on fresh hosts and after atomic
+replacement. The role removes legacy installed-file watchers when managing
+staged certificates.
+
+A failed reload leaves both services failed and records pending work under
+`/var/lib/acmesh-deploy/<certificate-id>/`. The next deployment or role run
+retries the reload even if the files already match; publication remains intact.
+The consumer must be ready when publication runs. For bootstrap where it may
+still be stopped, use an appropriate command such as
+`systemctl try-reload-or-restart nginx.service`.
+
+With `direct`, `acmesh-reload-<primary domain>.path` watches the last installed
+file written by acme.sh and starts the reload asynchronously. For either
+strategy, inspect failures with `systemctl --failed` and
+`journalctl -t acmesh-reload`.
+`systemctl cat acmesh-reload-<primary domain>.service` shows the configured
+command. Commands must occupy a single line and are escaped for systemd before
+being passed to the shell.
 
 Reload units of certificates that are no longer listed in `run_acmesh_certs` are
 kept by default, as `acme.sh` continues to renew and reinstall already issued
@@ -1303,24 +1306,26 @@ Ownership and mode overrides for the installed `key_file`.
 
 Optional. Command to reload or restart services after the certificate
 was installed or renewed. It is not executed by `acme.sh` but by a
-root-side systemd path unit (`acmesh-reload-<primary domain>.path`)
-which watches the installed certificate files and runs the command
-(as `root`, via a companion service unit) whenever they change. This
-works identically for the initial issuance, automated renewal and
-manual `acme.sh` runs, without granting the service user defined by
-`run_acmesh_user` any privileges (no sudo or polkit setup needed).
-A failing reload command leaves the `acmesh-reload-<primary
-domain>.service` unit in a failed state, visible via
-`systemctl --failed` and the journal.
+root-side systemd service (`acmesh-reload-<primary domain>.service`).
+With `staged`, the deploy helper starts this service after
+successful content publication and waits for its result. No-op
+and metadata-only deployments do not reload consumers. Failed
+reloads remain pending and are retried by the next deployment
+or role run without reissuing the certificate.
 
-Requires at least one of `fullchain_file`, `key_file`, `ca_file` or
-`cert_file` to be set (the unit watches the last one of these files
-`acme.sh` writes). Reload units of certificates that are no longer
-listed in `run_acmesh_certs` are kept by default (`acme.sh` keeps
-renewing and reinstalling issued certificates until they are
-actively removed). Remove a certificate with its `state: absent` or
-enable `run_acmesh_certs_delete_unmanaged` to reap such leftovers;
-everything gets removed when `run_acmesh_state` is `absent`.
+With `direct`, a companion path unit watches the last installed
+file written by acme.sh and starts the reload asynchronously.
+Both strategies run the command as root without granting the
+service user sudo or polkit privileges. Reload failures remain
+visible through `systemctl --failed` and the journal.
+
+Requires at least one install file path. The consumer must be
+ready when publication runs; use a command such as
+`systemctl try-reload-or-restart nginx.service` if it should
+reload only an already running service during bootstrap.
+Units of unlisted certificates are retained unless removed via
+`state: absent`, `run_acmesh_certs_delete_unmanaged`, or
+`run_acmesh_state: absent`.
 
 - **Type**: `str`
 - **Required**: No
@@ -1833,8 +1838,8 @@ See `min_ansible_version` in [`meta/main.yml`](./meta/main.yml) and
   for others. It automates renewals with its own `acmesh-renewal.timer` /
   `acmesh-renewal.service` pair (`acme.sh`'s built-in cron support is disabled
   with `--nocron` on purpose) and executes
-  [`reloadcmd`](#examples-reload-permissions) via root-side systemd path units
-  watching the installed certificate files.
+  [`reloadcmd`](#examples-reload-permissions) via root-side systemd services
+  after publication.
 - **SELinux**: This role does not handle SELinux configurations. Please add
   additional tasks before or after this role to accommodate these changes (e.g.
   `cert_t` might be needed as context). The following Ansible modules may help
@@ -1843,7 +1848,7 @@ See `min_ansible_version` in [`meta/main.yml`](./meta/main.yml) and
   - [`community.general.sefcontext_module`](https://docs.ansible.com/ansible/latest/collections/community/general/sefcontext_module.html)
   - [`community.general.seport_module`](https://docs.ansible.com/ansible/latest/collections/community/general/seport_module.html)
 - **Permissions to restart services for the service user:** Not needed for
-  `reloadcmd`, which runs as `root` via a systemd path unit (see
+  `reloadcmd`, which runs as `root` via a systemd service (see
   [Service reloads after certificate changes](#examples-reload-permissions)).
   However, the
   [`pre_hook`, `post_hook` and `renew_hook`](https://github.com/acmesh-official/acme.sh/wiki/Using-pre-hook-post-hook-renew-hook-reloadcmd)

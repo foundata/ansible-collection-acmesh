@@ -1,0 +1,7 @@
+---
+bugfixes:
+  - >-
+    run role - Explicitly start the configured reload service after successful
+    staged content publication instead of relying on an installed-file watcher.
+    Metadata-only and no-op deployments do not reload consumers. Failed reloads
+    remain visible and are retried on the next deployment or role run.

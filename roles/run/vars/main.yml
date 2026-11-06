@@ -143,6 +143,7 @@ __run_acmesh_certs_absent_cleanup: >-
               ],
               'installed_files': _files,
               'staging_dir': (run_acmesh_cfg_cert_deploy_base_dir ~ '/' ~ _unit_name),
+              'state_dir': (__run_acmesh_deploy_state_dir_path ~ '/' ~ _unit_name),
               'manifest_path': (__run_acmesh_deploy_manifest_dir_path ~ '/' ~ _unit_name ~ '.json'),
             }) -%}
   {%-     endif -%}
@@ -205,11 +206,8 @@ __run_acmesh_renewal_needs_net_bind: >-
 
 
 # Reload handling: acme.sh does not get a --reloadcmd anymore. Instead, a
-# root-side systemd path unit per certificate watches the installed certificate
-# files and starts a service unit of the same name which runs the configured
-# "reloadcmd" as root. This works identically for initial issuance, automated
-# renewal (which runs unprivileged) and manual acme.sh runs, without granting
-# the service user any privileges.
+# root-side systemd service runs the configured reloadcmd. Staged publication
+# starts it explicitly; direct installations use an installed-file watcher.
 #
 # Naming and locations shared by the tasks managing these resources. The unit
 # names are derived from the certificate's primary domain (see
@@ -256,6 +254,7 @@ __run_acmesh_reload_units: >-
             'domain': _domain,
             'watch_path': _ns.watch,
             'reloadcmd': _reloadcmd,
+            'strategy': _install['strategy'] | ansible.builtin.default('staged'),
           }) -%}
   {%-   endif -%}
   {%- endfor -%}
@@ -300,10 +299,11 @@ __run_acmesh_deploy_staging_dir_mode: "u=rwx,g=rx,o=" # 0750
 
 # Root-owned deployment manifests (one per staged certificate). They contain
 # no credentials, hooks or commands: only staging/destination paths, numeric
-# UID/GID values, modes and the certificate's domains. The deploy helper only
-# accepts manifests below this directory; keep the path in sync with the
+# UID/GID values, modes, domains and the certificate's reload service name.
+# The helper only accepts manifests below this directory; keep it in sync with the
 # MANIFEST_DIR constant in files/acmesh-deploy.py.
 __run_acmesh_deploy_manifest_dir_path: "/etc/acmesh-deploy.d"
+__run_acmesh_deploy_state_dir_path: "/var/lib/acmesh-deploy"
 __run_acmesh_deploy_manifest_dir_owner: "root"
 __run_acmesh_deploy_manifest_dir_group: "root"
 __run_acmesh_deploy_manifest_dir_mode: "u=rwx,g=rx,o=rx" # 0755
@@ -372,8 +372,7 @@ __run_acmesh_install_permissions_file_defaults:
 # - completion_key: the artifact acme.sh writes last (first configured one of
 #   fullchain_file, key_file, ca_file, cert_file; mirrors the watch file
 #   selection of __run_acmesh_reload_units). The deploy helper publishes this
-#   artifact last so the acmesh-reload-* path unit fires only after a
-#   complete deployment.
+#   artifact last, then explicitly starts the configured reload service.
 # - directory: effective destination directory permissions
 #   (internal defaults combined with install.permissions.directory).
 # - directories: unique destination directories (dirname of every artifact).
@@ -455,6 +454,8 @@ __run_acmesh_install_loop: >-
               'domain': _domain,
               'cert_id': _cert_id,
               'strategy': _strategy,
+              'reload_service': (__run_acmesh_reload_unit_prefix ~ _cert_id ~ '.service')
+                if (_install['reloadcmd'] | ansible.builtin.default('') | ansible.builtin.length) > 0 else '',
               'staging_dir': _staging_dir,
               'completion_key': _ns.completion,
               'directory': {

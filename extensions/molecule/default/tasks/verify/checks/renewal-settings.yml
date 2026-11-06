@@ -18,6 +18,24 @@
   diff: false
   no_log: true
 
+- name: "Molecule | Verify | Simulate a legacy installed-file watcher"
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.path"
+    content: |
+      [Path]
+      PathChanged=/etc/pki/tls/certs/acmesh-webroot.test/fullchain.cer
+      Unit=acmesh-reload-acmesh-webroot.test.service
+      [Install]
+      WantedBy=multi-user.target
+    mode: "u=rw,g=r,o=r" # 0644
+
+- name: "Molecule | Verify | Start the legacy installed-file watcher"
+  ansible.builtin.systemd_service:
+    name: "acmesh-reload-acmesh-webroot.test.path"
+    state: "started"
+    daemon_reload: true
+    enabled: true
+
 - name: "Molecule | Verify | Read existing ECC configuration metadata"
   ansible.builtin.stat:
     path: "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc/acmesh-webroot.test.conf"
@@ -39,6 +57,16 @@
     that:
       - __run_acmesh_renewal_settings_result is ansible.builtin.changed
       - __run_acmesh_issue_result is not ansible.builtin.changed
+
+- name: "Molecule | Verify | Check the legacy watcher was removed"
+  ansible.builtin.stat:
+    path: "/etc/systemd/system/acmesh-reload-acmesh-webroot.test.path"
+  register: __testing_legacy_watcher
+
+- name: "Molecule | Verify | Assert staged publication no longer has a competing watcher"
+  ansible.builtin.assert:
+    that:
+      - not __testing_legacy_watcher['stat']['exists']
 
 - name: "Molecule | Verify | Read saved ECC configuration and metadata"
   ansible.builtin.stat:

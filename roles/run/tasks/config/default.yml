@@ -138,23 +138,18 @@
     name: "acmesh-renewal.timer"
     state: "{{ 'started' if (run_acmesh_autorenewal | ansible.builtin.bool) else 'stopped' }}"
     daemon_reload: true
-
-    # Reload handling: the configured "reloadcmd" of each certificate is not passed
-    # to acme.sh (which would execute it as the unprivileged service user during
-    # renewal). Instead, a root-side path unit watches the installed certificate
-    # files and starts a service unit of the same name, which runs the reload
-    # command as root. This behaves identically for initial issuance, automated
-    # renewal and manual acme.sh runs. See __run_acmesh_reload_units in
-    # vars/main.yml for the entry layout and the choice of the watched file.
-    #
-    # Units of certificates that are no longer listed in run_acmesh_certs are kept
-    # by default: acme.sh continues to renew and reinstall already issued
-    # certificates until they are actively removed, so their services still need
-    # reloading. A certificate listed with state "absent" gets its units removed
-    # together with its data (see tasks/cert/default.yml), and
-    # run_acmesh_certs_delete_unmanaged reaps units of unlisted certificates. All
-    # acmesh-reload-* resources get removed on run_acmesh_state: "absent".
     enabled: "{{ run_acmesh_autorenewal }}"
+
+# Reload commands run as root in acmesh-reload-* services. Staged
+# deployments start them explicitly after publication; direct deployments
+# use installed-file path watchers.
+# Units of certificates that are no longer listed in run_acmesh_certs are kept
+# by default: acme.sh continues to renew and reinstall already issued
+# certificates until they are actively removed, so their services still need
+# reloading. A certificate listed with state "absent" gets its units removed
+# together with its data (see tasks/cert/default.yml), and
+# run_acmesh_certs_delete_unmanaged reaps units of unlisted certificates. All
+# acmesh-reload-* resources get removed on run_acmesh_state: "absent".
 - name: "Config | Default | Create systemd unit file(s) (acmesh-reload-*.service)"
   ansible.builtin.copy:
     # The reload command runs via a shell (it may contain multiple commands)
@@ -194,6 +189,38 @@
   notify:
     - "run_acmesh_reload_systemd_daemon"
 
+- name: "Config | Default | Find legacy installed-file watchers for staged certificates"
+  ansible.builtin.stat:
+    path: "{{ __run_acmesh_reload_unitfile_dir }}/{{ __run_acmesh_reload_unit_prefix }}{{ __run_acmesh_reload_probe_item['name'] }}.path"
+  loop: "{{ __run_acmesh_reload_units | ansible.builtin.selectattr('strategy', '==', 'staged') | ansible.builtin.list }}"
+  loop_control:
+    loop_var: "__run_acmesh_reload_probe_item"
+    label: "{{ __run_acmesh_reload_probe_item['name'] }}"
+  register: __run_acmesh_reload_legacy_paths
+
+- name: "Config | Default | Disable legacy installed-file watchers for staged certificates"
+  ansible.builtin.systemd_service:
+    name: "{{ __run_acmesh_reload_unit_prefix }}{{ __run_acmesh_reload_cleanup_item['__run_acmesh_reload_probe_item']['name'] }}.path"
+    state: "stopped"
+    enabled: false
+  when:
+    - __run_acmesh_reload_cleanup_item['stat']['exists']
+  loop: "{{ __run_acmesh_reload_legacy_paths['results'] }}"
+  loop_control:
+    loop_var: "__run_acmesh_reload_cleanup_item"
+    label: "{{ __run_acmesh_reload_cleanup_item['__run_acmesh_reload_probe_item']['name'] }}"
+
+- name: "Config | Default | Remove legacy installed-file watchers for staged certificates"
+  ansible.builtin.file:
+    path: "{{ __run_acmesh_reload_unitfile_dir }}/{{ __run_acmesh_reload_unit_prefix }}{{ __run_acmesh_reload_cleanup_file_item['name'] }}.path"
+    state: "absent"
+  loop: "{{ __run_acmesh_reload_units | ansible.builtin.selectattr('strategy', '==', 'staged') | ansible.builtin.list }}"
+  loop_control:
+    loop_var: "__run_acmesh_reload_cleanup_file_item"
+    label: "{{ __run_acmesh_reload_cleanup_file_item['name'] }}"
+  notify:
+    - "run_acmesh_reload_systemd_daemon"
+
 - name: "Config | Default | Create systemd unit file(s) (acmesh-reload-*.path)"
   ansible.builtin.copy:
     dest: "{{ __run_acmesh_reload_unitfile_dir }}/{{ __run_acmesh_reload_unit_prefix }}{{ __run_acmesh_reload_unit_item['name'] }}.path"
@@ -213,7 +240,7 @@
     group: "{{ __run_acmesh_reload_unitfile_group }}"
     mode: "{{ __run_acmesh_reload_unitfile_mode }}"
     force: true
-  loop: "{{ __run_acmesh_reload_units }}"
+  loop: "{{ __run_acmesh_reload_units | ansible.builtin.selectattr('strategy', '==', 'direct') | ansible.builtin.list }}"
   loop_control:
     loop_var: "__run_acmesh_reload_unit_item"
     label: "{{ __run_acmesh_reload_unit_item['name'] }}"
@@ -226,7 +253,7 @@
     state: "started"
     daemon_reload: true
     enabled: true
-  loop: "{{ __run_acmesh_reload_units }}"
+  loop: "{{ __run_acmesh_reload_units | ansible.builtin.selectattr('strategy', '==', 'direct') | ansible.builtin.list }}"
   loop_control:
     loop_var: "__run_acmesh_reload_unit_item"
     label: "{{ __run_acmesh_reload_unit_item['name'] }}"
@@ -406,6 +433,7 @@
         'domains': __run_acmesh_manifest_item['domains'],
         'staging_dir': __run_acmesh_manifest_item['staging_dir'],
         'completion_artifact': __run_acmesh_manifest_item['completion_key'],
+        'reload_service': __run_acmesh_manifest_item['reload_service'],
         'artifacts': _artifacts,
       } }}
   when:
@@ -429,6 +457,8 @@
       # across the user transition for the sandboxing below, which fails in
       # unprivileged containers.
       UMask=0077
+      StateDirectory=acmesh-deploy/{{ __run_acmesh_deploy_service_item['cert_id'] }}
+      StateDirectoryMode=0700
       ExecStart={{ __run_acmesh_deploy_python_exec_path }} {{ __run_acmesh_deploy_helper_path }} {{ __run_acmesh_deploy_manifest_file }}
       NoNewPrivileges=true
       PrivateTmp=true
@@ -476,8 +506,7 @@
       # PathChanged= triggers when the watched file gets closed after writing
       # or renamed into place, not on every write and not on permission or
       # ownership changes. acme.sh writes this staged artifact last, and the
-      # deploy helper publishes its final counterpart last, so both watchers
-      # only fire on complete sets.
+      # deploy helper validates and publishes the complete set before reloading.
       PathChanged={{ __run_acmesh_deploy_path_item['artifacts'][__run_acmesh_deploy_path_item['completion_key']]['staging'] }}
       Unit={{ __run_acmesh_deploy_unit_prefix }}{{ __run_acmesh_deploy_path_item['cert_id'] }}.service
 
@@ -524,6 +553,7 @@
     {%-   set _ = paths.append(__run_acmesh_deploy_unitfile_dir ~ '/' ~ __run_acmesh_deploy_unit_prefix ~ _entry['cert_id'] ~ '.service') -%}
     {%-   set _ = paths.append(__run_acmesh_deploy_manifest_dir_path ~ '/' ~ _entry['cert_id'] ~ '.json') -%}
     {%-   set _ = paths.append(_entry['staging_dir']) -%}
+    {%-   set _ = paths.append(__run_acmesh_deploy_state_dir_path ~ '/' ~ _entry['cert_id']) -%}
     {%- endfor -%}
     {{ paths }}
   loop_control:

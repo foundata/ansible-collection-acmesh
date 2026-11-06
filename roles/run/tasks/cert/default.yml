@@ -83,6 +83,7 @@
     {{
       (__run_acmesh_certs_absent_cleanup | ansible.builtin.map(attribute='cert_dirs') | ansible.builtin.flatten)
       + (__run_acmesh_certs_absent_cleanup | ansible.builtin.map(attribute='installed_files') | ansible.builtin.flatten)
+      + (__run_acmesh_certs_absent_cleanup | ansible.builtin.map(attribute='state_dir') | ansible.builtin.list)
       + (__run_acmesh_certs_absent_cleanup | ansible.builtin.map(attribute='staging_dir') | ansible.builtin.list)
       + (__run_acmesh_certs_absent_cleanup | ansible.builtin.map(attribute='manifest_path') | ansible.builtin.list)
     }}
@@ -226,7 +227,9 @@
 
 - name: "Cert | Default | Find staging directories (unmanaged certificate data removal)"
   ansible.builtin.find:
-    paths: "{{ run_acmesh_cfg_cert_deploy_base_dir }}"
+    paths:
+      - "{{ run_acmesh_cfg_cert_deploy_base_dir }}"
+      - "{{ __run_acmesh_deploy_state_dir_path }}"
     file_type: "directory"
   when:
     - run_acmesh_certs is ansible.builtin.defined
@@ -1085,7 +1088,7 @@
     - __run_acmesh_install_result is ansible.builtin.success
     - ('Cert success') in __run_acmesh_install_result['stdout']
   # No --reloadcmd is passed to acme.sh: reload commands run via root-side
-  # acmesh-reload-* systemd path units watching the installed files (see
+  # acmesh-reload-* systemd services after publication (see
   # tasks/config/default.yml), so acme.sh reload errors cannot occur here.
   # A nonzero exit status always fails the role: acme.sh prints "Installing"
   # for every file before writing it, so a partial installation (e.g. a
@@ -1408,7 +1411,7 @@
       EXPECTED_POST_HOOK={{ __run_acmesh_hookconfig_item['post_hook'] | ansible.builtin.default('') | ansible.builtin.quote }}
       EXPECTED_RENEW_HOOK={{ __run_acmesh_hookconfig_item['renew_hook'] | ansible.builtin.default('') | ansible.builtin.quote }}
       # Always empty: reload commands are executed by the root-side
-      # acmesh-reload-* systemd path units, not by acme.sh. This also clears
+      # acmesh-reload-* systemd services, not by acme.sh. This also clears
       # any Le_ReloadCmd stored by acme.sh or by version 2.x and below of this
       # role, which would otherwise fail (or run with unexpected privileges)
       # during unprivileged renewal.

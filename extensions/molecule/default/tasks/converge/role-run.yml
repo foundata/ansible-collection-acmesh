@@ -265,7 +265,9 @@
     # default must apply), places the private key below a parent directory
     # the service user cannot traverse and overrides ownership/modes via
     # install.permissions (partial, with per-artifact override).
-    __testing_reloadcmd_torture: "printf '%s %s\\n' \"$(id -un)\" '100% \"sure\" $HOME \\ok' > /var/tmp/acmesh-reload-webroot-marker"
+    __testing_reloadcmd_torture: >-
+      printf '%s %s\n' "$(id -un)" '100% "sure" $HOME \ok' > /var/tmp/acmesh-reload-webroot-marker;
+      if systemctl is-active --quiet nginx.service; then systemctl reload nginx.service; fi
     __testing_state_update:
       # Expected marker file content, stored in the testing state so the
       # verify stage compares against the same single source.

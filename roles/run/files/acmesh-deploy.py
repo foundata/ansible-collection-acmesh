@@ -14,10 +14,10 @@ Trust model: the unprivileged acme.sh service account controls only the
 arguments come exclusively from a root-owned JSON manifest below
 /etc/acmesh-deploy.d. All staged input is validated (size limits, PEM
 parsing, private key/certificate match, certificate domain coverage) before
-anything is written. The artifact acme.sh writes last (the manifest's
-"completion_artifact") is published last, so path units watching the
-destination only fire after a complete deployment; metadata-only fixes use
-chown/chmod on the existing inode and do not fire them at all.
+anything is written. The completion artifact is published last. Only after
+successful content publication does the helper start the configured reload
+service; metadata-only repairs and no-op deployments do not reload consumers.
+A persistent marker makes failed reloads retryable without reissuing a certificate.
 
 Limitation: publishing uses per-file atomic renames plus rollback when a
 later publish operation fails. A hard system crash in the middle of
@@ -34,6 +34,7 @@ Exit codes:
   3  drift detected (--check only)
   4  staged input validation error (previous deployment left untouched)
   5  publish error (rollback attempted)
+  6  consumer reload failed (publication retained, retry pending)
 """
 
 import argparse
@@ -53,6 +54,8 @@ import time
 MANIFEST_DIR = "/etc/acmesh-deploy.d"
 
 OPENSSL = "/usr/bin/openssl"
+SYSTEMCTL = "/usr/bin/systemctl"
+STATE_DIR = "/var/lib/acmesh-deploy"
 
 # Conservative input limits: certificates, chains and keys are a few KiB.
 MAX_ARTIFACT_SIZE = 1024 * 1024
@@ -79,6 +82,7 @@ EXIT_MANIFEST = 2
 EXIT_DRIFT = 3
 EXIT_VALIDATION = 4
 EXIT_PUBLISH = 5
+EXIT_RELOAD = 6
 
 PEM_CERT_RE = re.compile(
     b"-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----", re.DOTALL
@@ -195,7 +199,7 @@ def validate_manifest(manifest):
     """Strictly validate the manifest structure; reject unknown keys."""
     if not isinstance(manifest, dict):
         raise DeployError(EXIT_MANIFEST, "manifest root must be an object")
-    unknown = set(manifest) - MANIFEST_KEYS
+    unknown = set(manifest) - MANIFEST_KEYS - {"reload_service"}
     if unknown:
         raise DeployError(
             EXIT_MANIFEST,
@@ -213,10 +217,17 @@ def validate_manifest(manifest):
             "unsupported manifest version: {!r}".format(manifest["version"]),
         )
     certificate_id = manifest["certificate_id"]
-    if not isinstance(certificate_id, str) or not re.fullmatch(
-        r"[a-z0-9.-]{1,200}", certificate_id
+    if (
+        not isinstance(certificate_id, str)
+        or certificate_id in (".", "..")
+        or not re.fullmatch(r"[a-z0-9.-]{1,200}", certificate_id)
     ):
         raise DeployError(EXIT_MANIFEST, "invalid certificate_id")
+    reload_service = manifest.get("reload_service", "")
+    if reload_service not in ("", f"acmesh-reload-{certificate_id}.service"):
+        raise DeployError(
+            EXIT_MANIFEST, "reload_service must name this certificate's reload service"
+        )
     domains = manifest["domains"]
     if (
         not isinstance(domains, list)
@@ -642,6 +653,38 @@ def rollback(published):
             )
 
 
+def mark_reload_pending(path):
+    """Persist reload intent before publication; systemd owns the state directory."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    directory_fd = os.open(os.path.dirname(path), os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
+def reload_consumer(service, pending_path):
+    """Wait for the root-side reload and retain the retry marker on failure."""
+    try:
+        result = subprocess.run(
+            [SYSTEMCTL, "start", service], capture_output=True, check=False, timeout=120
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise DeployError(
+            EXIT_RELOAD, f"cannot start {service}; reload remains pending"
+        ) from exc
+    if result.returncode:
+        raise DeployError(
+            EXIT_RELOAD, f"{service} failed; reload remains pending (see journal)"
+        )
+    os.unlink(pending_path)
+    log(f"reloaded consumers via {service}")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="acmesh-deploy",
@@ -666,6 +709,9 @@ def main(argv=None):
         validate_manifest(manifest)
         certificate_id = manifest["certificate_id"]
         artifacts = manifest["artifacts"]
+        reload_service = manifest.get("reload_service", "")
+        pending_path = os.path.join(STATE_DIR, certificate_id, "reload-pending")
+        reload_pending = bool(reload_service) and os.path.exists(pending_path)
 
         staging_fd = open_staging_dir(manifest["staging_dir"])
         staged = {}
@@ -676,9 +722,7 @@ def main(argv=None):
                 )
         validate_staged(manifest, staged)
 
-        # Deterministic publish order with the completion artifact last: the
-        # acmesh-reload-* path unit watching it only fires once every other
-        # artifact has been published.
+        # Preserve the deterministic publication order, then reload the consumer.
         completion = manifest["completion_artifact"]
         order = [
             artifact
@@ -695,16 +739,22 @@ def main(argv=None):
                 drift[artifact] = entry["state"]
 
         if args.check:
-            if drift:
+            if drift or reload_pending:
                 for artifact, state in drift.items():
                     log(f"check {certificate_id}: {state} drift on {artifact}")
+                if reload_pending:
+                    log(f"check {certificate_id}: consumer reload pending")
                 return EXIT_DRIFT
             log(f"check {certificate_id}: in sync")
             return EXIT_OK
 
-        if not drift:
+        if not drift and not reload_pending:
             log(f"{certificate_id}: already in sync, nothing to do")
             return EXIT_OK
+
+        if reload_service and "content" in drift.values():
+            mark_reload_pending(pending_path)
+            reload_pending = True
 
         published = []
         try:
@@ -736,6 +786,8 @@ def main(argv=None):
             ) from exc
 
         log(f"{certificate_id}: deployment complete")
+        if reload_pending:
+            reload_consumer(reload_service, pending_path)
         return EXIT_OK
     except DeployError as exc:
         log(str(exc))
