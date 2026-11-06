@@ -1364,7 +1364,10 @@ the current certificate is still valid. Defaults to `false`.
 
 [*⇑ Back to ToC ⇑*](#toc)
 
-
+Optional non-negative DNS propagation wait in seconds. Explicit
+values are saved for renewals of existing RSA and ECC certificates
+even when issuance is skipped. Omit this option to leave the saved
+wait unmanaged; use `0` to explicitly save a zero-second wait.
 
 - **Type**: `int`
 - **Required**: No

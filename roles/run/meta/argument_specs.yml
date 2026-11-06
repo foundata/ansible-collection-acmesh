@@ -511,6 +511,11 @@ argument_specs:
           debug:
             type: "bool"
           dnssleep:
+            description: |
+              Optional non-negative DNS propagation wait in seconds. Explicit
+              values are saved for renewals of existing RSA and ECC certificates
+              even when issuance is skipped. Omit this option to leave the saved
+              wait unmanaged; use `0` to explicitly save a zero-second wait.
             type: "int"
           pre_hook:
             description: |

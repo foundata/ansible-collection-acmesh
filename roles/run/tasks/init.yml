@@ -642,3 +642,14 @@
       {%-   endif -%}
       {%- endfor -%}
       {{ offenders }}
+
+- name: "Init | Check configured DNS propagation waits"
+  ansible.builtin.assert:
+    that:
+      - (__run_acmesh_renewal_setting_item['dnssleep'] | ansible.builtin.string) is ansible.builtin.match('^[0-9]+$')
+    fail_msg: "dnssleep must be a non-negative integer."
+    quiet: true
+  loop: "{{ __run_acmesh_renewal_settings }}"
+  loop_control:
+    loop_var: "__run_acmesh_renewal_setting_item"
+    label: "{{ __run_acmesh_renewal_setting_item['domain'] }}"

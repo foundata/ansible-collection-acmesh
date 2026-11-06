@@ -83,6 +83,25 @@ __run_acmesh_certs_no_secrets: >-
   }}
 
 
+# Credential-free view of explicit renewal settings. Both RSA and ECC may
+# already exist; missing configurations are never created by reconciliation.
+__run_acmesh_renewal_settings: >-
+  {%- set settings = [] -%}
+  {%- for _cert in __run_acmesh_certs_managed -%}
+  {%-   if _cert['dnssleep'] is ansible.builtin.defined -%}
+  {%-     set _domain = _cert['domains'][0]['name'] -%}
+  {%-     for _suffix in ['', '_ecc', '_rsa'] -%}
+  {%-       set _ = settings.append({
+              'domain': _domain,
+              'path': run_acmesh_cfg_cert_home ~ '/' ~ _domain ~ _suffix ~ '/' ~ _domain ~ '.conf',
+              'dnssleep': _cert['dnssleep'],
+            }) -%}
+  {%-     endfor -%}
+  {%-   endif -%}
+  {%- endfor -%}
+  {{ settings }}
+
+
 # Removal data for every certificate with state: "absent", credential-free
 # (safe for loop labels). Per entry:
 #

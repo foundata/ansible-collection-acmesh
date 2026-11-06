@@ -1116,6 +1116,12 @@
           the identical final files untouched and did not trigger a reload.
 
 
+- name: "Molecule | Verify | Test saved renewal settings"
+  ansible.builtin.include_tasks:
+    file: "checks/renewal-settings.yml"
+  when:
+    - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
+
 ## Renewal parity
 #
 # A forced renewal as the unprivileged service user must work end-to-end (issue

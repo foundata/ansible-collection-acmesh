@@ -1,0 +1,78 @@
+# Regression coverage for renewal convergence and serving staged publications.
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+- name: "Molecule | Verify | Save certificate inputs for renewal checks"
+  ansible.builtin.set_fact:
+    __testing_renewal_original_certs: "{{ run_acmesh_certs }}"
+  no_log: true
+
+- name: "Molecule | Verify | Seed an old DNS wait in the already issued certificate"
+  ansible.builtin.lineinfile:
+    path: "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc/acmesh-webroot.test.conf"
+    regexp: "^Le_DNSSleep="
+    line: "Le_DNSSleep='5'"
+    create: false
+  diff: false
+  no_log: true
+
+- name: "Molecule | Verify | Read existing ECC configuration metadata"
+  ansible.builtin.stat:
+    path: "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc/acmesh-webroot.test.conf"
+  register: __testing_renewal_config_before
+
+- name: "Molecule | Verify | Configure a different DNS wait on the existing certificate"
+  ansible.builtin.set_fact:
+    run_acmesh_certs: >-
+      {{ __testing_renewal_original_certs
+         | ansible.builtin.map('ansible.builtin.combine', {'dnssleep': 17}) | ansible.builtin.list }}
+  no_log: true
+
+- name: "Molecule | Verify | Reconcile existing certificates without forcing issuance"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+
+- name: "Molecule | Verify | Assert DNS wait changed while issuance was skipped"
+  ansible.builtin.assert:
+    that:
+      - __run_acmesh_renewal_settings_result is ansible.builtin.changed
+      - __run_acmesh_issue_result is not ansible.builtin.changed
+
+- name: "Molecule | Verify | Read saved ECC configuration and metadata"
+  ansible.builtin.stat:
+    path: "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc/acmesh-webroot.test.conf"
+  register: __testing_renewal_config_after
+
+- name: "Molecule | Verify | Read the saved DNS wait"
+  ansible.builtin.slurp:
+    src: "{{ run_acmesh_cfg_cert_home }}/acmesh-webroot.test_ecc/acmesh-webroot.test.conf"
+  register: __testing_renewal_config_content
+  no_log: true
+
+- name: "Molecule | Verify | Assert saved value and preserved ownership and mode"
+  ansible.builtin.assert:
+    that:
+      - >-
+        "Le_DNSSleep='17'" in (__testing_renewal_config_content['content'] | ansible.builtin.b64decode).splitlines()
+      - __testing_renewal_config_after['stat']['uid'] == __testing_renewal_config_before['stat']['uid']
+      - __testing_renewal_config_after['stat']['gid'] == __testing_renewal_config_before['stat']['gid']
+      - __testing_renewal_config_after['stat']['mode'] == __testing_renewal_config_before['stat']['mode']
+  no_log: true
+
+- name: "Molecule | Verify | Repeat the role with unchanged renewal inputs"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+
+- name: "Molecule | Verify | Assert the second run leaves issuance and renewal settings unchanged"
+  ansible.builtin.assert:
+    that:
+      - __run_acmesh_renewal_settings_result is not ansible.builtin.changed
+      - __run_acmesh_issue_result is not ansible.builtin.changed
+      - (__run_acmesh_deploy_pending | ansible.builtin.length) == 0
+
+- name: "Molecule | Verify | Restore original certificate inputs"
+  ansible.builtin.set_fact:
+    run_acmesh_certs: "{{ __testing_renewal_original_certs }}"
+  no_log: true

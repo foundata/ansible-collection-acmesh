@@ -454,6 +454,10 @@ run_acmesh_git_version: ""
 #     - Type: bool
 #     - Required: No
 #   - dnssleep:
+#     Optional non-negative DNS propagation wait in seconds. Explicit values are
+#     saved for renewals of existing RSA and ECC certificates even when issuance
+#     is skipped. Omit this option to leave the saved wait unmanaged; use `0` to
+#     explicitly save a zero-second wait.
 #     - Type: int
 #     - Required: No
 #   - pre_hook:

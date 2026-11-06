@@ -1,0 +1,6 @@
+---
+bugfixes:
+  - >-
+    run role - Converge explicitly configured dnssleep values in existing
+    RSA and ECC certificate configurations even when issuance is not due,
+    preserving file ownership and permissions. Omitted values remain unmanaged.

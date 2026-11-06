@@ -1,0 +1,34 @@
+# Converge explicitly managed renewal settings even when issuance is skipped.
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+- name: "Cert | Renewal | Find existing certificate configurations"
+  ansible.builtin.stat:
+    path: "{{ __run_acmesh_renewal_config_item['path'] }}"
+    get_checksum: false
+    get_mime: false
+    get_attributes: false
+  loop: "{{ __run_acmesh_renewal_settings }}"
+  loop_control:
+    loop_var: "__run_acmesh_renewal_config_item"
+    label: "{{ __run_acmesh_renewal_config_item['domain'] }}"
+  register: __run_acmesh_renewal_configs
+
+- name: "Cert | Renewal | Persist DNS propagation waits without reissuing certificates"
+  ansible.builtin.lineinfile:
+    path: "{{ __run_acmesh_renewal_update_item['__run_acmesh_renewal_config_item']['path'] }}"
+    regexp: "^Le_DNSSleep="
+    line: "Le_DNSSleep='{{ __run_acmesh_renewal_update_item['__run_acmesh_renewal_config_item']['dnssleep'] }}'"
+    create: false
+  when:
+    - __run_acmesh_renewal_update_item['stat']['isreg'] | ansible.builtin.default(false)
+  loop: "{{ __run_acmesh_renewal_configs['results'] }}"
+  loop_control:
+    loop_var: "__run_acmesh_renewal_update_item"
+    label: "{{ __run_acmesh_renewal_update_item['__run_acmesh_renewal_config_item']['domain'] }}"
+  register: __run_acmesh_renewal_settings_result
+  # Domain configurations may contain credentials. Keep their contents out of diffs.
+  diff: false
+  no_log: true

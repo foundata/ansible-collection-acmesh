@@ -917,6 +917,13 @@
   notify:
     - "run_acmesh_set_certificate_permissions"
 
+- name: "Cert | Default | Converge saved renewal settings"
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/cert/renewal.yml"
+  when:
+    - __run_acmesh_is_installed
+    - run_acmesh_certs is ansible.builtin.defined
+
 # Only the immediate destination directories are managed with the effective
 # (merged) directory permissions; existing ancestors such as /etc/ssl or
 # /etc/ssl/private are never changed. Missing ancestors are created
