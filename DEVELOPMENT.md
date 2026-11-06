@@ -55,15 +55,14 @@ Run Python helper checks from the collection root:
 CI=true uv run noxfile.py -s helper-lint
 ```
 
-`helper-lint` checks the Python outside `plugins/` with
-[ruff.toml](./ruff.toml): `extensions/molecule/`, the roles' `files/`,
-`tools/`, `scripts/` and `tests/` apart from `tests/unit/`,
-`tests/integration/` and `tests/output/`. Add it to CI configurations that
-list sessions explicitly.
+`helper-lint` checks the collection's Python with [ruff.toml](./ruff.toml):
+`plugins/`, `extensions/molecule/`, the roles' `files/`, `tools/`, `scripts/`
+and `tests/` apart from `tests/output/`. Add it to CI configurations that list
+sessions explicitly.
 
-Put the collection's own pytest suites below `tests/unit/` so ansible-test
-runs them. Other Python below `tests/` is linted by `helper-lint` but is not
-run as a test suite.
+Put the collection's own pytest suites below `tests/unit/` so `runtime-check`
+runs them against the built archive. Other Python below `tests/` is linted by
+`helper-lint` but is not run as a test suite.
 
 Below a deep checkout, nox gives each session a short symbolic link as
 `TMPDIR`, because Unix socket paths are limited in length. A test of code that
