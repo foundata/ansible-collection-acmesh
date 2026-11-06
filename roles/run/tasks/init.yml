@@ -581,7 +581,7 @@
     fail_msg: >-
       Invalid effective install permissions:
       {{ __run_acmesh_install_permission_offenders | ansible.builtin.join('; ') }}.
-      Modes must be quoted octal strings; certificate files must not be
+      Modes must be complete symbolic assignments or quoted octal strings; certificate files must not be
       executable, group/world-writable or carry setuid/setgid/sticky bits;
       private keys must not be world-readable; directories may only add the
       setgid bit. The "direct" strategy does not allow owner/group overrides

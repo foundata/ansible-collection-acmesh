@@ -423,7 +423,7 @@ __run_acmesh_install_loop: >-
               'staging': (_staging_dir ~ '/' ~ __run_acmesh_deploy_staging_filenames[_key]),
               'owner': _effective['owner'] | ansible.builtin.string,
               'group': _effective['group'] | ansible.builtin.string,
-              'mode': _effective['mode'] | ansible.builtin.string,
+              'mode': _effective['mode'] | foundata.acmesh.permission_mode,
             }}) -%}
   {%-       if (_install[_key] | ansible.builtin.dirname) not in _dirs -%}
   {%-         set _ = _dirs.append(_install[_key] | ansible.builtin.dirname) -%}
@@ -441,7 +441,7 @@ __run_acmesh_install_loop: >-
               'directory': {
                 'owner': _directory['owner'] | ansible.builtin.string,
                 'group': _directory['group'] | ansible.builtin.string,
-                'mode': _directory['mode'] | ansible.builtin.string,
+                'mode': _directory['mode'] | foundata.acmesh.permission_mode,
               },
               'directories': _dirs,
               'artifacts': _artifacts,

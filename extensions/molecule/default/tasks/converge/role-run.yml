@@ -292,15 +292,15 @@
                 'directory': {
                   'owner': 'root',
                   'group': 'molecule-ssl-cert',
-                  'mode': '0750'
+                  'mode': 'u=rwx,g=rx,o='
                 },
                 'default': {
                   'owner': 'root',
                   'group': 'molecule-ssl-cert',
-                  'mode': '0640'
+                  'mode': 'u=rw,g=r,o='
                 },
                 'fullchain_file': {
-                  'mode': '0644'
+                  'mode': 'u=rw,g=r,o=r'
                 }
               }
             },

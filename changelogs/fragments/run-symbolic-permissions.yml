@@ -1,0 +1,6 @@
+---
+minor_changes:
+  - >-
+    run role - Accept complete symbolic assignments in install permission
+    overrides and normalize them to validated octal modes in deployment
+    manifests. Quoted octal inputs remain supported.

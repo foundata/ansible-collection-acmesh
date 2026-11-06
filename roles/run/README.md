@@ -340,18 +340,22 @@ run_acmesh_certs:
         directory:
           owner: "root"
           group: "ssl-cert"
-          mode: "0750"
+          mode: "u=rwx,g=rx,o=" # 0750
         default:
           owner: "root"
           group: "ssl-cert"
-          mode: "0640"
+          mode: "u=rw,g=r,o=" # 0640
         fullchain_file:
-          mode: "0644"
+          mode: "u=rw,g=r,o=r" # 0644
 ```
 
 Notes:
 
-- Modes are quoted octal strings. Certificate files must not be executable or
+- Modes accept complete symbolic assignments such as `"u=rw,g=r,o="`
+  (recommended) or quoted octal strings. The role normalizes them to octal
+  before validating and writing the deployment manifest. Assign all of `u`,
+  `g`, and `o` (or `a`); relative changes, conditional `X` and copied bits are
+  rejected. Certificate files must not be executable or
   carry setuid/setgid/sticky bits; private keys must not be world-readable or
   group/world-writable (`"0600"`, `"0640"`, `"0400"`, `"0440"` are typical
   values); directories may keep the setgid bit (default `"2750"`).
@@ -1168,7 +1172,12 @@ earlier ones:
 3. the per-artifact mapping (`ca_file`, `cert_file`,
    `fullchain_file`, `key_file`)
 
-`mode` values must be quoted octal strings (such as `"0640"`).
+`mode` accepts complete symbolic assignments (such as
+`"u=rw,g=r,o="`) or quoted octal strings (such as `"0640"`).
+Symbolic assignments must explicitly set all of `u`, `g`
+and `o` (or `a`); relative changes, conditional `X` and
+copied permission bits are rejected. Modes are normalized
+to octal before validation and deployment manifest creation.
 Certificate files must not be executable and must not carry
 setuid/setgid/sticky bits; private keys must additionally not
 be world-readable or group/world-writable (`"0600"`, `"0640"`,
@@ -1184,13 +1193,13 @@ permissions:
   directory:
     owner: "root"
     group: "ssl-cert"
-    mode: "0750"
+    mode: "u=rwx,g=rx,o=" # 0750
   default:
     owner: "root"
     group: "ssl-cert"
-    mode: "0640"
+    mode: "u=rw,g=r,o=" # 0640
   fullchain_file:
-    mode: "0644"
+    mode: "u=rw,g=r,o=r" # 0644
   key_file:
     group: "dovecot"
 ```
