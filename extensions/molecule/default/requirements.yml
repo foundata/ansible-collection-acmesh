@@ -8,6 +8,8 @@
 roles: []
 
 collections:
+  # The webroot fixture is served by foundata.nginx.run.
+  - "foundata.nginx"
   # Container platforms (type: "podman")
   - "containers.podman"
   # VM platforms (type: "libvirt"): SSH keypair generation
