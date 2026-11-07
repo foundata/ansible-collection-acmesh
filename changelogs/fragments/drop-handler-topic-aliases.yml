@@ -1,0 +1,8 @@
+---
+minor_changes:
+  - >-
+    Remove the previous handler topics ahead of the announced version 5.0.0:
+    "run_acmesh: systemd daemon-reload" and "run_acmesh: set ownership and
+    permissions". Notify the role-prefixed topics instead. We decided that
+    this is a non-breaking change: the topics are role internals, and their
+    use by third parties is very unlikely.
