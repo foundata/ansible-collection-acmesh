@@ -1,6 +1,54 @@
 ---
 ancestor: null
 releases:
+  4.3.0:
+    changes:
+      bugfixes:
+        - Check the minimum ansible-core version before gathering role facts so unsupported
+          versions fail with the intended diagnostic.
+        - Limit automatic fact gathering to each role's declared subsets while retaining
+          missing-fact recovery and reuse of cached facts.
+        - Normalize the deprecated fullcain_file certificate option in internal state
+          without overwriting caller-provided run_acmesh_certs.
+        - 'The declared ansible-core minimum is corrected from 2.16 to 2.19. The roles
+          write Jinja''s own filters and tests as ``ansible.builtin.<name>``, which
+          ansible-core resolves from 2.19 only; on 2.16 to 2.18 every run failed at
+          the first such expression, so no working installation is affected.
+
+          '
+        - run role - Coerce autoupgrade values in acme.sh command arguments so quoted
+          false, no, and off do not enable automatic upgrades.
+        - run role - Converge explicitly configured dnssleep values in existing RSA
+          and ECC certificate configurations even when issuance is not due, preserving
+          file ownership and permissions. Omitted values remain unmanaged.
+        - run role - Explicitly start the configured reload service after successful
+          staged content publication instead of relying on an installed-file watcher.
+          Metadata-only and no-op deployments do not reload consumers. Failed reloads
+          remain visible and are retried on the next deployment or role run.
+        - run role - Refresh systemd directly before staged deployment instead of
+          flushing all pending play handlers, preserving unrelated services' setup
+          order during fresh provisioning.
+      minor_changes:
+        - Add role-prefixed handler topics and use them for internal notifications.
+          Retain the previous topics as migration aliases until version 5.0.0.
+        - 'Add the handler topic run_acmesh_reload_systemd_daemon as the replacement
+          for "run_acmesh: systemd daemon-reload".'
+        - 'Add the handler topic run_acmesh_set_certificate_permissions as the replacement
+          for "run_acmesh: set ownership and permissions".'
+        - run role - Accept complete symbolic assignments in install permission overrides
+          and normalize them to validated octal modes in deployment manifests. Quoted
+          octal inputs remain supported.
+    fragments:
+      - ansible-core-floor-2.19.yml
+      - ansible-version-guard.yml
+      - autoupgrade-boolean-coercion.yml
+      - bounded-role-facts.yml
+      - lint-interfaces.yml
+      - run-handler-scope.yml
+      - run-renewal-dnssleep.yml
+      - run-staged-reload.yml
+      - run-symbolic-permissions.yml
+    release_date: '2026-11-07'
   4.2.0:
     changes:
       minor_changes:
