@@ -26,6 +26,7 @@
     # Label with the variable name only: the values include the DNS API
     # credentials (run_acmesh_environment, per-certificate environment).
     label: "{{ item['key'] }}"
+  no_log: true
 
 ## Check mode on the installed system
 #
@@ -1514,6 +1515,7 @@
       ansible.builtin.slurp:
         src: "{{ run_acmesh_cfg_config_home }}/account.conf"
       register: __testing_acmesh_loopinclude_accountconf
+      no_log: true
 
     - name: "Molecule | Verify | Loop include: assert the environment reached acme.sh"
       ansible.builtin.assert:
@@ -1525,6 +1527,7 @@
           item and a role task shadowed "item" while dereferencing it.
         success_msg: >-
           The environment templated from the outer loop item reached acme.sh.
+      no_log: true
 
 
     - name: "Molecule | Verify | Loop include: read the certificate's acme.sh configuration"
@@ -2222,17 +2225,8 @@
     src: "{{ run_acmesh_cfg_config_home }}/account.conf"
   when:
     - __testing_acmesh_account_conf_stat['stat']['exists']
-
   register: __testing_acmesh_account_conf_content
-- name: "Molecule | Verify | Display account.conf content"
-  ansible.builtin.debug:
-    msg: "{{ __testing_acmesh_account_conf_decoded.split('\n') }}"
-    verbosity: 1
-  vars:
-    __testing_acmesh_account_conf_decoded: "{{ __testing_acmesh_account_conf_content['content'] | ansible.builtin.b64decode }}"
-  when:
-    - __testing_acmesh_account_conf_stat['stat']['exists']
-    - __testing_acmesh_account_conf_content is ansible.builtin.defined
+  no_log: true
 
 # When both dns-01 (TEST_ACMESH_TESTDOMAIN1/2 via INWX) and dns-persist-01
 # (TEST_ACMESH_TESTDOMAIN3 via TEST_ACMESH_ACCOUNT_KEY) tests are active
@@ -2278,6 +2272,7 @@
     - (lookup('ansible.builtin.env', 'TEST_ACMESH_ACCOUNT_KEY') | ansible.builtin.length) <= 0
     - __testing_acmesh_account_conf_stat['stat']['exists']
     - __testing_acmesh_account_conf_content is ansible.builtin.defined
+  no_log: true
 
 ## Test feature: Update reloadcmd and hooks of test domain config
 
@@ -2543,6 +2538,17 @@
     database: "passwd"
     key: "{{ run_acmesh_user }}"
     fail_key: false
+
+- name: "Molecule | Verify | Check the credential launcher was removed on uninstall"
+  ansible.builtin.stat:
+    path: "{{ __run_acmesh_runner_path }}"
+  register: __testing_runner_uninstalled
+
+- name: "Molecule | Verify | Assert uninstall removed the credential launcher"
+  ansible.builtin.assert:
+    that:
+      - not __testing_runner_uninstalled['stat']['exists']
+    quiet: true
 
 - name: "Molecule | Verify | Query group existence after uninstall: acmesh-foobar"
   ansible.builtin.getent:
@@ -3141,35 +3147,5 @@
           '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
         success_msg: "A staging base below the acme.sh directories is rejected by the role's init."
 
-## No-secret-leak check (manual)
-#
-# The per-certificate "environment" mapping holds DNS API credentials. Task
-# callbacks print on the controller, so no assertion inside the scenario can
-# observe what the output contains. The converge fixtures plant a canary
-# credential that rides along the real ones through every code path handling
-# that mapping; checking the captured output for it stays a manual step.
-
-- name: "Molecule | Verify | No-secret-leak check: show the manual verification steps"
-  ansible.builtin.debug:
-    # split() to improve readability for humans
-    msg: "{{ __testing_canary_msg.split('\n') }}"
-    verbosity: 0
-  vars:
-    __testing_canary_msg: |-
-      Manual check for leaked DNS API credentials:
-
-        ANSIBLE_VERBOSITY=3 ANSIBLE_DIFF_ALWAYS=true molecule test > /tmp/molecule-acmesh.log 2>&1
-        grep -n 'molecule-canary-cred-do-not-print-1f9e' /tmp/molecule-acmesh.log
-
-      Any hit is a leak: the canary is a fake credential from the converge
-      fixtures and must not appear in the output, not even at -vvv with diff.
-      The check is only meaningful for credential-bearing runs, so with the
-      TEST_ACMESH_* environment variables set.
-  run_once: true # noqa: run-once[task]
-
-- name: "Molecule | Verify | No-secret-leak check: pause so the hint is not scrolled away"
-  ansible.builtin.pause:
-    seconds: 10
-  when:
-    - (lookup('ansible.builtin.env', 'TEST_ACMESH_TESTDOMAIN1') | ansible.builtin.trim | ansible.builtin.length) > 0
-  run_once: true # noqa: run-once[task]
+# Credential transport is checked separately by tests/credential_transport.py,
+# which scans captured controller output without printing its random canaries.

@@ -698,6 +698,9 @@ __run_acmesh_sed_exec_path: "/usr/bin/sed"
 __run_acmesh_grep_exec_path: "/usr/bin/grep"
 __run_acmesh_setpriv_exec_path: "/usr/bin/setpriv"
 __run_acmesh_systemctl_exec_path: "/usr/bin/systemctl"
+__run_acmesh_runner_path: "/usr/libexec/acmesh-run"
+__run_acmesh_runner_python: >-
+  {{ ansible_facts['python']['executable'] | ansible.builtin.default('/usr/bin/python3', true) }}
 
 # Command prefix that switches to the unprivileged service user before running
 # acme.sh, so that issuance and installation run in the same context as the
@@ -706,7 +709,7 @@ __run_acmesh_systemctl_exec_path: "/usr/bin/systemctl"
 #
 # setpriv (util-linux) is used instead of Ansible's become/become_user because
 # it does not depend on a become plugin or on sudo being installed, keeps the
-# task environment (DNS API credentials, HOME), and can grant ambient
+# task environment (HOME), and can grant ambient
 # capabilities where a certificate needs a privileged port (see the issue
 # task). The role runs as root, so no PAM or password handling is involved.
 # Tasks append "--" and the actual command; the issue task inserts

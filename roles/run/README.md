@@ -730,6 +730,15 @@ Multiple variables can be defined in parallel to support different providers
 for different domains on the same server. For more details on acme.sh's
 DNS API support see <https://github.com/acmesh-official/acme.sh/wiki/dnsapi>
 
+Issuance and installation receive these values through module stdin;
+they are not placed in the SSH command. Task results remain protected
+by `no_log`. This does not protect `ANSIBLE_DEBUG`, custom tracing,
+provider logs or secrets explicitly placed in command-line flags.
+Ansible may store private temporary module payloads when pipelining
+is disabled. acme.sh's DNS plugins own credential persistence for
+unattended renewal; changing these inputs does not guarantee rotation
+of saved credentials when issuance is skipped. Values must be scalars.
+
 Example:
 
 ```text

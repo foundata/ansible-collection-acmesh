@@ -733,7 +733,8 @@
           if (__run_acmesh_issue_needs_net_bind | ansible.builtin.bool)
           else
           '' }}
-      -- ./acme.sh
+      -- {{ __run_acmesh_runner_python | ansible.builtin.quote }}
+      {{ __run_acmesh_runner_path | ansible.builtin.quote }} ./acme.sh
         --issue
         --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
         --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
@@ -868,9 +869,16 @@
             '' }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
-  # HOME mirrors the environment of the renewal service unit. The environment
-  # is preserved across the setpriv user switch, so the DNS API credentials
-  # reach acme.sh as before.
+    stdin: >-
+      {{
+        {'HOME': run_acmesh_cfg_home}
+        | ansible.builtin.combine(run_acmesh_environment | ansible.builtin.default({}))
+        | ansible.builtin.combine(__run_acmesh_cert_item['environment'] | ansible.builtin.default({}))
+        | ansible.builtin.to_json
+      }}
+    stdin_add_newline: false
+  # Only public values belong in the connection command. The helper receives
+  # credentials through module stdin after switching to the service user.
   vars:
     # Whether this certificate needs CAP_NET_BIND_SERVICE for issuance: same
     # logic as __run_acmesh_renewal_needs_net_bind (vars/main.yml), but for a
@@ -887,12 +895,8 @@
       {%-   endif -%}
       {%- endfor -%}
       {{ ns.need }}
-  environment: >-
-    {{
-      {'HOME': run_acmesh_cfg_home}
-      | ansible.builtin.combine(run_acmesh_environment | ansible.builtin.default({}))
-      | ansible.builtin.combine(__run_acmesh_cert_item['environment'] | ansible.builtin.default({}))
-    }}
+  environment:
+    HOME: "{{ run_acmesh_cfg_home }}"
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
@@ -912,10 +916,8 @@
   loop_control:
     loop_var: "__run_acmesh_cert_item"
   register: __run_acmesh_issue_result
-  # The task environment carries the DNS API credentials (global and
-  # per-certificate) and the loop __run_acmesh_cert_item includes the per-certificate ones, so its
-  # output must not be logged. Note: a "-vvv" run still exposes the environment
-  # in the connection plugin's EXEC line, which no_log cannot suppress.
+  # Module input, output and loop items can contain credentials. The stdin
+  # handoff keeps them out of connection arguments; no_log protects results.
   no_log: true
   notify:
     - "run_acmesh_set_certificate_permissions"
@@ -1038,7 +1040,8 @@
     # acmesh-deploy-* units publish to the final destinations. The "direct"
     # strategy keeps pointing at the final paths (pre-4.0.0 behavior).
     cmd: >
-      {{ __run_acmesh_setpriv_run_as_user }} -- ./acme.sh
+      {{ __run_acmesh_setpriv_run_as_user }} -- {{ __run_acmesh_runner_python | ansible.builtin.quote }}
+      {{ __run_acmesh_runner_path | ansible.builtin.quote }} ./acme.sh
         --install-cert
         --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
         --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
@@ -1069,18 +1072,21 @@
             '' }}
   args:
     chdir: "{{ run_acmesh_cfg_home }}"
+    stdin: >-
+      {{
+        {'HOME': run_acmesh_cfg_home}
+        | ansible.builtin.combine(run_acmesh_environment | ansible.builtin.default({}))
+        | ansible.builtin.combine(__run_acmesh_cert_item['environment'] | ansible.builtin.default({}))
+        | ansible.builtin.to_json
+      }}
+    stdin_add_newline: false
   vars:
     __run_acmesh_install_artifacts: "{{ __run_acmesh_cert_item['install_data']['artifacts'] }}"
     __run_acmesh_install_staged: "{{ __run_acmesh_cert_item['install_data']['strategy'] == 'staged' }}"
-  # HOME mirrors the environment of the renewal service unit. The environment
-  # is preserved across the setpriv user switch, so the DNS API credentials
-  # reach acme.sh as before.
-  environment: >-
-    {{
-      {'HOME': run_acmesh_cfg_home}
-      | ansible.builtin.combine(run_acmesh_environment | ansible.builtin.default({}))
-      | ansible.builtin.combine(__run_acmesh_cert_item['environment'] | ansible.builtin.default({}))
-    }}
+  # Only public values belong in the connection command. The helper receives
+  # credentials through module stdin after switching to the service user.
+  environment:
+    HOME: "{{ run_acmesh_cfg_home }}"
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
@@ -1101,8 +1107,7 @@
     loop_var: "__run_acmesh_cert_item"
     label: "{{ __run_acmesh_cert_item['domain'] }}"
   register: __run_acmesh_install_result
-  # As with issuing: the task environment carries the DNS API credentials and the
-  # loop __run_acmesh_cert_item includes the per-certificate ones. See the no_log note above.
+  # Protect the credential-bearing module input, output and loop item.
   no_log: true
   notify:
     - "run_acmesh_set_certificate_permissions"

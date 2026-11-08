@@ -64,6 +64,24 @@ Put the collection's own pytest suites below `tests/unit/` so `runtime-check`
 runs them against the built archive. Other Python below `tests/` is linted by
 `helper-lint` but is not run as a test suite.
 
+The credential transport regression needs a disposable SSH target that has
+completed the default Molecule scenario's prepare and converge playbooks, and
+an isolated installation of the collection under test:
+
+```sh
+python tests/credential_transport.py --inventory /path/to/disposable-inventory \
+  --work-dir /path/to/new-private-test-directory
+```
+
+It uses Pebble and a synthetic DNS provider, with random credentials and no
+external DNS account. It checks normal, `-v`, `-vvv` and `-vvvv` output with
+diff enabled, both with and without pipelining, including failed challenges,
+interrupted execution, skipped issuance and unattended renewal. The scanner
+checks console and Ansible file logs for plaintext, escaped and base64 forms.
+Inputs are removed after each invocation; logs stay in the private directory.
+Use `--verbosity 3 --pipelining off` to select one combination. This does not
+test `ANSIBLE_DEBUG`, third-party callbacks or arbitrary tracing.
+
 Below a deep checkout, nox gives each session a short symbolic link as
 `TMPDIR`, because Unix socket paths are limited in length. A test of code that
 refuses symbolic links in a path resolves `TMPDIR` first.

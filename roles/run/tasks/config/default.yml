@@ -4,6 +4,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
+- name: "Config | Default | Install the credential handoff helper"
+  ansible.builtin.copy:
+    src: "acmesh-run.py"
+    dest: "{{ __run_acmesh_runner_path }}"
+    owner: "root"
+    group: "root"
+    mode: "u=rw,g=r,o=r" # 0644; invoked with the managed host's Python
+
 - name: "Config | Default | Configure acme.sh"
   # The command or shell module is used here. This approach is justified:
   #
@@ -68,6 +76,8 @@
     - __run_acmesh_config_result is ansible.builtin.success
     - ('Changed config file') in __run_acmesh_config_result['stdout']
   register: __run_acmesh_config_result
+  # --info can print provider credentials already saved in account.conf.
+  no_log: true
 
 - name: "Config | Default | Create systemd unit file (acmesh-renewal.service)"
   ansible.builtin.copy:
