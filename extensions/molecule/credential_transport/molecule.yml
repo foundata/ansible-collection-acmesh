@@ -1,0 +1,52 @@
+# Exercise the standalone credential suite over SSH, including connection logs.
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+driver:
+  name: "default"
+  options:
+    managed: true
+    login_cmd_template: "{login_cmd}"
+
+platforms:
+  - name: "molecule-acmesh-credential-transport"
+    type: "libvirt"
+    image: "${ACMESH_CREDENTIAL_VM_IMAGE:-https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2}"
+    ssh_port: ${ACMESH_CREDENTIAL_SSH_PORT:-22231} # noqa
+    memory: 2048
+    vcpus: 2
+
+dependency:
+  name: "galaxy"
+  enabled: true
+  options:
+    requirements-file: "${MOLECULE_SCENARIO_DIRECTORY}/../default/requirements.yml"
+    role-file: "${MOLECULE_SCENARIO_DIRECTORY}/../default/requirements.yml"
+    ignore-certs: false
+    ignore-errors: false
+
+provisioner:
+  name: "ansible"
+  inventory:
+    links:
+      hosts: "../default/inventory/hosts.yml"
+  config_options:
+    defaults:
+      host_key_checking: false
+      retry_files_enabled: false
+    connection:
+      pipelining: true
+  playbooks:
+    create: "../shared/playbooks/create-dispatch.yml"
+    prepare: "../shared/playbooks/prepare.yml"
+    converge: "../shared/playbooks/converge.yml"
+    side_effect: "../shared/playbooks/side_effect.yml"
+    verify: "../shared/playbooks/verify.yml"
+    cleanup: "../shared/playbooks/cleanup.yml"
+    destroy: "../shared/playbooks/destroy-dispatch.yml"
+
+verifier:
+  name: "ansible"
+  enabled: true

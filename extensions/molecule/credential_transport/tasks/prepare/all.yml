@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+- name: "Molecule | Prepare | Require SSH for connection logging coverage"
+  ansible.builtin.assert:
+    that:
+      - ansible_connection == 'ssh'
+    fail_msg: "Credential transport tests require a disposable SSH target."
+
+- name: "Molecule | Prepare | Reuse the default Pebble infrastructure"
+  ansible.builtin.include_tasks:
+    file: "{{ molecule_scenario_directory }}/../default/tasks/prepare/all.yml"

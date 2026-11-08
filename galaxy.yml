@@ -74,6 +74,7 @@ build_ignore:
   - "ruff.toml"
   - "rumdl.toml"
   - "tests/output"
+  - "tests/fixtures/credential_transport"
   - "tools"
   # Repository hosting
   - ".github"

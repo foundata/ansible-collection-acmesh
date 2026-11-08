@@ -1,10 +1,11 @@
 # SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Exercise real SSH logging against a disposable, prepared Molecule target.
+"""Exercise real SSH logging against a disposable, prepared target.
 
-The target must already have passed default prepare/converge. Use an isolated
-collection installation. Logs stay private; secret input files are always
-removed. A failed scan reports filenames only, never matching content.
+The target needs acme.sh, Pebble and pebble-challtestsrv, with an SSH inventory
+group named molecule. Use an isolated collection installation. Logs stay private;
+secret input files are always removed. A failed scan reports filenames only,
+never matching content.
 """
 
 import argparse
@@ -16,7 +17,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-FIXTURES = Path(__file__).resolve().parents[1] / "extensions/molecule/credentials"
+FIXTURES = Path(__file__).resolve().parent / "fixtures/credential_transport"
 
 
 def markers(values):

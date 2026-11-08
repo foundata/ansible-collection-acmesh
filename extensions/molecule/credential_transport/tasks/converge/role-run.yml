@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+- name: "Molecule | Converge | Install acme.sh before the credential suite"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+  vars:
+    run_acmesh_cfg_accountemail: "transport@example.test"
+    run_acmesh_certs: []

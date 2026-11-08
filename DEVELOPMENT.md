@@ -64,9 +64,22 @@ Put the collection's own pytest suites below `tests/unit/` so `runtime-check`
 runs them against the built archive. Other Python below `tests/` is linted by
 `helper-lint` but is not run as a test suite.
 
-The credential transport regression needs a disposable SSH target that has
-completed the default Molecule scenario's prepare and converge playbooks, and
-an isolated installation of the collection under test:
+Run the credential transport regression with its dedicated SSH scenario:
+
+```sh
+uv run noxfile.py -s molecule -- test --scenario-name credential_transport
+```
+
+See the
+[scenario instructions](./extensions/molecule/README.md#usage-testing-credential-transport)
+for requirements, logs and debugging. The Python driver also works without
+Molecule: supply a disposable SSH target in inventory group `molecule`, an
+isolated installation of the collection under test, and acme.sh installed by the
+role. The target needs Pebble at `https://localhost:14000/dir`, its CA in the
+system trust store, and pebble-challtestsrv on ports 8053 (DNS) and 8055 (HTTP
+API). The default scenario's preparation provides this infrastructure. The
+reusable playbooks and synthetic provider live in
+[`tests/fixtures/credential_transport/`](./tests/fixtures/credential_transport/):
 
 ```sh
 python tests/credential_transport.py --inventory /path/to/disposable-inventory \

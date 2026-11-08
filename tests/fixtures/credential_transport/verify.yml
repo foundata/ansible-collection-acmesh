@@ -1,4 +1,4 @@
-# Run only on disposable SSH targets after the default scenario's prepare/converge.
+# Run only on disposable SSH targets with acme.sh, Pebble and pebble-challtestsrv.
 # tests/credential_transport.py supplies private, randomly generated input values.
 #
 # SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>

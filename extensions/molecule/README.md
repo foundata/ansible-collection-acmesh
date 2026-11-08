@@ -6,10 +6,12 @@ SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
 [Molecule](https://docs.ansible.com/projects/molecule/) tests this project with
-two scenarios:
+three scenarios:
 
 - `default` tests the project on several Linux distributions, in Podman
   containers or QEMU/KVM virtual machines.
+- `credential_transport` checks credential protection and failure diagnostics
+  over real SSH, using a disposable Debian VM and the standalone Python suite.
 - `ee` builds the project artifact and an Ansible
   [execution environment](https://docs.ansible.com/projects/ansible/latest/getting_started_ee/index.html)
   (EE) image with
@@ -23,12 +25,14 @@ Paths are relative to this directory unless stated otherwise.
 
 - [Requirements](#requirements)
   - [Scenario `default`](#requirements-scenario-default)
+  - [Scenario `credential_transport`](#requirements-scenario-credential-transport)
   - [Scenario `ee`](#requirements-scenario-ee)
 - [Usage](#usage)
   - [Run tests](#usage-testing)
     - [Through nox](#usage-nox)
     - [Scenario `default`](#usage-testing-default)
     - [VM platforms (`type: "libvirt"`)](#usage-testing-vm)
+    - [Scenario `credential_transport`](#usage-testing-credential-transport)
     - [Scenario `ee`](#usage-testing-ee)
   - [Access instance terminal](#usage-instance-access)
   - [Write tests](#usage-add-tests)
@@ -48,7 +52,7 @@ Nox supplies for a long `TMPDIR` exposes the long path again.
 Install [Molecule](https://docs.ansible.com/projects/molecule/installation/).
 The scenarios use Molecule's `default` driver with their own create and destroy
 playbooks, so they need no Molecule driver plugin. Before each run, Molecule
-installs the collections a scenario needs from `<scenario>/requirements.yml`.
+installs the collections listed in the scenario's dependency configuration.
 
 
 ### Scenario `default`<a id="requirements-scenario-default"></a>
@@ -93,6 +97,14 @@ Virtual machine platforms need:
    # or with uv
    uv pip install "pycdlib"
    ```
+
+
+### Scenario `credential_transport`<a id="requirements-scenario-credential-transport"></a>
+
+This scenario needs the VM requirements above and Podman to extract the Pebble
+test server binaries. Nox installs Molecule and `pycdlib`. The scenario reuses
+the default scenario's requirements, inventory groups and Pebble preparation;
+its test target uses SSH rather than the Podman connection plugin.
 
 
 ### Scenario `ee`<a id="requirements-scenario-ee"></a>
@@ -182,6 +194,44 @@ If an instance does not come up:
   `virsh --connect 'qemu:///session' domifaddr '<name>' --source agent`
 - Watch the boot output of each instance in
   [`virt-manager`](https://virt-manager.org/), connected to `qemu:///session`.
+
+
+#### Scenario `credential_transport`<a id="usage-testing-credential-transport"></a>
+
+From the collection root:
+
+```bash
+uv run noxfile.py -s molecule -- test --scenario-name credential_transport
+```
+
+The standard lifecycle creates a Debian 13 VM, prepares Pebble, installs
+acme.sh, checks convergence idempotence, runs the standalone suite, and destroys
+the VM. Verification covers normal, `-v`, `-vvv` and `-vvvv` output with
+pipelining both enabled and disabled. It checks issuance, failure summaries,
+public check-mode diffs, private file protection and unattended renewal, and
+scans console and Ansible file logs for synthetic credentials.
+
+Logs remain in a private directory below `tests/output/credential_transport/` at
+the collection root after VM teardown. Verification prints its directory before
+running the suite. Set `ACMESH_CREDENTIAL_LOG_DIR` to use another absolute log
+directory, `ACMESH_CREDENTIAL_SSH_PORT` to replace the default forwarded port
+`22231`, or `ACMESH_CREDENTIAL_VM_IMAGE` to use another Debian 13 cloud image
+URL or absolute local path. Do not run two instances of this scenario
+concurrently.
+
+To retain the VM for debugging:
+
+```bash
+uv run noxfile.py -s molecule -- test --scenario-name credential_transport --destroy never
+uv run noxfile.py -s molecule -- login --scenario-name credential_transport --host molecule-acmesh-credential-transport
+uv run noxfile.py -s molecule -- destroy --scenario-name credential_transport
+```
+
+The scenario invokes `tests/credential_transport.py` on the controller. Its
+fixtures live in `tests/fixtures/credential_transport/`, outside Molecule, and
+remain usable by other harnesses. See
+[`DEVELOPMENT.md`](../../DEVELOPMENT.md#testing) for the standalone command and
+how to select a single verbosity/pipelining combination.
 
 
 #### Scenario `ee`<a id="usage-testing-ee"></a>
