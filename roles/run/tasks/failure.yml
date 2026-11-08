@@ -1,0 +1,58 @@
+# Report only selected metadata from protected command results, then fail.
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+- name: "ACME | Select safe failure details"
+  ansible.builtin.set_fact:
+    __run_acmesh_failure_details: >-
+      {%- set details = [] -%}
+      {%- for result in ansible_failed_result['results'] | ansible.builtin.default([ansible_failed_result]) -%}
+      {%-   if result is ansible.builtin.failed -%}
+      {%-     set cert = result['__run_acmesh_cert_item'] | ansible.builtin.default({}) -%}
+      {%-     set domain = cert['domain'] | ansible.builtin.default(cert['domains'][0]['name'] | ansible.builtin.default('not available')) -%}
+      {%-     set rc = result['rc'] | ansible.builtin.default(none) -%}
+      {%-     set hint = 'Inspect the target log; process output is protected.' -%}
+      {%-     if rc == 64 and (result['stderr'] | ansible.builtin.default('')) == 'acmesh-run: invalid environment input' -%}
+      {%-       set hint = 'Credential handoff rejected invalid environment input before acme.sh started. Check environment names and scalar values.' -%}
+      {%-     elif rc == 127 and (result['stderr'] | ansible.builtin.default('')) == 'acmesh-run: cannot execute command' -%}
+      {%-       set hint = 'The credential launcher could not start acme.sh. Check the installation and service-user access.' -%}
+      {%-     elif rc is ansible.builtin.integer and rc < 0 -%}
+      {%-       set hint = 'The command was terminated by signal ' ~ (-rc) ~ '.' -%}
+      {%-     elif rc is not ansible.builtin.integer -%}
+      {%-       set hint = 'No process exit status is available; failure may have occurred before acme.sh started.' -%}
+      {%-     endif -%}
+      {%-     set detail = {
+                'operation': __run_acmesh_failure_operation,
+                'domain': domain,
+                'exit_status': rc if rc is ansible.builtin.integer else 'not available',
+                'finished': result['end'] | ansible.builtin.default('not available'),
+                'hint': hint,
+              } -%}
+      {%-     if (cert['domains'] | ansible.builtin.default([]) | ansible.builtin.length) > 0 -%}
+      {%-       set challenge = cert['domains'][0]['challenge'] | ansible.builtin.default({}) -%}
+      {%-       set _ = detail.update({'challenge': challenge['type'] | ansible.builtin.default('default')}) -%}
+      {%-       if challenge['dns_provider'] is ansible.builtin.defined -%}
+      {%-         set _ = detail.update({'dns_provider': challenge['dns_provider']}) -%}
+      {%-       endif -%}
+      {%-     endif -%}
+      {%-     set _ = details.append(detail) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ details }}
+  # Never expose the source results, including failed loop items and stdout.
+  no_log: true
+
+- name: "ACME | Show failure details and target log location"
+  ansible.builtin.debug:
+    msg:
+      failures: "{{ __run_acmesh_failure_details }}"
+      target_log: "{{ run_acmesh_cfg_logfile }}"
+      inspect_on_target: "sudo tail -n 100 -- {{ run_acmesh_cfg_logfile | ansible.builtin.quote }}"
+      more_detail: "Set run_acmesh_cfg_log_level to 2 temporarily; inspect logs on the target as they may contain secrets."
+    verbosity: 0
+
+- name: "ACME | Stop after failed {{ __run_acmesh_failure_operation }}"
+  ansible.builtin.fail:
+    msg: "ACME {{ __run_acmesh_failure_operation }} failed. See the failure details and target log location above."

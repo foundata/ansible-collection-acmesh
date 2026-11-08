@@ -346,6 +346,7 @@
     directory_mode: "{{ __run_acmesh_cfg_cert_home_dir_mode }}"
     force: false # do not overwrite anything if already existing on target
     remote_src: false
+  diff: false # Certificate directories can contain private keys and saved credentials.
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
@@ -394,6 +395,7 @@
     directory_mode: "{{ __run_acmesh_cfg_cert_home_dir_mode }}"
     force: false # do not overwrite anything if already existing on target
     remote_src: false
+  diff: false # Certificate directories can contain private keys and saved credentials.
   when:
     - __run_acmesh_is_installed
     - run_acmesh_certs is ansible.builtin.defined
@@ -715,212 +717,220 @@
     - __run_acmesh_dns_persist_values_result is ansible.builtin.defined
     - (__run_acmesh_dns_persist_values_result['results'] | ansible.builtin.default([]) | ansible.builtin.length) > 0
 
-- name: "Cert | Default | Issue certificate(s)"
-  # The command or shell module is used here. This approach is justified:
-  #
-  # - No built-in Ansible module provides a direct way to interact with the
-  #   used command.
-  # - Inline templating allows for safe and efficient parameter handling,
-  #   avoiding the need for multiple additional tasks with little to no benefit.
-  ansible.builtin.command:
-    # The setpriv prefix runs acme.sh as the service user. A certificate using
-    # the "standalone" or "alpn" challenge on a privileged port (< 1024)
-    # additionally gets CAP_NET_BIND_SERVICE as ambient capability, exactly
-    # like acmesh-renewal.service grants it for the renewal (AmbientCapabilities=).
-    cmd: >
-      {{ __run_acmesh_setpriv_run_as_user }}
-      {{ '--inh-caps +net_bind_service --ambient-caps +net_bind_service'
-          if (__run_acmesh_issue_needs_net_bind | ansible.builtin.bool)
-          else
-          '' }}
-      -- {{ __run_acmesh_runner_python | ansible.builtin.quote }}
-      {{ __run_acmesh_runner_path | ansible.builtin.quote }} ./acme.sh
-        --issue
-        --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
-        --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
-        {% for item_domain in __run_acmesh_cert_item['domains'] %}
-          --domain {{ item_domain['name'] | ansible.builtin.quote }}
-          {{ '--dns ' ~ (item_domain['challenge']['dns_provider'] | ansible.builtin.quote)
-              if ((item_domain['challenge'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['type'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['type'] == 'dns') and
-                  (item_domain['challenge']['dns_provider'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['dns_provider']))
+- name: "ACME | Run issuance with failure diagnostics"
+  block:
+    - name: "Cert | Default | Issue certificate(s)"
+      # The command or shell module is used here. This approach is justified:
+      #
+      # - No built-in Ansible module provides a direct way to interact with the
+      #   used command.
+      # - Inline templating allows for safe and efficient parameter handling,
+      #   avoiding the need for multiple additional tasks with little to no benefit.
+      ansible.builtin.command:
+        # The setpriv prefix runs acme.sh as the service user. A certificate using
+        # the "standalone" or "alpn" challenge on a privileged port (< 1024)
+        # additionally gets CAP_NET_BIND_SERVICE as ambient capability, exactly
+        # like acmesh-renewal.service grants it for the renewal (AmbientCapabilities=).
+        cmd: >
+          {{ __run_acmesh_setpriv_run_as_user }}
+          {{ '--inh-caps +net_bind_service --ambient-caps +net_bind_service'
+              if (__run_acmesh_issue_needs_net_bind | ansible.builtin.bool)
               else
               '' }}
-          {{ '--domain-alias ' ~ (item_domain['challenge']['domain_alias'] | ansible.builtin.quote)
-              if ((item_domain['challenge']['domain_alias'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['domain_alias']))
-              else
-              '' }}
-          {{ '--challenge-alias ' ~ (item_domain['challenge']['challenge_alias'] | ansible.builtin.quote)
-              if ((item_domain['challenge']['challenge_alias'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['challenge_alias']))
-              else
-              '' }}
-          {{ '--webroot ' ~ (item_domain['challenge']['webroot'] | ansible.builtin.quote)
-              if ((item_domain['challenge'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['type'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['type'] == 'webroot') and
-                  (item_domain['challenge']['webroot'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['webroot']))
-              else
-              '' }}
-          {{ '--standalone'
-              if ((item_domain['challenge'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['type'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['type'] == 'standalone'))
-              else
-              '' }}
-          {{ '--httpport ' ~ (item_domain['challenge']['httpport'] | ansible.builtin.quote)
-              if ((item_domain['challenge']['httpport'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['httpport']))
-              else
-              '' }}
-          {{ '--alpn'
-              if ((item_domain['challenge'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['type'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['type'] == 'alpn'))
-              else
-              '' }}
-          {{ '--tlsport ' ~ (item_domain['challenge']['tlsport'] | ansible.builtin.quote)
-              if ((item_domain['challenge']['tlsport'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['tlsport']))
-              else
-              '' }}
-          {{ '--dns-persist'
-              if ((item_domain['challenge'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['type'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['type'] == 'dns_persist'))
-              else
-              '' }}
-          {{ '--dns-persist-wildcard'
-              if ((item_domain['challenge'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['type'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['type'] == 'dns_persist') and
-                  (item_domain['challenge']['dns_persist_wildcard'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['dns_persist_wildcard']))
-              else
-              '' }}
-          {{ '--dns-persist-ca-name ' ~ (item_domain['challenge']['dns_persist_ca_name'] | ansible.builtin.quote)
-              if ((item_domain['challenge'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['type'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['type'] == 'dns_persist') and
-                  (item_domain['challenge']['dns_persist_ca_name'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['dns_persist_ca_name']))
-              else
-              '' }}
-          {{ '--dns-persist-days ' ~ (item_domain['challenge']['dns_persist_days'] | ansible.builtin.quote)
-              if ((item_domain['challenge'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['type'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['type'] == 'dns_persist') and
-                  (item_domain['challenge']['dns_persist_days'] is ansible.builtin.defined) and
-                  (item_domain['challenge']['dns_persist_days']))
-              else
-              '' }}
-        {% endfor %}
-        {{ '--force'
-            if ((__run_acmesh_cert_item['force'] is ansible.builtin.defined) and
-                (__run_acmesh_cert_item['force']))
-            else
-            '' }}
-        {{ '--debug'
-            if ((__run_acmesh_cert_item['debug'] is ansible.builtin.defined) and
-                (__run_acmesh_cert_item['debug']))
-            else
-            '' }}
-        {{ '--dnssleep ' ~ (__run_acmesh_cert_item['dnssleep'] | ansible.builtin.quote)
-            if (__run_acmesh_cert_item['dnssleep'] is ansible.builtin.defined)
-            else
-            '' }}
-        {{ '--pre-hook ' ~ (__run_acmesh_cert_item['pre_hook'] | ansible.builtin.quote)
-            if ((__run_acmesh_cert_item['pre_hook'] is ansible.builtin.defined) and
-                (__run_acmesh_cert_item['pre_hook']))
-            else
-            '' }}
-        {{ '--post-hook ' ~ (__run_acmesh_cert_item['post_hook'] | ansible.builtin.quote)
-            if ((__run_acmesh_cert_item['post_hook'] is ansible.builtin.defined) and
-                (__run_acmesh_cert_item['post_hook']))
-            else
-            '' }}
-        {{ '--renew-hook ' ~ (__run_acmesh_cert_item['renew_hook'] | ansible.builtin.quote)
-            if ((__run_acmesh_cert_item['renew_hook'] is ansible.builtin.defined) and
-                (__run_acmesh_cert_item['renew_hook']))
-            else
-            '' }}
-        {{ '--server ' ~ (__run_acmesh_cert_item['server'] | ansible.builtin.quote)
-            if ((__run_acmesh_cert_item['server'] is ansible.builtin.defined) and
-                (__run_acmesh_cert_item['server']))
-            else
-            '--server letsencrypt' }}
-        {{ '--ca-bundle ' ~ (run_acmesh_cfg_ca_bundle | ansible.builtin.quote)
-            if ((run_acmesh_cfg_ca_bundle is ansible.builtin.defined) and
-                (run_acmesh_cfg_ca_bundle))
-            else
-            '' }}
-        {{ '--ca-path ' ~ (run_acmesh_cfg_ca_path | ansible.builtin.quote)
-            if ((run_acmesh_cfg_ca_path is ansible.builtin.defined) and
-                (run_acmesh_cfg_ca_path))
-            else
-            '' }}
-        {{  __run_acmesh_cert_item['extra_flags']
-            if (__run_acmesh_cert_item['extra_flags'] is ansible.builtin.defined)
-            else
-            '' }}
-  args:
-    chdir: "{{ run_acmesh_cfg_home }}"
-    stdin: >-
-      {{
-        {'HOME': run_acmesh_cfg_home}
-        | ansible.builtin.combine(run_acmesh_environment | ansible.builtin.default({}))
-        | ansible.builtin.combine(__run_acmesh_cert_item['environment'] | ansible.builtin.default({}))
-        | ansible.builtin.to_json
-      }}
-    stdin_add_newline: false
-  # Only public values belong in the connection command. The helper receives
-  # credentials through module stdin after switching to the service user.
-  vars:
-    # Whether this certificate needs CAP_NET_BIND_SERVICE for issuance: same
-    # logic as __run_acmesh_renewal_needs_net_bind (vars/main.yml), but for a
-    # single certificate.
-    __run_acmesh_issue_needs_net_bind: >-
-      {%- set ns = namespace(need=false) -%}
-      {%- for _domain in (__run_acmesh_cert_item['domains'] | ansible.builtin.default([])) -%}
-      {%-   set _challenge = _domain['challenge'] | ansible.builtin.default({}) -%}
-      {%-   set _type = _challenge['type'] | ansible.builtin.default('') -%}
-      {%-   if _type == 'standalone' and ((_challenge['httpport'] | ansible.builtin.default(80) | ansible.builtin.int) < 1024) -%}
-      {%-     set ns.need = true -%}
-      {%-   elif _type == 'alpn' and ((_challenge['tlsport'] | ansible.builtin.default(443) | ansible.builtin.int) < 1024) -%}
-      {%-     set ns.need = true -%}
-      {%-   endif -%}
-      {%- endfor -%}
-      {{ ns.need }}
-  environment:
-    HOME: "{{ run_acmesh_cfg_home }}"
-  when:
-    - __run_acmesh_is_installed
-    - run_acmesh_certs is ansible.builtin.defined
-  changed_when:
-    - __run_acmesh_issue_result is ansible.builtin.success
-    - ('Cert success') in __run_acmesh_issue_result['stdout']
-  # Exit status 2 is acme.sh's RENEW_SKIP ("nothing to do", e.g. the
-  # certificate is not due for renewal yet); every other nonzero status is a
-  # real failure. Deliberately not matched against stdout: acme.sh prints
-  # "Domains not changed" before it decides whether to renew, so a renewal
-  # that starts and then fails (challenge, DNS API, CA error) still carries
-  # that text and would be swallowed.
-  failed_when:
-    - __run_acmesh_issue_result is ansible.builtin.failed
-    - (__run_acmesh_issue_result['rc'] | ansible.builtin.default(1)) != 2
-  loop: "{{ __run_acmesh_certs_managed }}"
-  loop_control:
-    loop_var: "__run_acmesh_cert_item"
-  register: __run_acmesh_issue_result
-  # Module input, output and loop items can contain credentials. The stdin
-  # handoff keeps them out of connection arguments; no_log protects results.
-  no_log: true
-  notify:
-    - "run_acmesh_set_certificate_permissions"
+          -- {{ __run_acmesh_runner_python | ansible.builtin.quote }}
+          {{ __run_acmesh_runner_path | ansible.builtin.quote }} ./acme.sh
+            --issue
+            --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
+            --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
+            {% for item_domain in __run_acmesh_cert_item['domains'] %}
+              --domain {{ item_domain['name'] | ansible.builtin.quote }}
+              {{ '--dns ' ~ (item_domain['challenge']['dns_provider'] | ansible.builtin.quote)
+                  if ((item_domain['challenge'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['type'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['type'] == 'dns') and
+                      (item_domain['challenge']['dns_provider'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['dns_provider']))
+                  else
+                  '' }}
+              {{ '--domain-alias ' ~ (item_domain['challenge']['domain_alias'] | ansible.builtin.quote)
+                  if ((item_domain['challenge']['domain_alias'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['domain_alias']))
+                  else
+                  '' }}
+              {{ '--challenge-alias ' ~ (item_domain['challenge']['challenge_alias'] | ansible.builtin.quote)
+                  if ((item_domain['challenge']['challenge_alias'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['challenge_alias']))
+                  else
+                  '' }}
+              {{ '--webroot ' ~ (item_domain['challenge']['webroot'] | ansible.builtin.quote)
+                  if ((item_domain['challenge'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['type'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['type'] == 'webroot') and
+                      (item_domain['challenge']['webroot'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['webroot']))
+                  else
+                  '' }}
+              {{ '--standalone'
+                  if ((item_domain['challenge'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['type'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['type'] == 'standalone'))
+                  else
+                  '' }}
+              {{ '--httpport ' ~ (item_domain['challenge']['httpport'] | ansible.builtin.quote)
+                  if ((item_domain['challenge']['httpport'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['httpport']))
+                  else
+                  '' }}
+              {{ '--alpn'
+                  if ((item_domain['challenge'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['type'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['type'] == 'alpn'))
+                  else
+                  '' }}
+              {{ '--tlsport ' ~ (item_domain['challenge']['tlsport'] | ansible.builtin.quote)
+                  if ((item_domain['challenge']['tlsport'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['tlsport']))
+                  else
+                  '' }}
+              {{ '--dns-persist'
+                  if ((item_domain['challenge'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['type'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['type'] == 'dns_persist'))
+                  else
+                  '' }}
+              {{ '--dns-persist-wildcard'
+                  if ((item_domain['challenge'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['type'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['type'] == 'dns_persist') and
+                      (item_domain['challenge']['dns_persist_wildcard'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['dns_persist_wildcard']))
+                  else
+                  '' }}
+              {{ '--dns-persist-ca-name ' ~ (item_domain['challenge']['dns_persist_ca_name'] | ansible.builtin.quote)
+                  if ((item_domain['challenge'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['type'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['type'] == 'dns_persist') and
+                      (item_domain['challenge']['dns_persist_ca_name'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['dns_persist_ca_name']))
+                  else
+                  '' }}
+              {{ '--dns-persist-days ' ~ (item_domain['challenge']['dns_persist_days'] | ansible.builtin.quote)
+                  if ((item_domain['challenge'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['type'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['type'] == 'dns_persist') and
+                      (item_domain['challenge']['dns_persist_days'] is ansible.builtin.defined) and
+                      (item_domain['challenge']['dns_persist_days']))
+                  else
+                  '' }}
+            {% endfor %}
+            {{ '--force'
+                if ((__run_acmesh_cert_item['force'] is ansible.builtin.defined) and
+                    (__run_acmesh_cert_item['force']))
+                else
+                '' }}
+            {{ '--debug'
+                if ((__run_acmesh_cert_item['debug'] is ansible.builtin.defined) and
+                    (__run_acmesh_cert_item['debug']))
+                else
+                '' }}
+            {{ '--dnssleep ' ~ (__run_acmesh_cert_item['dnssleep'] | ansible.builtin.quote)
+                if (__run_acmesh_cert_item['dnssleep'] is ansible.builtin.defined)
+                else
+                '' }}
+            {{ '--pre-hook ' ~ (__run_acmesh_cert_item['pre_hook'] | ansible.builtin.quote)
+                if ((__run_acmesh_cert_item['pre_hook'] is ansible.builtin.defined) and
+                    (__run_acmesh_cert_item['pre_hook']))
+                else
+                '' }}
+            {{ '--post-hook ' ~ (__run_acmesh_cert_item['post_hook'] | ansible.builtin.quote)
+                if ((__run_acmesh_cert_item['post_hook'] is ansible.builtin.defined) and
+                    (__run_acmesh_cert_item['post_hook']))
+                else
+                '' }}
+            {{ '--renew-hook ' ~ (__run_acmesh_cert_item['renew_hook'] | ansible.builtin.quote)
+                if ((__run_acmesh_cert_item['renew_hook'] is ansible.builtin.defined) and
+                    (__run_acmesh_cert_item['renew_hook']))
+                else
+                '' }}
+            {{ '--server ' ~ (__run_acmesh_cert_item['server'] | ansible.builtin.quote)
+                if ((__run_acmesh_cert_item['server'] is ansible.builtin.defined) and
+                    (__run_acmesh_cert_item['server']))
+                else
+                '--server letsencrypt' }}
+            {{ '--ca-bundle ' ~ (run_acmesh_cfg_ca_bundle | ansible.builtin.quote)
+                if ((run_acmesh_cfg_ca_bundle is ansible.builtin.defined) and
+                    (run_acmesh_cfg_ca_bundle))
+                else
+                '' }}
+            {{ '--ca-path ' ~ (run_acmesh_cfg_ca_path | ansible.builtin.quote)
+                if ((run_acmesh_cfg_ca_path is ansible.builtin.defined) and
+                    (run_acmesh_cfg_ca_path))
+                else
+                '' }}
+            {{  __run_acmesh_cert_item['extra_flags']
+                if (__run_acmesh_cert_item['extra_flags'] is ansible.builtin.defined)
+                else
+                '' }}
+      args:
+        chdir: "{{ run_acmesh_cfg_home }}"
+        stdin: >-
+          {{
+            {'HOME': run_acmesh_cfg_home}
+            | ansible.builtin.combine(run_acmesh_environment | ansible.builtin.default({}))
+            | ansible.builtin.combine(__run_acmesh_cert_item['environment'] | ansible.builtin.default({}))
+            | ansible.builtin.to_json
+          }}
+        stdin_add_newline: false
+      # Only public values belong in the connection command. The helper receives
+      # credentials through module stdin after switching to the service user.
+      vars:
+        # Whether this certificate needs CAP_NET_BIND_SERVICE for issuance: same
+        # logic as __run_acmesh_renewal_needs_net_bind (vars/main.yml), but for a
+        # single certificate.
+        __run_acmesh_issue_needs_net_bind: >-
+          {%- set ns = namespace(need=false) -%}
+          {%- for _domain in (__run_acmesh_cert_item['domains'] | ansible.builtin.default([])) -%}
+          {%-   set _challenge = _domain['challenge'] | ansible.builtin.default({}) -%}
+          {%-   set _type = _challenge['type'] | ansible.builtin.default('') -%}
+          {%-   if _type == 'standalone' and ((_challenge['httpport'] | ansible.builtin.default(80) | ansible.builtin.int) < 1024) -%}
+          {%-     set ns.need = true -%}
+          {%-   elif _type == 'alpn' and ((_challenge['tlsport'] | ansible.builtin.default(443) | ansible.builtin.int) < 1024) -%}
+          {%-     set ns.need = true -%}
+          {%-   endif -%}
+          {%- endfor -%}
+          {{ ns.need }}
+      environment:
+        HOME: "{{ run_acmesh_cfg_home }}"
+      when:
+        - __run_acmesh_is_installed
+        - run_acmesh_certs is ansible.builtin.defined
+      changed_when:
+        - __run_acmesh_issue_result is ansible.builtin.success
+        - ('Cert success') in __run_acmesh_issue_result['stdout']
+      # Exit status 2 is acme.sh's RENEW_SKIP ("nothing to do", e.g. the
+      # certificate is not due for renewal yet); every other nonzero status is a
+      # real failure. Deliberately not matched against stdout: acme.sh prints
+      # "Domains not changed" before it decides whether to renew, so a renewal
+      # that starts and then fails (challenge, DNS API, CA error) still carries
+      # that text and would be swallowed.
+      failed_when:
+        - __run_acmesh_issue_result is ansible.builtin.failed
+        - (__run_acmesh_issue_result['rc'] | ansible.builtin.default(1)) != 2
+      loop: "{{ __run_acmesh_certs_managed }}"
+      loop_control:
+        loop_var: "__run_acmesh_cert_item"
+      register: __run_acmesh_issue_result
+      # Module input, output and loop items can contain credentials. The stdin
+      # handoff keeps them out of connection arguments; no_log protects results.
+      no_log: true
+      notify:
+        - "run_acmesh_set_certificate_permissions"
+  rescue:
+    - name: "ACME | Report issuance failure"
+      ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/failure.yml"
+      vars:
+        __run_acmesh_failure_operation: "issuance"
 
 - name: "Cert | Default | Converge saved renewal settings"
   ansible.builtin.include_tasks:
@@ -1025,92 +1035,100 @@
     loop_var: "__run_acmesh_install_path_item"
     label: "{{ __run_acmesh_install_path_item['domain'] }}"
 
-- name: "Cert | Default | Install certificate(s)"
-  # The command or shell module is used here. This approach is justified:
-  #
-  # - No built-in Ansible module provides a direct way to interact with the
-  #   used command.
-  # - Inline templating allows for safe and efficient parameter handling,
-  #   avoiding the need for multiple additional tasks with little to no benefit.
-  ansible.builtin.command:
-    # The setpriv prefix runs acme.sh as the service user, see vars/main.yml.
-    # Certificates with the (default) "staged" strategy point acme.sh at the
-    # internal staging paths; acme.sh persists them as its Le_Real*Path values
-    # and reuses them during renewals, so renewals also stage and the
-    # acmesh-deploy-* units publish to the final destinations. The "direct"
-    # strategy keeps pointing at the final paths (pre-4.0.0 behavior).
-    cmd: >
-      {{ __run_acmesh_setpriv_run_as_user }} -- {{ __run_acmesh_runner_python | ansible.builtin.quote }}
-      {{ __run_acmesh_runner_path | ansible.builtin.quote }} ./acme.sh
-        --install-cert
-        --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
-        --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
-        --domain {{ __run_acmesh_cert_item['domain'] | ansible.builtin.quote }}
-        {{ '--ca-file ' ~ ((__run_acmesh_install_artifacts['ca_file']['staging']
-                            if (__run_acmesh_install_staged | ansible.builtin.bool)
-                            else __run_acmesh_install_artifacts['ca_file']['dest']) | ansible.builtin.quote)
-            if ('ca_file' in __run_acmesh_install_artifacts)
-            else
-            '' }}
-        {{ '--cert-file ' ~ ((__run_acmesh_install_artifacts['cert_file']['staging']
-                              if (__run_acmesh_install_staged | ansible.builtin.bool)
-                              else __run_acmesh_install_artifacts['cert_file']['dest']) | ansible.builtin.quote)
-            if ('cert_file' in __run_acmesh_install_artifacts)
-            else
-            '' }}
-        {{ '--fullchain-file ' ~ ((__run_acmesh_install_artifacts['fullchain_file']['staging']
-                                   if (__run_acmesh_install_staged | ansible.builtin.bool)
-                                   else __run_acmesh_install_artifacts['fullchain_file']['dest']) | ansible.builtin.quote)
-            if ('fullchain_file' in __run_acmesh_install_artifacts)
-            else
-            '' }}
-        {{ '--key-file ' ~ ((__run_acmesh_install_artifacts['key_file']['staging']
-                             if (__run_acmesh_install_staged | ansible.builtin.bool)
-                             else __run_acmesh_install_artifacts['key_file']['dest']) | ansible.builtin.quote)
-            if ('key_file' in __run_acmesh_install_artifacts)
-            else
-            '' }}
-  args:
-    chdir: "{{ run_acmesh_cfg_home }}"
-    stdin: >-
-      {{
-        {'HOME': run_acmesh_cfg_home}
-        | ansible.builtin.combine(run_acmesh_environment | ansible.builtin.default({}))
-        | ansible.builtin.combine(__run_acmesh_cert_item['environment'] | ansible.builtin.default({}))
-        | ansible.builtin.to_json
-      }}
-    stdin_add_newline: false
-  vars:
-    __run_acmesh_install_artifacts: "{{ __run_acmesh_cert_item['install_data']['artifacts'] }}"
-    __run_acmesh_install_staged: "{{ __run_acmesh_cert_item['install_data']['strategy'] == 'staged' }}"
-  # Only public values belong in the connection command. The helper receives
-  # credentials through module stdin after switching to the service user.
-  environment:
-    HOME: "{{ run_acmesh_cfg_home }}"
-  when:
-    - __run_acmesh_is_installed
-    - run_acmesh_certs is ansible.builtin.defined
-  changed_when:
-    - __run_acmesh_install_result is ansible.builtin.success
-    - ('Cert success') in __run_acmesh_install_result['stdout']
-  # No --reloadcmd is passed to acme.sh: reload commands run via root-side
-  # acmesh-reload-* systemd services after publication (see
-  # tasks/config/default.yml), so acme.sh reload errors cannot occur here.
-  # A nonzero exit status always fails the role: acme.sh prints "Installing"
-  # for every file before writing it, so a partial installation (e.g. a
-  # private key that cannot be written) still produces that output while
-  # leaving already deployed files stale.
-  failed_when:
-    - __run_acmesh_install_result is ansible.builtin.failed
-  loop: "{{ __run_acmesh_install_loop }}"
-  loop_control:
-    loop_var: "__run_acmesh_cert_item"
-    label: "{{ __run_acmesh_cert_item['domain'] }}"
-  register: __run_acmesh_install_result
-  # Protect the credential-bearing module input, output and loop item.
-  no_log: true
-  notify:
-    - "run_acmesh_set_certificate_permissions"
+- name: "ACME | Run installation with failure diagnostics"
+  block:
+    - name: "Cert | Default | Install certificate(s)"
+      # The command or shell module is used here. This approach is justified:
+      #
+      # - No built-in Ansible module provides a direct way to interact with the
+      #   used command.
+      # - Inline templating allows for safe and efficient parameter handling,
+      #   avoiding the need for multiple additional tasks with little to no benefit.
+      ansible.builtin.command:
+        # The setpriv prefix runs acme.sh as the service user, see vars/main.yml.
+        # Certificates with the (default) "staged" strategy point acme.sh at the
+        # internal staging paths; acme.sh persists them as its Le_Real*Path values
+        # and reuses them during renewals, so renewals also stage and the
+        # acmesh-deploy-* units publish to the final destinations. The "direct"
+        # strategy keeps pointing at the final paths (pre-4.0.0 behavior).
+        cmd: >
+          {{ __run_acmesh_setpriv_run_as_user }} -- {{ __run_acmesh_runner_python | ansible.builtin.quote }}
+          {{ __run_acmesh_runner_path | ansible.builtin.quote }} ./acme.sh
+            --install-cert
+            --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }}
+            --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }}
+            --domain {{ __run_acmesh_cert_item['domain'] | ansible.builtin.quote }}
+            {{ '--ca-file ' ~ ((__run_acmesh_install_artifacts['ca_file']['staging']
+                                if (__run_acmesh_install_staged | ansible.builtin.bool)
+                                else __run_acmesh_install_artifacts['ca_file']['dest']) | ansible.builtin.quote)
+                if ('ca_file' in __run_acmesh_install_artifacts)
+                else
+                '' }}
+            {{ '--cert-file ' ~ ((__run_acmesh_install_artifacts['cert_file']['staging']
+                                  if (__run_acmesh_install_staged | ansible.builtin.bool)
+                                  else __run_acmesh_install_artifacts['cert_file']['dest']) | ansible.builtin.quote)
+                if ('cert_file' in __run_acmesh_install_artifacts)
+                else
+                '' }}
+            {{ '--fullchain-file ' ~ ((__run_acmesh_install_artifacts['fullchain_file']['staging']
+                                       if (__run_acmesh_install_staged | ansible.builtin.bool)
+                                       else __run_acmesh_install_artifacts['fullchain_file']['dest']) | ansible.builtin.quote)
+                if ('fullchain_file' in __run_acmesh_install_artifacts)
+                else
+                '' }}
+            {{ '--key-file ' ~ ((__run_acmesh_install_artifacts['key_file']['staging']
+                                 if (__run_acmesh_install_staged | ansible.builtin.bool)
+                                 else __run_acmesh_install_artifacts['key_file']['dest']) | ansible.builtin.quote)
+                if ('key_file' in __run_acmesh_install_artifacts)
+                else
+                '' }}
+      args:
+        chdir: "{{ run_acmesh_cfg_home }}"
+        stdin: >-
+          {{
+            {'HOME': run_acmesh_cfg_home}
+            | ansible.builtin.combine(run_acmesh_environment | ansible.builtin.default({}))
+            | ansible.builtin.combine(__run_acmesh_cert_item['environment'] | ansible.builtin.default({}))
+            | ansible.builtin.to_json
+          }}
+        stdin_add_newline: false
+      vars:
+        __run_acmesh_install_artifacts: "{{ __run_acmesh_cert_item['install_data']['artifacts'] }}"
+        __run_acmesh_install_staged: "{{ __run_acmesh_cert_item['install_data']['strategy'] == 'staged' }}"
+      # Only public values belong in the connection command. The helper receives
+      # credentials through module stdin after switching to the service user.
+      environment:
+        HOME: "{{ run_acmesh_cfg_home }}"
+      when:
+        - __run_acmesh_is_installed
+        - run_acmesh_certs is ansible.builtin.defined
+      changed_when:
+        - __run_acmesh_install_result is ansible.builtin.success
+        - ('Cert success') in __run_acmesh_install_result['stdout']
+      # No --reloadcmd is passed to acme.sh: reload commands run via root-side
+      # acmesh-reload-* systemd services after publication (see
+      # tasks/config/default.yml), so acme.sh reload errors cannot occur here.
+      # A nonzero exit status always fails the role: acme.sh prints "Installing"
+      # for every file before writing it, so a partial installation (e.g. a
+      # private key that cannot be written) still produces that output while
+      # leaving already deployed files stale.
+      failed_when:
+        - __run_acmesh_install_result is ansible.builtin.failed
+      loop: "{{ __run_acmesh_install_loop }}"
+      loop_control:
+        loop_var: "__run_acmesh_cert_item"
+        label: "{{ __run_acmesh_cert_item['domain'] }}"
+      register: __run_acmesh_install_result
+      # Protect the credential-bearing module input, output and loop item.
+      no_log: true
+      notify:
+        - "run_acmesh_set_certificate_permissions"
+  rescue:
+    - name: "ACME | Report installation failure"
+      ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/failure.yml"
+      vars:
+        __run_acmesh_failure_operation: "installation"
 
 # Staged deployment: after acme.sh wrote the staging files, the root-owned
 # acmesh-deploy-* service publishes them. The helper's read-only --check mode

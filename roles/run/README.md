@@ -25,6 +25,7 @@ acme.sh.
   - [Uninstall](#examples-uninstall)
   - [Pre-seeding certificate files](#examples-preseed)
   - [Migration from 3.x and downgrades](#examples-migration)
+- [Troubleshooting](#troubleshooting)
 - [Supported tags](#tags)<!-- ANSIBLE DOCSMITH TOC START -->
 - [Role variables](#variables)
   - [`run_acmesh_state`](#variable-run_acmesh_state)
@@ -621,6 +622,33 @@ Version 4.0.0 changes the default installation strategy to `staged`:
 
 
 
+## Troubleshooting<a id="troubleshooting"></a>
+
+Configuration, issuance and installation failures show safe details and the
+configured target log path at normal Ansible verbosity. Run the suggested
+command on the affected host. Full logs may contain provider secrets; inspect
+them locally before sharing excerpts.
+
+|                Problem                | Command on the target (default paths) |
+| ------------------------------------- | ------------------------------------- |
+| Issuance or installation failed       | `sudo tail -n 100 -- /var/log/acme.sh.log` |
+| Scheduled renewal failed              | `sudo journalctl -u acmesh-renewal.service --since '1 hour ago' --no-pager` |
+| Renewal did not run                   | `sudo systemctl status acmesh-renewal.timer --no-pager` |
+| Certificate renewed but is not served | `sudo journalctl -u 'acmesh-deploy-*.service' -u 'acmesh-reload-*.service' --since '1 hour ago' --no-pager` |
+
+The renewal service journal covers scheduled renewal, not issuance started by
+Ansible. For more file-log detail, temporarily set `run_acmesh_cfg_log_level: 2`
+and apply the configuration; restore `1` after investigating. Per-certificate
+`debug: true` enables console debugging during issuance only; Ansible still
+protects that output.
+
+For previews, use `--check --diff` without applying `no_log` to the entire role.
+The role protects credential-bearing tasks and private file content itself.
+Do not disable those protections or print their registered results. Ordinary
+`-vvv`/`-vvvv` execution is supported; `ANSIBLE_DEBUG` and acme.sh's
+`--output-insecure` are outside that protection.
+
+
 ## Supported tags<a id="tags"></a>
 
 Run parts of the role with `--tags`:
@@ -666,7 +694,7 @@ The following variables can be configured for this role:
 | `run_acmesh_cfg_cert_home`               | `str`  | No       | `"/var/opt/acme.sh"`                               | Specifies the directory where certificates are maintained by acme.sh (relates to acme.sh option --certhome). ⚠️ Do not rely on the files in this directory directly. Instead, copy the certificates where needed using the "install" key of […](#variable-run_acmesh_cfg_cert_home) |
 | `run_acmesh_cfg_cert_deploy_base_dir`    | `str`  | No       | `"/var/opt/acme.sh-deploy"`                        | Base directory for the internal staging areas of certificates using the `staged` installation strategy. The directory itself is root-owned and holds one subdirectory per certificate which is writable by the service user: acme.sh installs into that […](#variable-run_acmesh_cfg_cert_deploy_base_dir) |
 | `run_acmesh_cfg_logfile`                 | `str`  | No       | `"/var/log/acme.sh.log"`                           | Path to the log file where acme.sh logs its operations (relates to acme.sh option --log). |
-| `run_acmesh_cfg_log_level`               | `int`  | No       | `1`                                                | Specifies the log level (relates to acme.sh option --log-level). Possible values are 1 (less logging) and 2 (more logging). |
+| `run_acmesh_cfg_log_level`               | `int`  | No       | `1`                                                | Specifies the log level (relates to acme.sh option --log-level). Possible values are 1 (less logging) and 2 (more logging). Applies to issuance and scheduled renewals. Temporarily use `2` when investigating a failure, then restore `1`. Inspect the […](#variable-run_acmesh_cfg_log_level) |
 | `run_acmesh_cfg_syslog`                  | `int`  | No       | `3`                                                | Specifies what to log (relates to acme.sh option --syslog). Possible values are 0 (disable syslog), 3 (errors), 6 (info) and 7 (debug) |
 | `run_acmesh_cfg_ca_bundle`               | `str`  | No       | `""`                                               | Path to a custom CA certificate bundle file on the remote host. Passed as `--ca-bundle` to all acme.sh commands that make HTTPS requests (issue, register-account). Needed when the ACME server uses a certificate signed by a private or non-standard […](#variable-run_acmesh_cfg_ca_bundle) |
 | `run_acmesh_cfg_ca_path`                 | `str`  | No       | `""`                                               | Path to a directory of CA certificates in PEM format on the remote host. Passed as `--ca-path` to all acme.sh commands that make HTTPS requests. Alternative to `run_acmesh_cfg_ca_bundle` when the HTTP client (curl/wget) requires a directory of […](#variable-run_acmesh_cfg_ca_path) |
@@ -1369,7 +1397,10 @@ the current certificate is still valid. Defaults to `false`.
 
 [*⇑ Back to ToC ⇑*](#toc)
 
-
+Enable acme.sh console debugging during issuance. Console output
+remains protected by `no_log`; this does not enable debugging for
+scheduled renewals. Use `run_acmesh_cfg_log_level: 2` for more
+detail in the target log file during issuance and renewal.
 
 - **Type**: `bool`
 - **Required**: No
@@ -1690,7 +1721,10 @@ option --log).
 [*⇑ Back to ToC ⇑*](#toc)
 
 Specifies the log level (relates to acme.sh option --log-level).
-Possible values are 1 (less logging) and 2 (more logging).
+Possible values are 1 (less logging) and 2 (more logging). Applies to
+issuance and scheduled renewals. Temporarily use `2` when investigating
+a failure, then restore `1`. Inspect the log on the target; provider
+output can contain sensitive information.
 
 - **Type**: `int`
 - **Required**: No

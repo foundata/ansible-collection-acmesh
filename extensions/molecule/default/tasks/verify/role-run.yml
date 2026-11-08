@@ -1280,7 +1280,7 @@
     - name: "Molecule | Verify | Install failure: assert the run failed in the install task"
       ansible.builtin.assert:
         that:
-          - (ansible_failed_task['name'] | ansible.builtin.default('')) is ansible.builtin.search('Install certificate')
+          - (ansible_failed_task['name'] | ansible.builtin.default('')) is ansible.builtin.search('Stop after failed installation')
         fail_msg: >-
           The run failed, but not in the certificate installation task as
           expected (failed task:
@@ -1343,7 +1343,7 @@
     - name: "Molecule | Verify | Issuance failure: assert the run failed in the issuance task"
       ansible.builtin.assert:
         that:
-          - (ansible_failed_task['name'] | ansible.builtin.default('')) is ansible.builtin.search('Issue certificate')
+          - (ansible_failed_task['name'] | ansible.builtin.default('')) is ansible.builtin.search('Stop after failed issuance')
         fail_msg: >-
           The run failed, but not in the certificate issuance task as expected
           (failed task:
@@ -1528,7 +1528,6 @@
         success_msg: >-
           The environment templated from the outer loop item reached acme.sh.
       no_log: true
-
 
     - name: "Molecule | Verify | Loop include: read the certificate's acme.sh configuration"
       ansible.builtin.slurp:

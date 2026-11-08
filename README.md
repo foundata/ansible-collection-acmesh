@@ -64,6 +64,7 @@ The primary role in this collection for issuing and managing certificates. [Its
     - [Uninstall](./roles/run/README.md#examples-uninstall)
     - [Pre-seeding certificate files](./roles/run/README.md#examples-preseed)
     - [Migration from 3.x and downgrades](./roles/run/README.md#examples-migration)
+  - [Troubleshooting](./roles/run/README.md#troubleshooting)
   - [Supported tags](./roles/run/README.md#tags)
   - [Role variables](./roles/run/README.md#variables)
     - [`run_acmesh_state`](./roles/run/README.md#variable-run_acmesh_state)

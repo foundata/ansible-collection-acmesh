@@ -12,6 +12,7 @@ import base64
 import json
 import os
 import secrets
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -42,7 +43,9 @@ def scan(paths, needles):
     return leaking
 
 
-def execute(playbook, inventory, variables, directory, verbosity, pipelining):
+def execute(
+    playbook, inventory, variables, directory, verbosity, pipelining, *, check=False
+):
     directory.mkdir(mode=0o700)
     variables = {
         **variables,
@@ -64,6 +67,8 @@ def execute(playbook, inventory, variables, directory, verbosity, pipelining):
     ]
     if verbosity:
         command.append("-" + "v" * verbosity)
+    if check:
+        command.append("--check")
     env = {
         **os.environ,
         "ANSIBLE_DEBUG": "false",
@@ -124,6 +129,102 @@ def main():
             print(f"{name}: exit={status}, leaking logs={leaks}", flush=True)
             if status or leaks:
                 return 1
+            for operation in ("issuance", "configuration", "installation"):
+                status, logs = execute(
+                    "failure.yml",
+                    args.inventory,
+                    {
+                        "transport_domain": domain,
+                        "transport_secrets": values,
+                        "transport_failure": operation,
+                    },
+                    args.work_dir / f"{name}-{operation}-failure",
+                    verbosity,
+                    pipeline == "on",
+                )
+                leaks = scan(logs, all_needles)
+                console = logs[0].read_text()
+                visible = all(
+                    text in console
+                    for text in (
+                        f"ACME {operation} failed.",
+                        "sudo tail -n 100 -- '/var/log/acme diagnostics.log'"
+                        if operation == "configuration"
+                        else "sudo tail -n 100 -- /var/log/acme.sh.log",
+                        '"exit_status":',
+                    )
+                )
+                print(
+                    f"{name} {operation} failure: exit={status}, "
+                    f"guidance={visible}, leaking logs={leaks}",
+                    flush=True,
+                )
+                if status != 2 or leaks or not visible:
+                    return 1
+            preview = args.work_dir / f"{name}-preview-fixture"
+            preview.mkdir(mode=0o700)
+            try:
+                shutil.copyfile(FIXTURES / "preview.yml", preview / "preview.yml")
+                for suffix in ("", "_ecc"):
+                    source = (
+                        preview
+                        / "files/acme.sh/certhome"
+                        / ("preview-" + domain + suffix)
+                    )
+                    source.mkdir(parents=True, mode=0o700)
+                    # A single-file directory also exercises copy's content diff.
+                    (source / "private.key").write_text(
+                        "-----BEGIN PRIVATE KEY-----\n"
+                        + values["token"]
+                        + "\n-----END PRIVATE KEY-----\n"
+                    )
+                status, logs = execute(
+                    preview / "preview.yml",
+                    args.inventory,
+                    {
+                        "transport_domain": "preview-" + domain,
+                        "transport_secrets": values,
+                    },
+                    args.work_dir / f"{name}-preview",
+                    verbosity,
+                    pipeline == "on",
+                    check=True,
+                )
+                leaks = scan(logs, all_needles)
+                visible = (
+                    "+Description=acme.sh - deploy staged certificate files"
+                    in logs[0].read_text()
+                )
+                print(
+                    f"{name} preview: exit={status}, public diff={visible}, leaking logs={leaks}",
+                    flush=True,
+                )
+                if status or leaks or not visible:
+                    return 1
+                status, logs = execute(
+                    preview / "preview.yml",
+                    args.inventory,
+                    {
+                        "transport_domain": "preview-" + domain,
+                        "transport_secrets": values,
+                        "run_acmesh_cfg_home": f"/var/tmp/acmesh-uninstalled-{domain}",
+                        "transport_fresh": True,
+                    },
+                    args.work_dir / f"{name}-fresh-preview",
+                    verbosity,
+                    pipeline == "on",
+                    check=True,
+                )
+                leaks = scan(logs, all_needles)
+                visible = "acme.sh is not installed yet." in logs[0].read_text()
+                print(
+                    f"{name} fresh preview: exit={status}, notice={visible}, leaking logs={leaks}",
+                    flush=True,
+                )
+                if status or leaks or not visible:
+                    return 1
+            finally:
+                shutil.rmtree(preview)
             # A separate process receives no secrets: renewal must use the DNS
             # provider's native persistence. Remove this certificate afterwards
             # so subsequent cases cannot reuse another case's saved credentials.

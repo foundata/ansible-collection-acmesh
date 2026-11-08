@@ -12,72 +12,80 @@
     group: "root"
     mode: "u=rw,g=r,o=r" # 0644; invoked with the managed host's Python
 
-- name: "Config | Default | Configure acme.sh"
-  # The command or shell module is used here. This approach is justified:
-  #
-  # - No built-in Ansible module provides a direct way to interact with the
-  #   used command.
-  # - Inline templating allows for safe and efficient parameter handling,
-  #   avoiding the need for multiple additional tasks with little to no benefit.
-  #
-  # Notes on the command or script itself:
-  #
-  # acme.sh can update, modify, or correct configuration values during
-  # execution of most subcommands. Therefore, we simply call the --info command,
-  # which itself does not perform any certificate-related actions but allows
-  # us to update the configuration. See the official documentation for a
-  # explanation of the parameters:
-  # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
-  ansible.builtin.shell:
-    cmd: |
-      set -u # Fail on unset vars
-      set -o pipefail # Fail if any pipe cmd fails
+- name: "ACME | Run configuration with failure diagnostics"
+  block:
+    - name: "Config | Default | Configure acme.sh"
+      # The command or shell module is used here. This approach is justified:
+      #
+      # - No built-in Ansible module provides a direct way to interact with the
+      #   used command.
+      # - Inline templating allows for safe and efficient parameter handling,
+      #   avoiding the need for multiple additional tasks with little to no benefit.
+      #
+      # Notes on the command or script itself:
+      #
+      # acme.sh can update, modify, or correct configuration values during
+      # execution of most subcommands. Therefore, we simply call the --info command,
+      # which itself does not perform any certificate-related actions but allows
+      # us to update the configuration. See the official documentation for a
+      # explanation of the parameters:
+      # https://github.com/acmesh-official/acme.sh/wiki/Options-and-Params
+      ansible.builtin.shell:
+        cmd: |
+          set -u # Fail on unset vars
+          set -o pipefail # Fail if any pipe cmd fails
 
-      __run_acmesh_checksum_before=$({{ __run_acmesh_sha1sum_exec_path }} {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }})
+          __run_acmesh_checksum_before=$({{ __run_acmesh_sha1sum_exec_path }} {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }})
 
-      if ! {{ __run_acmesh_setpriv_run_as_user }} -- ./acme.sh \
-            --info \
-            --home {{ run_acmesh_cfg_home | ansible.builtin.quote }} \
-            --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }} \
-            --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }} \
-            --log {{ run_acmesh_cfg_logfile | ansible.builtin.quote }} \
-            --log-level {{ run_acmesh_cfg_log_level | ansible.builtin.quote }} \
-            --syslog {{ run_acmesh_cfg_syslog | ansible.builtin.quote }} \
-            {{ '--auto-upgrade 1'
-              if ((run_acmesh_autoupgrade is ansible.builtin.defined) and
-                  (run_acmesh_autoupgrade | ansible.builtin.bool))
-              else
-              '--auto-upgrade 0' }} \
-            {{ '--accountemail ' ~ (run_acmesh_cfg_accountemail | ansible.builtin.quote)
-              if ((run_acmesh_cfg_accountemail is ansible.builtin.defined) and
-                  (run_acmesh_cfg_accountemail))
-              else
-              '' }}
-      then
-        exit 1
-      fi
+          if ! {{ __run_acmesh_setpriv_run_as_user }} -- ./acme.sh \
+                --info \
+                --home {{ run_acmesh_cfg_home | ansible.builtin.quote }} \
+                --config-home {{ run_acmesh_cfg_config_home | ansible.builtin.quote }} \
+                --certhome {{ run_acmesh_cfg_cert_home | ansible.builtin.quote }} \
+                --log {{ run_acmesh_cfg_logfile | ansible.builtin.quote }} \
+                --log-level {{ run_acmesh_cfg_log_level | ansible.builtin.quote }} \
+                --syslog {{ run_acmesh_cfg_syslog | ansible.builtin.quote }} \
+                {{ '--auto-upgrade 1'
+                  if ((run_acmesh_autoupgrade is ansible.builtin.defined) and
+                      (run_acmesh_autoupgrade | ansible.builtin.bool))
+                  else
+                  '--auto-upgrade 0' }} \
+                {{ '--accountemail ' ~ (run_acmesh_cfg_accountemail | ansible.builtin.quote)
+                  if ((run_acmesh_cfg_accountemail is ansible.builtin.defined) and
+                      (run_acmesh_cfg_accountemail))
+                  else
+                  '' }}
+          then
+            exit 1
+          fi
 
-      __run_acmesh_checksum_after=$({{ __run_acmesh_sha1sum_exec_path }} {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }})
-      if [ "${__run_acmesh_checksum_before}" != "${__run_acmesh_checksum_after}" ]
-      then
-        printf 'Changed config file: %s' {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }}
-      fi
+          __run_acmesh_checksum_after=$({{ __run_acmesh_sha1sum_exec_path }} {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }})
+          if [ "${__run_acmesh_checksum_before}" != "${__run_acmesh_checksum_after}" ]
+          then
+            printf 'Changed config file: %s' {{ (run_acmesh_cfg_config_home ~ '/account.conf') | ansible.builtin.quote }}
+          fi
 
-      exit 0
-    executable: "/bin/bash" # Support for other shells untested (so far)
-  args:
-    chdir: "{{ run_acmesh_cfg_home }}"
-  # Mirror the environment of the renewal service unit (which sets HOME= the
-  # same way); acme.sh runs as the service user, see vars/main.yml on the
-  # setpriv prefix.
-  environment:
-    HOME: "{{ run_acmesh_cfg_home }}"
-  changed_when:
-    - __run_acmesh_config_result is ansible.builtin.success
-    - ('Changed config file') in __run_acmesh_config_result['stdout']
-  register: __run_acmesh_config_result
-  # --info can print provider credentials already saved in account.conf.
-  no_log: true
+          exit 0
+        executable: "/bin/bash" # Support for other shells untested (so far)
+      args:
+        chdir: "{{ run_acmesh_cfg_home }}"
+      # Mirror the environment of the renewal service unit (which sets HOME= the
+      # same way); acme.sh runs as the service user, see vars/main.yml on the
+      # setpriv prefix.
+      environment:
+        HOME: "{{ run_acmesh_cfg_home }}"
+      changed_when:
+        - __run_acmesh_config_result is ansible.builtin.success
+        - ('Changed config file') in __run_acmesh_config_result['stdout']
+      register: __run_acmesh_config_result
+      # --info can print provider credentials already saved in account.conf.
+      no_log: true
+  rescue:
+    - name: "ACME | Report configuration failure"
+      ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/failure.yml"
+      vars:
+        __run_acmesh_failure_operation: "configuration"
 
 - name: "Config | Default | Create systemd unit file (acmesh-renewal.service)"
   ansible.builtin.copy:

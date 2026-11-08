@@ -18,6 +18,7 @@ dns_transport_add() {
     # Deliberately hostile process output: Ansible must censor both streams.
     printf '%s\n' "$TRANSPORT_TOKEN"
     printf '%s\n' "$TRANSPORT_GLOBAL" >&2
+    printf '%s' "$TRANSPORT_TOKEN" | base64 >&2
     return 1
   fi
   _saveaccountconf_mutable TRANSPORT_TOKEN "$TRANSPORT_TOKEN" 1

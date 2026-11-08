@@ -461,6 +461,10 @@ run_acmesh_git_version: ""
 #     - Type: bool
 #     - Required: No
 #   - debug:
+#     Enable acme.sh console debugging during issuance. Console output remains
+#     protected by `no_log`; this does not enable debugging for scheduled
+#     renewals. Use `run_acmesh_cfg_log_level: 2` for more detail in the target
+#     log file during issuance and renewal.
 #     - Type: bool
 #     - Required: No
 #   - dnssleep:
@@ -685,7 +689,10 @@ run_acmesh_cfg_cert_deploy_base_dir: "/var/opt/acme.sh-deploy"
 run_acmesh_cfg_logfile: "/var/log/acme.sh.log"
 
 # Specifies the log level (relates to acme.sh option --log-level). Possible
-# values are 1 (less logging) and 2 (more logging).
+# values are 1 (less logging) and 2 (more logging). Applies to issuance and
+# scheduled renewals. Temporarily use `2` when investigating a failure, then
+# restore `1`. Inspect the log on the target; provider output can contain
+# sensitive information.
 #
 # - Type: int
 # - Required: No

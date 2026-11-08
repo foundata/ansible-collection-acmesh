@@ -209,8 +209,8 @@ argument_specs:
                 options:
                   type:
                     description: |
-                     Challenge method. See https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
-                     for details.
+                      Challenge method. See https://github.com/acmesh-official/acme.sh/wiki/How-to-issue-a-cert
+                      for details.
                     type: "str"
                     choices:
                       - "alpn" # Uses acme.sh's builtin standalone webserver which can listen at 443 port to issue the cert.
@@ -325,8 +325,7 @@ argument_specs:
                 type: "str"
                 version_added: "2.0.0"
               fullcain_file:
-                description:
-                  Deprecated alias of `fullchain_file` (typo, "cain" instead of "chain"). Do not use.
+                description: Deprecated alias of `fullchain_file` (typo, "cain" instead of "chain"). Do not use.
                 type: "str"
               key_file:
                 type: "str"
@@ -520,6 +519,11 @@ argument_specs:
               the current certificate is still valid. Defaults to `false`.
             type: "bool"
           debug:
+            description: |
+              Enable acme.sh console debugging during issuance. Console output
+              remains protected by `no_log`; this does not enable debugging for
+              scheduled renewals. Use `run_acmesh_cfg_log_level: 2` for more
+              detail in the target log file during issuance and renewal.
             type: "bool"
           dnssleep:
             description: |
@@ -746,7 +750,10 @@ argument_specs:
       run_acmesh_cfg_log_level:
         description: |
           Specifies the log level (relates to acme.sh option --log-level).
-          Possible values are 1 (less logging) and 2 (more logging).
+          Possible values are 1 (less logging) and 2 (more logging). Applies to
+          issuance and scheduled renewals. Temporarily use `2` when investigating
+          a failure, then restore `1`. Inspect the log on the target; provider
+          output can contain sensitive information.
         type: "int"
         default: 1
         choices:

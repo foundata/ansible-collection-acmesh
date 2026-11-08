@@ -78,9 +78,11 @@ external DNS account. It checks normal, `-v`, `-vvv` and `-vvvv` output with
 diff enabled, both with and without pipelining, including failed challenges,
 interrupted execution, skipped issuance and unattended renewal. The scanner
 checks console and Ansible file logs for plaintext, escaped and base64 forms.
-Inputs are removed after each invocation; logs stay in the private directory.
-Use `--verbosity 3 --pipelining off` to select one combination. This does not
-test `ANSIBLE_DEBUG`, third-party callbacks or arbitrary tracing.
+Inputs are removed after each invocation; logs stay in the private directory. It
+also checks visible failure guidance, nonzero playbook exits and public
+`--check --diff` output with private pre-seeded files and include-level
+`no_log`. Use `--verbosity 3 --pipelining off` to select one combination. This
+does not test `ANSIBLE_DEBUG`, third-party callbacks or arbitrary tracing.
 
 Below a deep checkout, nox gives each session a short symbolic link as
 `TMPDIR`, because Unix socket paths are limited in length. A test of code that

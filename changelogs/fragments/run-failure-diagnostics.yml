@@ -1,0 +1,10 @@
+---
+minor_changes:
+  - >-
+    run role - Report certificate domains, exit statuses and target log commands
+    on configuration, issuance and installation failures without exposing
+    credential-bearing command output. Document target-side troubleshooting.
+bugfixes:
+  - >-
+    run role - Suppress content diffs when pre-seeding certificate directories,
+    which can contain private keys and saved credentials.
