@@ -369,7 +369,7 @@
 - name: "Molecule | Converge | Queue an unrelated handler before ACME setup"
   ansible.builtin.debug:
     msg: "The consumer becomes ready after the ACME role."
-    verbosity: 1
+    verbosity: 0
   changed_when:
     - true
   notify:
