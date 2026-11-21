@@ -874,12 +874,12 @@ feature you need (setting to `master` is usually safe as acme.sh aims
 for a production-ready `master` branch by default), or when you want
 to pin a specific version for reproducibility.
 
-With `run_acmesh_autoupgrade: true`, existing installations follow the
-selected ref from `run_acmesh_git_url`, including older tags and moving
-branches. The first managed update reinstalls from that ref. Subsequent
-runs install only when the resolved commit changes or the client is
-missing. With autoupgrade disabled, the pin applies to fresh installs.
-A pin disables acme.sh's own unattended software upgrades.
+With `run_acmesh_autoupgrade: true`, existing installations follow the selected
+ref from `run_acmesh_git_url`, including older tags and moving branches. The
+first managed update reinstalls from that ref. Subsequent runs install only when
+the resolved commit changes or the installed script has changed or is missing.
+With autoupgrade disabled, the pin applies to fresh installs. A pin disables
+acme.sh's own unattended software upgrades.
 
 - **Type**: `str`
 - **Required**: No

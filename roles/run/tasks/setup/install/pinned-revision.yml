@@ -27,9 +27,16 @@
     checksum_algorithm: "sha256"
   register: __run_acmesh_revision_marker
 
+- name: "Setup | Install | Pin | Identify the installed client"
+  ansible.builtin.stat:
+    path: "{{ run_acmesh_cfg_home }}/acme.sh"
+    checksum_algorithm: "sha256"
+  register: __run_acmesh_current_client
+
 - name: "Setup | Install | Pin | Determine whether the checked out commit needs installation"
   ansible.builtin.set_fact:
     __run_acmesh_pinned_install_needed: >-
       {{ not __run_acmesh_is_installed or
          (__run_acmesh_revision_marker['stat']['checksum'] | ansible.builtin.default('')) !=
-         ((__run_acmesh_checkout['after'] | ansible.builtin.default('') ~ '\n') | ansible.builtin.hash('sha256')) }}
+         (((__run_acmesh_checkout['after'] | ansible.builtin.default('')) ~ ' ' ~
+           (__run_acmesh_current_client['stat']['checksum'] | ansible.builtin.default('')) ~ '\n') | ansible.builtin.hash('sha256')) }}

@@ -41,3 +41,17 @@
       changed: true
   loop_control:
     loop_var: "__testing_pin"
+
+- name: "Molecule | Verify | Simulate an out-of-band change to the installed client"
+  ansible.builtin.lineinfile:
+    path: "{{ run_acmesh_cfg_home }}/acme.sh"
+    line: "# molecule changed the installed client"
+
+- name: "Molecule | Verify | Restore the selected revision after an out-of-band change"
+  ansible.builtin.include_tasks:
+    file: "pinned-install-case.yml"
+  vars:
+    __testing_pin:
+      ref: "fixture-one"
+      provider: "one"
+      changed: true

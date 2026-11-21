@@ -342,17 +342,25 @@
   notify:
     - "run_acmesh_set_certificate_permissions"
 
-- name: "Setup | Install | Default | Record the successfully installed revision"
-  ansible.builtin.copy:
-    dest: "{{ __run_acmesh_source_cache }}/installed"
-    content: "{{ __run_acmesh_checkout['after'] }}\n"
-    owner: "root"
-    group: "root"
-    mode: "u=rw,g=r,o=r" # 0644
+- name: "Setup | Install | Default | Record the installed client after a pinned update"
   when:
     - __run_acmesh_manage_pinned_revision
     - __run_acmesh_source_install is ansible.builtin.changed
     - not ansible_check_mode
+  block:
+    - name: "Setup | Install | Default | Identify the installed script after the installer rewrites its shebang"
+      ansible.builtin.stat:
+        path: "{{ run_acmesh_cfg_home }}/acme.sh"
+        checksum_algorithm: "sha256"
+      register: __run_acmesh_updated_client
+
+    - name: "Setup | Install | Default | Save the revision and installed script checksum"
+      ansible.builtin.copy:
+        dest: "{{ __run_acmesh_source_cache }}/installed"
+        content: "{{ __run_acmesh_checkout['after'] }} {{ __run_acmesh_updated_client['stat']['checksum'] }}\n"
+        owner: "root"
+        group: "root"
+        mode: "u=rw,g=r,o=r" # 0644
 
 - name: "Setup | Install | Default | Forget the installed revision when switching away from managed Git updates"
   ansible.builtin.file:
