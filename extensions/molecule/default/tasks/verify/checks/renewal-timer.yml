@@ -10,7 +10,9 @@
     run_acmesh_renewal_on_calendar: "*-*-* 00/6:00"
     run_acmesh_renewal_randomized_delay_sec: "0"
     run_acmesh_renewal_persistent: false
-  loop: [1, 2]
+  loop:
+    - 1
+    - 2
   loop_control:
     loop_var: "__testing_timer_pass"
 

@@ -15,11 +15,11 @@
   ansible.builtin.command:
     argv:
       - "systemd-analyze"
-      - "{{ __run_acmesh_timer_setting['parser'] }}"
+      - "{{ __run_acmesh_timer_setting_item['parser'] }}"
       - "--"
-      - "{{ __run_acmesh_timer_setting['value'] }}"
+      - "{{ __run_acmesh_timer_setting_item['value'] }}"
   when:
-    - __run_acmesh_timer_setting['value'] != __run_acmesh_timer_setting['default']
+    - __run_acmesh_timer_setting_item['value'] != __run_acmesh_timer_setting_item['default']
   changed_when:
     - false
   loop:
@@ -30,7 +30,7 @@
       value: "{{ run_acmesh_renewal_randomized_delay_sec | ansible.builtin.string }}"
       default: "3h"
   loop_control:
-    loop_var: "__run_acmesh_timer_setting"
+    loop_var: "__run_acmesh_timer_setting_item"
   check_mode: false
 
 - name: "Config | Default | Create systemd unit file (acmesh-renewal.timer)"
