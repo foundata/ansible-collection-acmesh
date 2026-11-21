@@ -9,7 +9,15 @@
     owner: "root"
     group: "{{ run_acmesh_group }}"
     mode: "u=rwx,g=rx,o=" # 0750
-  register: __run_acmesh_cache_directory
+
+- name: "Setup | Install | Pin | Create the checkout directory"
+  ansible.builtin.file:
+    path: "{{ __run_acmesh_source_cache }}/source"
+    state: "directory"
+    owner: "root"
+    group: "{{ run_acmesh_group }}"
+    mode: "u=rwx,g=rx,o=" # 0750
+  register: __run_acmesh_checkout_directory
 
 - name: "Setup | Install | Pin | Check out the selected ref from the configured repository"
   ansible.builtin.git:
@@ -18,7 +26,9 @@
     version: "{{ run_acmesh_git_version | ansible.builtin.trim }}"
     umask: "0022" # Files in the private cache must be readable by the installer.
   when:
-    - not (ansible_check_mode and __run_acmesh_cache_directory is ansible.builtin.changed)
+    # In a fresh preview the file module predicts creation but returns no
+    # directory state. This also covers check mode applied to an include_role.
+    - (__run_acmesh_checkout_directory['state'] | ansible.builtin.default('')) == 'directory'
   register: __run_acmesh_checkout
 
 - name: "Setup | Install | Pin | Read the last successful installation marker"

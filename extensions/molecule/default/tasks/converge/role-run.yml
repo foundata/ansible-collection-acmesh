@@ -26,6 +26,16 @@
         apply:
           check_mode: true
 
+    - name: "Molecule | Converge | Preview a pinned installation on the fresh system"
+      ansible.builtin.include_role:
+        name: "foundata.acmesh.run"
+        apply:
+          check_mode: true
+      vars:
+        run_acmesh_git_url: "/var/empty/molecule-offline-mirror"
+        run_acmesh_git_version: "fixture-one"
+        run_acmesh_autoupgrade: true
+
     - name: "Molecule | Converge | Check mode: get information about the acme.sh home"
       ansible.builtin.stat:
         path: "/opt/acme.sh"
