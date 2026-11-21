@@ -1,0 +1,7 @@
+---
+minor_changes:
+  - >-
+    run role - Configure the renewal timer with run_acmesh_renewal_on_calendar,
+    run_acmesh_renewal_randomized_delay_sec and run_acmesh_renewal_persistent.
+    Defaults retain daily checks, up to three hours of random delay and catch-up
+    after downtime.

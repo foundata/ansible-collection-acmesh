@@ -1,0 +1,67 @@
+# ACME renewal scheduling.
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+- name: "Config | Default | Require single-line renewal timer settings"
+  ansible.builtin.assert:
+    that:
+      - run_acmesh_renewal_on_calendar is ansible.builtin.string
+      - run_acmesh_renewal_on_calendar is ansible.builtin.match('^[^\r\n]+\Z')
+      - (run_acmesh_renewal_randomized_delay_sec | ansible.builtin.string) is ansible.builtin.match('^[^\r\n]+\Z')
+
+- name: "Config | Default | Validate custom renewal schedules with the target systemd"
+  ansible.builtin.command:
+    argv:
+      - "systemd-analyze"
+      - "{{ __run_acmesh_timer_setting['parser'] }}"
+      - "--"
+      - "{{ __run_acmesh_timer_setting['value'] }}"
+  when:
+    - __run_acmesh_timer_setting['value'] != __run_acmesh_timer_setting['default']
+  changed_when:
+    - false
+  loop:
+    - parser: "calendar"
+      value: "{{ run_acmesh_renewal_on_calendar }}"
+      default: "daily"
+    - parser: "timespan"
+      value: "{{ run_acmesh_renewal_randomized_delay_sec | ansible.builtin.string }}"
+      default: "3h"
+  loop_control:
+    loop_var: "__run_acmesh_timer_setting"
+  check_mode: false
+
+- name: "Config | Default | Create systemd unit file (acmesh-renewal.timer)"
+  ansible.builtin.copy:
+    dest: "{{ __run_acmesh_systemd_renewal_timerfile_path }}"
+    content: |
+      [Unit]
+      Description=acme.sh - certificate renewal
+
+      [Timer]
+      OnCalendar={{ run_acmesh_renewal_on_calendar }}
+      RandomizedDelaySec={{ run_acmesh_renewal_randomized_delay_sec }}
+      Persistent={{ (run_acmesh_renewal_persistent | ansible.builtin.bool) | ansible.builtin.ternary('true', 'false') }}
+
+      [Install]
+      WantedBy=timers.target
+    owner: "{{ __run_acmesh_systemd_renewal_timerfile_owner }}"
+    group: "{{ __run_acmesh_systemd_renewal_timerfile_group }}"
+    mode: "{{ __run_acmesh_systemd_renewal_timerfile_mode }}"
+    force: true
+  register: __run_acmesh_renewal_timer_file
+  notify:
+    - "run_acmesh_reload_systemd_daemon"
+
+# debugging: systemctl list-timers --all; systemd-analyze verify acmesh-renewal.timer
+- name: "Config | Default | Manage (enable or disabled) acmesh-renewal.timer"
+  ansible.builtin.systemd_service:
+    name: "acmesh-renewal.timer"
+    state: >-
+      {{ 'stopped' if not (run_acmesh_autorenewal | ansible.builtin.bool)
+         else ('restarted' if __run_acmesh_renewal_timer_file is ansible.builtin.changed else 'started') }}
+    daemon_reload: true
+    enabled: "{{ run_acmesh_autorenewal }}"
+  register: __run_acmesh_renewal_timer_service

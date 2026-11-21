@@ -125,34 +125,9 @@
   notify:
     - "run_acmesh_reload_systemd_daemon"
 
-- name: "Config | Default | Create systemd unit file (acmesh-renewal.timer)"
-  ansible.builtin.copy:
-    dest: "{{ __run_acmesh_systemd_renewal_timerfile_path }}"
-    content: |
-      [Unit]
-      Description=acme.sh - daily certificate renewal
-
-      [Timer]
-      OnCalendar=daily
-      RandomizedDelaySec=3h
-      Persistent=true
-
-      [Install]
-      WantedBy=timers.target
-    owner: "{{ __run_acmesh_systemd_renewal_timerfile_owner }}"
-    group: "{{ __run_acmesh_systemd_renewal_timerfile_group }}"
-    mode: "{{ __run_acmesh_systemd_renewal_timerfile_mode }}"
-    force: true
-  notify:
-    - "run_acmesh_reload_systemd_daemon"
-
-# debugging: systemctl list-timers --all; systemd-analyze verify acmesh-renewal.timer
-- name: "Config | Default | Manage (enable or disabled) acmesh-renewal.timer"
-  ansible.builtin.systemd_service:
-    name: "acmesh-renewal.timer"
-    state: "{{ 'started' if (run_acmesh_autorenewal | ansible.builtin.bool) else 'stopped' }}"
-    daemon_reload: true
-    enabled: "{{ run_acmesh_autorenewal }}"
+- name: "Config | Default | Configure the renewal timer"
+  ansible.builtin.import_tasks:
+    file: "renewal-timer.yml"
 
 # Reload commands run as root in acmesh-reload-* services. Staged
 # deployments start them explicitly after publication; direct deployments

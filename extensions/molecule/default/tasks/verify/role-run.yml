@@ -2494,6 +2494,10 @@
           '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
         success_msg: "Missing supplementary groups are rejected by the role's init."
 
+- name: "Molecule | Verify | Exercise renewal scheduling"
+  ansible.builtin.include_tasks:
+    file: "checks/renewal-timer.yml"
+
 - name: "Molecule | Verify | Check upgrades against a pinned Git repository"
   when:
     - ansible_facts['distribution'] == 'Debian'

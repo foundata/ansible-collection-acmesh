@@ -31,6 +31,9 @@ acme.sh.
   - [`run_acmesh_state`](#variable-run_acmesh_state)
   - [`run_acmesh_autoupgrade`](#variable-run_acmesh_autoupgrade)
   - [`run_acmesh_autorenewal`](#variable-run_acmesh_autorenewal)
+  - [`run_acmesh_renewal_on_calendar`](#variable-run_acmesh_renewal_on_calendar)
+  - [`run_acmesh_renewal_randomized_delay_sec`](#variable-run_acmesh_renewal_randomized_delay_sec)
+  - [`run_acmesh_renewal_persistent`](#variable-run_acmesh_renewal_persistent)
   - [`run_acmesh_environment`](#variable-run_acmesh_environment)
   - [`run_acmesh_git_url`](#variable-run_acmesh_git_url)
   - [`run_acmesh_git_fallback_version_branch`](#variable-run_acmesh_git_fallback_version_branch)
@@ -674,32 +677,35 @@ Issue and maintain X.509 certificates.
 
 The following variables can be configured for this role:
 
-|                 Variable                 |  Type  | Required |                      Default                       | Description (abstract) |
-| ---------------------------------------- | ------ | -------- | -------------------------------------------------- | ---------------------- |
-| `run_acmesh_state`                       | `str`  | No       | `"present"`                                        | Determines whether the managed resources should be `present` or `absent`.<br><br>`present` ensures that required components, such as software packages, are installed and configured.<br><br>`absent` reverts changes as much as possible, such as […](#variable-run_acmesh_state) |
-| `run_acmesh_autoupgrade`                 | `bool` | No       | `false`                                            | If set to `true`, each Ansible run upgrades the managed packages to the newest version the package provider offers. |
-| `run_acmesh_autorenewal`                 | `bool` | No       | `true`                                             | Enables daily automatic certificate renewal via systemd timer (this role is not using acme.sh's cronjob function). |
-| `run_acmesh_environment` 🔒              | `dict` | No       | `{}`                                               | Defines environment variables required for ACME DNS challenges.<br><br>This is typically needed for DNS challenge plugins, such as those requiring DNS API credentials (e.g., `HETZNER_Token`, `INWX_User`, `INWX_Password`). Multiple variables can be […](#variable-run_acmesh_environment) |
-| `run_acmesh_git_url`                     | `str`  | No       | `"https://github.com/acmesh-official/acme.sh.git"` | The Git repository URL for acme.sh. The role uses this URL to clone the source code during installation or updates and to query available version tags via `git ls-remote`.<br><br>Can be set to an internal Git mirror for air-gapped environments or to […](#variable-run_acmesh_git_url) |
-| `run_acmesh_git_fallback_version_branch` | `str`  | No       | `"master"`                                         | The Git branch to clone when no version tag could be determined from the remote repository (e.g. because `git ls-remote` failed or returned no matching tags).<br><br>See <https://github.com/acmesh-official/acme.sh/issues/1162> for why acme.sh uses […](#variable-run_acmesh_git_fallback_version_branch) |
-| `run_acmesh_git_version`                 | `str`  | No       | `""`                                               | Overrides the automatically detected acme.sh version with a specific Git ref (tag, branch, or commit hash). When set (non-empty string), the role skips the upstream version tag detection via `git ls-remote` and uses this value directly for the […](#variable-run_acmesh_git_version) |
-| `run_acmesh_certs`                       | `list` | No       | `[]`                                               | Defines certificates to be requested, their associated domains, challenge methods, and installation details. Each item in the list is a dictionary with suboptions / keys.<br><br>Example:<br><br>``` run_acmesh_certs: # first certificate: "example.org" […](#variable-run_acmesh_certs) |
-| `run_acmesh_certs_delete_unmanaged`      | `bool` | No       | `false`                                            | If set to `true`, certificate data below `run_acmesh_cfg_cert_home` that does not belong to any certificate listed in `run_acmesh_certs` gets removed (which also stops the automated renewal for it), as do `acmesh-reload-*` and `acmesh-deploy-*` […](#variable-run_acmesh_certs_delete_unmanaged) |
-| `run_acmesh_user`                        | `str`  | No       | `"acmesh"`                                         | Specifies the service user account that runs acme.sh and owns relevant files and directories.<br><br>All acme.sh operations run as this account: account registration, certificate issuance and installation during the Ansible run as well as the […](#variable-run_acmesh_user) |
-| `run_acmesh_group`                       | `str`  | No       | `"acmesh"`                                         | Specifies the group associated with the service user for managing acme.sh and the corresponding file permissions. |
-| `run_acmesh_user_supplementary_groups`   | `list` | No       | `[]`                                               | Exact list of supplementary groups for the service user account (`run_acmesh_user`) beyond `run_acmesh_group`. The role manages the account's supplementary groups as the exact unique union of `run_acmesh_group` and this list; group memberships added […](#variable-run_acmesh_user_supplementary_groups) |
-| `run_acmesh_cfg_accountemail`            | `str`  | No       | `""`                                               | Specifies the email address to be associated with the ACME account. This email is used for expiration notices and recovery purposes. Some ACME providers might refuse to issue certificates if not set. |
-| `run_acmesh_cfg_home`                    | `str`  | No       | `"/opt/acme.sh"`                                   | Specifies the installation directory for the acme.sh software (relates to acme.sh option --home). Will also be used as home directory of the service user defined (see `run_acmesh_user`). |
-| `run_acmesh_cfg_config_home`             | `str`  | No       | `"/etc/acme.sh"`                                   | Defines where configuration files are stored (relates to acme.sh option --config-home). |
-| `run_acmesh_cfg_cert_home`               | `str`  | No       | `"/var/opt/acme.sh"`                               | Specifies the directory where certificates are maintained by acme.sh (relates to acme.sh option --certhome). ⚠️ Do not rely on the files in this directory directly. Instead, copy the certificates where needed using the "install" key of […](#variable-run_acmesh_cfg_cert_home) |
-| `run_acmesh_cfg_cert_deploy_base_dir`    | `str`  | No       | `"/var/opt/acme.sh-deploy"`                        | Base directory for the internal staging areas of certificates using the `staged` installation strategy. The directory itself is root-owned and holds one subdirectory per certificate which is writable by the service user: acme.sh installs into that […](#variable-run_acmesh_cfg_cert_deploy_base_dir) |
-| `run_acmesh_cfg_logfile`                 | `str`  | No       | `"/var/log/acme.sh.log"`                           | Path to the log file where acme.sh logs its operations (relates to acme.sh option --log). |
-| `run_acmesh_cfg_log_level`               | `int`  | No       | `1`                                                | Specifies the log level (relates to acme.sh option --log-level). Possible values are 1 (less logging) and 2 (more logging). Applies to issuance and scheduled renewals. Temporarily use `2` when investigating a failure, then restore `1`. Inspect the […](#variable-run_acmesh_cfg_log_level) |
-| `run_acmesh_cfg_syslog`                  | `int`  | No       | `3`                                                | Specifies what to log (relates to acme.sh option --syslog). Possible values are 0 (disable syslog), 3 (errors), 6 (info) and 7 (debug) |
-| `run_acmesh_cfg_ca_bundle`               | `str`  | No       | `""`                                               | Path to a custom CA certificate bundle file on the remote host. Passed as `--ca-bundle` to all acme.sh commands that make HTTPS requests (issue, register-account). Needed when the ACME server uses a certificate signed by a private or non-standard […](#variable-run_acmesh_cfg_ca_bundle) |
-| `run_acmesh_cfg_ca_path`                 | `str`  | No       | `""`                                               | Path to a directory of CA certificates in PEM format on the remote host. Passed as `--ca-path` to all acme.sh commands that make HTTPS requests. Alternative to `run_acmesh_cfg_ca_bundle` when the HTTP client (curl/wget) requires a directory of […](#variable-run_acmesh_cfg_ca_path) |
-| `run_acmesh_cfg_account_keys`            | `list` | No       | `[]`                                               | List of ACME account keys to pre-seed. This is useful for `dns-persist-01` challenges where the TXT record is bound to a specific account key, and you want to reuse the same key across multiple servers or after re-installations.<br><br>Each item must […](#variable-run_acmesh_cfg_account_keys) |
-| `run_acmesh_dns_persist_pause`           | `int`  | No       | `600`                                              | Controls the pause duration (in seconds) after displaying dns-persist-01 TXT record instructions. Set to `0` to disable the pause (useful for CI/CD pipelines or environments where TXT records are guaranteed to already be published).<br><br>If the […](#variable-run_acmesh_dns_persist_pause) |
+|                 Variable                  |  Type  | Required |                      Default                       | Description (abstract) |
+| ----------------------------------------- | ------ | -------- | -------------------------------------------------- | ---------------------- |
+| `run_acmesh_state`                        | `str`  | No       | `"present"`                                        | Determines whether the managed resources should be `present` or `absent`.<br><br>`present` ensures that required components, such as software packages, are installed and configured.<br><br>`absent` reverts changes as much as possible, such as […](#variable-run_acmesh_state) |
+| `run_acmesh_autoupgrade`                  | `bool` | No       | `false`                                            | If set to `true`, each Ansible run upgrades the managed packages to the newest version the package provider offers. |
+| `run_acmesh_autorenewal`                  | `bool` | No       | `true`                                             | Enables automatic certificate renewal via systemd timer (this role is not using acme.sh's cronjob function). |
+| `run_acmesh_renewal_on_calendar`          | `str`  | No       | `"daily"`                                          | Systemd `OnCalendar` expression for running the renewal check. For example, `"*-*-* 00/6:00"` schedules a check every six hours. acme.sh decides which certificates are due for renewal. |
+| `run_acmesh_renewal_randomized_delay_sec` | `str`  | No       | `"3h"`                                             | Maximum random delay after each scheduled check, in systemd time span syntax. Use `"0"` to run at the scheduled time. |
+| `run_acmesh_renewal_persistent`           | `bool` | No       | `true`                                             | Run a missed renewal check when the timer becomes active again. |
+| `run_acmesh_environment` 🔒               | `dict` | No       | `{}`                                               | Defines environment variables required for ACME DNS challenges.<br><br>This is typically needed for DNS challenge plugins, such as those requiring DNS API credentials (e.g., `HETZNER_Token`, `INWX_User`, `INWX_Password`). Multiple variables can be […](#variable-run_acmesh_environment) |
+| `run_acmesh_git_url`                      | `str`  | No       | `"https://github.com/acmesh-official/acme.sh.git"` | The Git repository URL for acme.sh. The role uses this URL to clone the source code during installation or updates and to query available version tags via `git ls-remote`.<br><br>Can be set to an internal Git mirror for air-gapped environments or to […](#variable-run_acmesh_git_url) |
+| `run_acmesh_git_fallback_version_branch`  | `str`  | No       | `"master"`                                         | The Git branch to clone when no version tag could be determined from the remote repository (e.g. because `git ls-remote` failed or returned no matching tags).<br><br>See <https://github.com/acmesh-official/acme.sh/issues/1162> for why acme.sh uses […](#variable-run_acmesh_git_fallback_version_branch) |
+| `run_acmesh_git_version`                  | `str`  | No       | `""`                                               | Overrides the automatically detected acme.sh version with a specific Git ref (tag, branch, or commit hash). When set (non-empty string), the role skips the upstream version tag detection via `git ls-remote` and uses this value directly for the […](#variable-run_acmesh_git_version) |
+| `run_acmesh_certs`                        | `list` | No       | `[]`                                               | Defines certificates to be requested, their associated domains, challenge methods, and installation details. Each item in the list is a dictionary with suboptions / keys.<br><br>Example:<br><br>``` run_acmesh_certs: # first certificate: "example.org" […](#variable-run_acmesh_certs) |
+| `run_acmesh_certs_delete_unmanaged`       | `bool` | No       | `false`                                            | If set to `true`, certificate data below `run_acmesh_cfg_cert_home` that does not belong to any certificate listed in `run_acmesh_certs` gets removed (which also stops the automated renewal for it), as do `acmesh-reload-*` and `acmesh-deploy-*` […](#variable-run_acmesh_certs_delete_unmanaged) |
+| `run_acmesh_user`                         | `str`  | No       | `"acmesh"`                                         | Specifies the service user account that runs acme.sh and owns relevant files and directories.<br><br>All acme.sh operations run as this account: account registration, certificate issuance and installation during the Ansible run as well as the […](#variable-run_acmesh_user) |
+| `run_acmesh_group`                        | `str`  | No       | `"acmesh"`                                         | Specifies the group associated with the service user for managing acme.sh and the corresponding file permissions. |
+| `run_acmesh_user_supplementary_groups`    | `list` | No       | `[]`                                               | Exact list of supplementary groups for the service user account (`run_acmesh_user`) beyond `run_acmesh_group`. The role manages the account's supplementary groups as the exact unique union of `run_acmesh_group` and this list; group memberships added […](#variable-run_acmesh_user_supplementary_groups) |
+| `run_acmesh_cfg_accountemail`             | `str`  | No       | `""`                                               | Specifies the email address to be associated with the ACME account. This email is used for expiration notices and recovery purposes. Some ACME providers might refuse to issue certificates if not set. |
+| `run_acmesh_cfg_home`                     | `str`  | No       | `"/opt/acme.sh"`                                   | Specifies the installation directory for the acme.sh software (relates to acme.sh option --home). Will also be used as home directory of the service user defined (see `run_acmesh_user`). |
+| `run_acmesh_cfg_config_home`              | `str`  | No       | `"/etc/acme.sh"`                                   | Defines where configuration files are stored (relates to acme.sh option --config-home). |
+| `run_acmesh_cfg_cert_home`                | `str`  | No       | `"/var/opt/acme.sh"`                               | Specifies the directory where certificates are maintained by acme.sh (relates to acme.sh option --certhome). ⚠️ Do not rely on the files in this directory directly. Instead, copy the certificates where needed using the "install" key of […](#variable-run_acmesh_cfg_cert_home) |
+| `run_acmesh_cfg_cert_deploy_base_dir`     | `str`  | No       | `"/var/opt/acme.sh-deploy"`                        | Base directory for the internal staging areas of certificates using the `staged` installation strategy. The directory itself is root-owned and holds one subdirectory per certificate which is writable by the service user: acme.sh installs into that […](#variable-run_acmesh_cfg_cert_deploy_base_dir) |
+| `run_acmesh_cfg_logfile`                  | `str`  | No       | `"/var/log/acme.sh.log"`                           | Path to the log file where acme.sh logs its operations (relates to acme.sh option --log). |
+| `run_acmesh_cfg_log_level`                | `int`  | No       | `1`                                                | Specifies the log level (relates to acme.sh option --log-level). Possible values are 1 (less logging) and 2 (more logging). Applies to issuance and scheduled renewals. Temporarily use `2` when investigating a failure, then restore `1`. Inspect the […](#variable-run_acmesh_cfg_log_level) |
+| `run_acmesh_cfg_syslog`                   | `int`  | No       | `3`                                                | Specifies what to log (relates to acme.sh option --syslog). Possible values are 0 (disable syslog), 3 (errors), 6 (info) and 7 (debug) |
+| `run_acmesh_cfg_ca_bundle`                | `str`  | No       | `""`                                               | Path to a custom CA certificate bundle file on the remote host. Passed as `--ca-bundle` to all acme.sh commands that make HTTPS requests (issue, register-account). Needed when the ACME server uses a certificate signed by a private or non-standard […](#variable-run_acmesh_cfg_ca_bundle) |
+| `run_acmesh_cfg_ca_path`                  | `str`  | No       | `""`                                               | Path to a directory of CA certificates in PEM format on the remote host. Passed as `--ca-path` to all acme.sh commands that make HTTPS requests. Alternative to `run_acmesh_cfg_ca_bundle` when the HTTP client (curl/wget) requires a directory of […](#variable-run_acmesh_cfg_ca_path) |
+| `run_acmesh_cfg_account_keys`             | `list` | No       | `[]`                                               | List of ACME account keys to pre-seed. This is useful for `dns-persist-01` challenges where the TXT record is bound to a specific account key, and you want to reuse the same key across multiple servers or after re-installations.<br><br>Each item must […](#variable-run_acmesh_cfg_account_keys) |
+| `run_acmesh_dns_persist_pause`            | `int`  | No       | `600`                                              | Controls the pause duration (in seconds) after displaying dns-persist-01 TXT record instructions. Set to `0` to disable the pause (useful for CI/CD pipelines or environments where TXT records are guaranteed to already be published).<br><br>If the […](#variable-run_acmesh_dns_persist_pause) |
 
 ### `run_acmesh_state`<a id="variable-run_acmesh_state"></a>
 
@@ -737,8 +743,47 @@ newest version the package provider offers.
 
 [*⇑ Back to ToC ⇑*](#toc)
 
-Enables daily automatic certificate renewal via systemd timer (this role
+Enables automatic certificate renewal via systemd timer (this role
 is not using acme.sh's cronjob function).
+
+- **Type**: `bool`
+- **Required**: No
+- **Default**: `true`
+
+
+
+### `run_acmesh_renewal_on_calendar`<a id="variable-run_acmesh_renewal_on_calendar"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Systemd `OnCalendar` expression for running the renewal check. For
+example, `"*-*-* 00/6:00"` schedules a check every six hours.
+acme.sh decides which certificates are due for renewal.
+
+- **Type**: `str`
+- **Required**: No
+- **Default**: `"daily"`
+
+
+
+### `run_acmesh_renewal_randomized_delay_sec`<a id="variable-run_acmesh_renewal_randomized_delay_sec"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Maximum random delay after each scheduled check, in systemd time span
+syntax. Use `"0"` to run at the scheduled time.
+
+- **Type**: `str`
+- **Required**: No
+- **Default**: `"3h"`
+
+
+
+### `run_acmesh_renewal_persistent`<a id="variable-run_acmesh_renewal_persistent"></a>
+
+[*⇑ Back to ToC ⇑*](#toc)
+
+Run a missed renewal check when the timer becomes active again.
 
 - **Type**: `bool`
 - **Required**: No

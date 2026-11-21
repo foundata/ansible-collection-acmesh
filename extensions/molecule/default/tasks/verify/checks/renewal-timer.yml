@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+- name: "Molecule | Verify | Apply the six-hour schedule twice"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+    tasks_from: "config/renewal-timer"
+  vars:
+    run_acmesh_renewal_on_calendar: "*-*-* 00/6:00"
+    run_acmesh_renewal_randomized_delay_sec: "0"
+    run_acmesh_renewal_persistent: false
+  loop: [1, 2]
+  loop_control:
+    loop_var: "__testing_timer_pass"
+
+- name: "Molecule | Verify | Read the effective systemd renewal schedule"
+  ansible.builtin.command:
+    argv:
+      - "systemctl"
+      - "show"
+      - "acmesh-renewal.timer"
+      - "--property=TimersCalendar,RandomizedDelayUSec,Persistent,ActiveState"
+  changed_when:
+    - false
+  register: __testing_renewal_timer
+
+- name: "Molecule | Verify | Assert systemd loaded the schedule and repeat did not restart it"
+  ansible.builtin.assert:
+    that:
+      - "'00/6:00:00' in __testing_renewal_timer['stdout']"
+      - "'RandomizedDelayUSec=0' in __testing_renewal_timer['stdout_lines']"
+      - "'Persistent=no' in __testing_renewal_timer['stdout_lines']"
+      - "'ActiveState=active' in __testing_renewal_timer['stdout_lines']"
+      - __run_acmesh_renewal_timer_file is not ansible.builtin.changed
+      - __run_acmesh_renewal_timer_service is not ansible.builtin.changed
+
+- name: "Molecule | Verify | Restore the default renewal schedule"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+    tasks_from: "config/renewal-timer"

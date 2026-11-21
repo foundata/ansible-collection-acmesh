@@ -43,10 +43,34 @@ argument_specs:
 
       run_acmesh_autorenewal:
         description: |
-          Enables daily automatic certificate renewal via systemd timer (this role
+          Enables automatic certificate renewal via systemd timer (this role
           is not using acme.sh's cronjob function).
         type: "bool"
         default: true
+
+      run_acmesh_renewal_on_calendar:
+        description: |
+          Systemd `OnCalendar` expression for running the renewal check. For
+          example, `"*-*-* 00/6:00"` schedules a check every six hours.
+          acme.sh decides which certificates are due for renewal.
+        type: "str"
+        default: "daily"
+        version_added: "4.4.0"
+
+      run_acmesh_renewal_randomized_delay_sec:
+        description: |
+          Maximum random delay after each scheduled check, in systemd time span
+          syntax. Use `"0"` to run at the scheduled time.
+        type: "str"
+        default: "3h"
+        version_added: "4.4.0"
+
+      run_acmesh_renewal_persistent:
+        description: |
+          Run a missed renewal check when the timer becomes active again.
+        type: "bool"
+        default: true
+        version_added: "4.4.0"
 
       run_acmesh_environment:
         description: |
