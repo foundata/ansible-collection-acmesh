@@ -829,8 +829,12 @@ feature you need (setting to `master` is usually safe as acme.sh aims
 for a production-ready `master` branch by default), or when you want
 to pin a specific version for reproducibility.
 
-When set, the upgrade task also respects this value and skips the
-normal semver comparison that gates upgrades.
+With `run_acmesh_autoupgrade: true`, existing installations follow the
+selected ref from `run_acmesh_git_url`, including older tags and moving
+branches. The first managed update reinstalls from that ref. Subsequent
+runs install only when the resolved commit changes or the client is
+missing. With autoupgrade disabled, the pin applies to fresh installs.
+A pin disables acme.sh's own unattended software upgrades.
 
 - **Type**: `str`
 - **Required**: No
@@ -1115,6 +1119,7 @@ reload command:
   files change, so no sudo or polkit setup is needed. Requires at least
   one of the install file paths to be set. See the README of this role
   for details.
+
 - **Type**: `dict`
 - **Required**: No
 
@@ -1379,6 +1384,7 @@ to `letsencrypt`. Other options include:
 - Custom CA URLs can also be used. See
   <https://github.com/acmesh-official/acme.sh/wiki/Server> for a full list
   and details.
+
 - **Type**: `str`
 - **Required**: No
 - **Default**: `"letsencrypt"`

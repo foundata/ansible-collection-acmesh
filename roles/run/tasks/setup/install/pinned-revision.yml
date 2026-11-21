@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+- name: "Setup | Install | Pin | Create the private source cache"
+  ansible.builtin.file:
+    path: "{{ __run_acmesh_source_cache }}"
+    state: "directory"
+    owner: "root"
+    group: "{{ run_acmesh_group }}"
+    mode: "u=rwx,g=rx,o=" # 0750
+  register: __run_acmesh_cache_directory
+
+- name: "Setup | Install | Pin | Check out the selected ref from the configured repository"
+  ansible.builtin.git:
+    repo: "{{ run_acmesh_git_url }}"
+    dest: "{{ __run_acmesh_source_cache }}/source"
+    version: "{{ run_acmesh_git_version | ansible.builtin.trim }}"
+    umask: "0022" # Files in the private cache must be readable by the installer.
+  when:
+    - not (ansible_check_mode and __run_acmesh_cache_directory is ansible.builtin.changed)
+  register: __run_acmesh_checkout
+
+- name: "Setup | Install | Pin | Read the last successful installation marker"
+  ansible.builtin.stat:
+    path: "{{ __run_acmesh_source_cache }}/installed"
+    checksum_algorithm: "sha256"
+  register: __run_acmesh_revision_marker
+
+- name: "Setup | Install | Pin | Determine whether the checked out commit needs installation"
+  ansible.builtin.set_fact:
+    __run_acmesh_pinned_install_needed: >-
+      {{ not __run_acmesh_is_installed or
+         (__run_acmesh_revision_marker['stat']['checksum'] | ansible.builtin.default('')) !=
+         ((__run_acmesh_checkout['after'] | ansible.builtin.default('') ~ '\n') | ansible.builtin.hash('sha256')) }}

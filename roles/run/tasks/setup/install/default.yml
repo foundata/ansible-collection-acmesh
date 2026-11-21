@@ -174,12 +174,19 @@
       }}
     append: false # remove from all groups (except the primary one)
 
+- name: "Setup | Install | Default | Check the selected Git revision"
+  ansible.builtin.include_tasks:
+    file: "pinned-revision.yml"
+  when:
+    - __run_acmesh_manage_pinned_revision
+
 - name: "Setup | Install | Default | Create a temporary working directory"
   ansible.builtin.tempfile:
     state: "directory"
     suffix: "-acmesh"
   when:
     - not __run_acmesh_is_installed
+    - not __run_acmesh_manage_pinned_revision
     - not ansible_check_mode # the module does not support check mode
   changed_when:
     - false
@@ -199,6 +206,7 @@
     verbosity: 0
   when:
     - not __run_acmesh_is_installed
+    - ansible_check_mode or not __run_acmesh_manage_pinned_revision
     - __run_acmesh_tempdir['path'] is not ansible.builtin.defined
 
 - name: "Setup | Install | Default | Display the temporary working directory's path"
@@ -207,6 +215,7 @@
     verbosity: 2
   when:
     - not __run_acmesh_is_installed
+    - not __run_acmesh_manage_pinned_revision
     # the temporary directory exists only outside check mode (tempfile does
     # not support it); guards --check as well as task-scoped check_mode
     - __run_acmesh_tempdir['path'] is ansible.builtin.defined
@@ -220,6 +229,7 @@
     update: true
   when:
     - not __run_acmesh_is_installed
+    - not __run_acmesh_manage_pinned_revision
     # the temporary directory exists only outside check mode (tempfile does
     # not support it); guards --check as well as task-scoped check_mode
     - __run_acmesh_tempdir['path'] is ansible.builtin.defined
@@ -235,6 +245,7 @@
     recurse: true
   when:
     - not __run_acmesh_is_installed
+    - not __run_acmesh_manage_pinned_revision
     # the temporary directory exists only outside check mode (tempfile does
     # not support it); guards --check as well as task-scoped check_mode
     - __run_acmesh_tempdir['path'] is ansible.builtin.defined
@@ -272,6 +283,15 @@
   loop_control:
     loop_var: "__run_acmesh_logfile_item"
 
+# A failed replacement must be retried, even if the next run selects the old ref.
+- name: "Setup | Install | Default | Clear the previous revision before replacing the client"
+  ansible.builtin.file:
+    path: "{{ __run_acmesh_source_cache }}/installed"
+    state: "absent"
+  when:
+    - __run_acmesh_manage_pinned_revision
+    - __run_acmesh_pinned_install_needed
+
 - name: "Setup | Install | Default | Install acme.sh"
   # The command or shell module is used here. This approach is justified:
   #
@@ -298,19 +318,15 @@
         --log-level {{ run_acmesh_cfg_log_level | ansible.builtin.quote }}
         --syslog {{ run_acmesh_cfg_syslog | ansible.builtin.quote }}
         --nocron
-        {{ '--auto-upgrade 1'
-          if ((run_acmesh_autoupgrade is ansible.builtin.defined) and
-              (run_acmesh_autoupgrade | ansible.builtin.bool))
-          else
-          '--auto-upgrade 0' }}
+        --auto-upgrade {{ __run_acmesh_self_upgrade | ansible.builtin.ternary('1', '0') }}
         {{ '--accountemail ' ~ (run_acmesh_cfg_accountemail | ansible.builtin.quote)
           if ((run_acmesh_cfg_accountemail is ansible.builtin.defined) and
               (run_acmesh_cfg_accountemail))
           else
           '' }}
   args:
-    chdir: "{{ __run_acmesh_tempdir['path'] }}"
-    creates: "{{ run_acmesh_cfg_home }}/acme.sh"
+    chdir: "{{ (__run_acmesh_source_cache ~ '/source') if __run_acmesh_manage_pinned_revision else __run_acmesh_tempdir['path'] }}"
+    creates: "{{ omit if __run_acmesh_manage_pinned_revision else run_acmesh_cfg_home ~ '/acme.sh' }}"
   # HOME mirrors the environment of the renewal service unit. acme.sh's
   # installer also writes its profile source-line there (into
   # "<run_acmesh_cfg_home>/.bashrc"), which a later task removes in favor of
@@ -318,12 +334,32 @@
   environment:
     HOME: "{{ run_acmesh_cfg_home }}"
   when:
-    - not __run_acmesh_is_installed
-    # the temporary directory exists only outside check mode (tempfile does
-    # not support it); guards --check as well as task-scoped check_mode
-    - __run_acmesh_tempdir['path'] is ansible.builtin.defined
+    - not ansible_check_mode
+    - >-
+      (__run_acmesh_manage_pinned_revision and __run_acmesh_pinned_install_needed)
+      or (not __run_acmesh_is_installed and __run_acmesh_tempdir['path'] is ansible.builtin.defined)
+  register: __run_acmesh_source_install
   notify:
     - "run_acmesh_set_certificate_permissions"
+
+- name: "Setup | Install | Default | Record the successfully installed revision"
+  ansible.builtin.copy:
+    dest: "{{ __run_acmesh_source_cache }}/installed"
+    content: "{{ __run_acmesh_checkout['after'] }}\n"
+    owner: "root"
+    group: "root"
+    mode: "u=rw,g=r,o=r" # 0644
+  when:
+    - __run_acmesh_manage_pinned_revision
+    - __run_acmesh_source_install is ansible.builtin.changed
+    - not ansible_check_mode
+
+- name: "Setup | Install | Default | Forget the installed revision when switching away from managed Git updates"
+  ansible.builtin.file:
+    path: "{{ __run_acmesh_source_cache }}"
+    state: "absent"
+  when:
+    - not __run_acmesh_manage_pinned_revision
 
 - name: "Setup | Install | Default | Upgrade acme.sh"
   # The command or shell module is used here. This approach is justified:
@@ -371,9 +407,9 @@
     # The upstream version stays empty when the remote could not be queried
     # (git ls-remote is best-effort and skipped in check mode). Comparing
     # against it would abort the whole run with an unrelated error message.
-    - (run_acmesh_git_version | ansible.builtin.default('', true) | ansible.builtin.trim | ansible.builtin.length) > 0 or (((__run_acmesh_version_upstream |
-      ansible.builtin.default('', true) | ansible.builtin.trim) | ansible.builtin.length) > 0 and __run_acmesh_version_installed is
-      ansible.builtin.version(__run_acmesh_version_upstream, 'lt', version_type='semver'))
+    - not __run_acmesh_has_git_pin
+    - (__run_acmesh_version_upstream | ansible.builtin.default('', true) | ansible.builtin.length) > 0
+    - __run_acmesh_version_installed is ansible.builtin.version(__run_acmesh_version_upstream, 'lt', version_type='semver')
   changed_when:
     - __run_acmesh_upgrade_result is ansible.builtin.success
     - ('Upgrade success') in __run_acmesh_upgrade_result['stdout']

@@ -1,0 +1,5 @@
+---
+bugfixes:
+  - >-
+    run role - Install pinned acme.sh upgrades from the configured Git repository
+    and disable upstream self-upgrades while a pin is set.

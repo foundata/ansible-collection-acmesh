@@ -113,8 +113,12 @@ argument_specs:
           for a production-ready `master` branch by default), or when you want
           to pin a specific version for reproducibility.
 
-          When set, the upgrade task also respects this value and skips the
-          normal semver comparison that gates upgrades.
+          With `run_acmesh_autoupgrade: true`, existing installations follow the
+          selected ref from `run_acmesh_git_url`, including older tags and moving
+          branches. The first managed update reinstalls from that ref. Subsequent
+          runs install only when the resolved commit changes or the client is
+          missing. With autoupgrade disabled, the pin applies to fresh installs.
+          A pin disables acme.sh's own unattended software upgrades.
         type: "str"
         default: ""
         version_added: "2.0.0"

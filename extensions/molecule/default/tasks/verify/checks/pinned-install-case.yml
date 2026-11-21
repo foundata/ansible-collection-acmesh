@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+- name: "Molecule | Verify | Reconcile installed acme.sh from the local mirror"
+  ansible.builtin.include_role:
+    name: "foundata.acmesh.run"
+  vars:
+    run_acmesh_git_version: "{{ __testing_pin['ref'] }}"
+    run_acmesh_git_url: "{{ __testing_pin_mirror['path'] }}"
+    run_acmesh_autoupgrade: true
+    run_acmesh_certs: []
+    run_acmesh_certs_delete_unmanaged: false
+
+- name: "Molecule | Verify | Read the installed provider revision"
+  ansible.builtin.slurp:
+    src: "{{ run_acmesh_cfg_home }}/dnsapi/dns_pin_fixture.sh"
+  register: __testing_pinned_provider
+
+- name: "Molecule | Verify | Check whether acme.sh can upgrade itself during renewal"
+  ansible.builtin.command:
+    argv:
+      - "grep"
+      - "-Fxq"
+      - "AUTO_UPGRADE='0'"
+      - "{{ run_acmesh_cfg_config_home }}/account.conf"
+  changed_when:
+    - false
+
+- name: "Molecule | Verify | Assert the requested provider was installed exactly when necessary"
+  ansible.builtin.assert:
+    that:
+      - (__run_acmesh_source_install is ansible.builtin.changed) == __testing_pin['changed']
+      - >-
+        ('# fixture ' ~ __testing_pin['provider']) in
+        (__testing_pinned_provider['content'] | ansible.builtin.b64decode)

@@ -2494,6 +2494,27 @@
           '{{ ansible_failed_task['name'] | ansible.builtin.default('unknown') }}').
         success_msg: "Missing supplementary groups are rejected by the role's init."
 
+- name: "Molecule | Verify | Check upgrades against a pinned Git repository"
+  when:
+    - ansible_facts['distribution'] == 'Debian'
+  block:
+    - name: "Molecule | Verify | Allocate a private mirror"
+      ansible.builtin.tempfile:
+        state: "directory"
+      register: __testing_pin_mirror
+
+    - name: "Molecule | Verify | Exercise tags, branches and commit hashes"
+      ansible.builtin.include_tasks:
+        file: "checks/pinned-upgrades.yml"
+
+  always:
+    - name: "Molecule | Verify | Remove the private mirror"
+      ansible.builtin.file:
+        path: "{{ __testing_pin_mirror['path'] }}"
+        state: "absent"
+      when:
+        - __testing_pin_mirror['path'] is ansible.builtin.defined
+
 ## Test uninstall: additional, non-primary group removal (no additional members)
 
 - name: "Molecule | Verify | Flush handlers now"

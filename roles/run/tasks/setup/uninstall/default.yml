@@ -141,6 +141,7 @@
         run_acmesh_cfg_home,
         run_acmesh_cfg_config_home,
         run_acmesh_cfg_logfile,
+        __run_acmesh_source_cache,
         run_acmesh_cfg_cert_deploy_base_dir,
         __run_acmesh_deploy_manifest_dir_path,
         __run_acmesh_deploy_state_dir_path,

@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+- name: "Molecule | Verify | Create a local acme.sh mirror with two distinguishable revisions"
+  ansible.builtin.shell:
+    cmd: |
+      set -eu
+      mkdir -p dnsapi
+      cp {{ (run_acmesh_cfg_home ~ '/acme.sh') | ansible.builtin.quote }} acme.sh
+      git init --initial-branch=testing
+      git config user.name "Molecule"
+      git config user.email "molecule@example.test"
+      printf '%s\n' '#!/bin/sh' '# fixture one' > dnsapi/dns_pin_fixture.sh
+      git add acme.sh dnsapi
+      git commit -m 'first provider'
+      git tag -a fixture-one -m 'first revision'
+      printf '%s\n' '#!/bin/sh' '# fixture two' > dnsapi/dns_pin_fixture.sh
+      git commit -am 'second provider'
+      git rev-parse HEAD
+    chdir: "{{ __testing_pin_mirror['path'] }}"
+  changed_when:
+    - true
+  register: __testing_pin_commits
+
+- name: "Molecule | Verify | Apply each pin and check the installed provider"
+  ansible.builtin.include_tasks:
+    file: "pinned-install-case.yml"
+  loop:
+    - ref: "fixture-one"
+      provider: "one"
+      changed: true
+    - ref: "{{ __testing_pin_commits['stdout_lines'][-1] }}"
+      provider: "two"
+      changed: true
+    - ref: "testing"
+      provider: "two"
+      changed: false
+    - ref: "fixture-one"
+      provider: "one"
+      changed: true
+  loop_control:
+    loop_var: "__testing_pin"
