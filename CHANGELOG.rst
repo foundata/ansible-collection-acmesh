@@ -4,6 +4,23 @@ foundata.acmesh Ansible collection Release Notes
 
 .. contents:: Topics
 
+v4.4.0
+======
+
+Minor Changes
+-------------
+
+- Remove the previous handler topics ahead of the announced version 5.0.0: "run_acmesh: systemd daemon-reload" and "run_acmesh: set ownership and permissions". Notify the role-prefixed topics instead. We decided that this is a non-breaking change: the topics are role internals, and their use by third parties is very unlikely.
+- run role - Configure the renewal timer with run_acmesh_renewal_on_calendar, run_acmesh_renewal_randomized_delay_sec and run_acmesh_renewal_persistent. Defaults retain daily checks, up to three hours of random delay and catch-up after downtime.
+- run role - Report certificate domains, exit statuses and target log commands on configuration, issuance and installation failures without exposing credential-bearing command output. Document target-side troubleshooting.
+
+Bugfixes
+--------
+
+- run role - Install pinned acme.sh upgrades from the configured Git repository and disable upstream self-upgrades while a pin is set.
+- run role - Pass DNS credentials to issuance and installation through module stdin instead of the SSH command environment, protecting normal and verbose connection output. Hide configuration output containing saved credentials and keep acme.sh's existing provider-managed renewal storage.
+- run role - Suppress content diffs when pre-seeding certificate directories, which can contain private keys and saved credentials.
+
 v4.3.0
 ======
 
