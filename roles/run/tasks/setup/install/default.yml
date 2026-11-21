@@ -357,7 +357,7 @@
     - name: "Setup | Install | Default | Save the revision and installed script checksum"
       ansible.builtin.copy:
         dest: "{{ __run_acmesh_source_cache }}/installed"
-        content: "{{ __run_acmesh_checkout['after'] }} {{ __run_acmesh_updated_client['stat']['checksum'] }}\n"
+        content: "{{ __run_acmesh_checkout['after'] }} {{ __run_acmesh_updated_client['stat']['checksum'] }}"
         owner: "root"
         group: "root"
         mode: "u=rw,g=r,o=r" # 0644

@@ -39,4 +39,4 @@
       {{ not __run_acmesh_is_installed or
          (__run_acmesh_revision_marker['stat']['checksum'] | ansible.builtin.default('')) !=
          (((__run_acmesh_checkout['after'] | ansible.builtin.default('')) ~ ' ' ~
-           (__run_acmesh_current_client['stat']['checksum'] | ansible.builtin.default('')) ~ '\n') | ansible.builtin.hash('sha256')) }}
+           (__run_acmesh_current_client['stat']['checksum'] | ansible.builtin.default(''))) | ansible.builtin.hash('sha256')) }}
