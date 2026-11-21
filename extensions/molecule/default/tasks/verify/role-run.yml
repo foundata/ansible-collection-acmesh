@@ -1479,6 +1479,11 @@
   when:
     - __testing_state['__testing_pebble_available'] | ansible.builtin.default(false)
   block:
+    - name: "Molecule | Verify | Loop include: remove the previous hook result"
+      ansible.builtin.file:
+        path: "{{ run_acmesh_cfg_home }}/molecule-loop-environment"
+        state: "absent"
+
     - name: "Molecule | Verify | Loop include: include the role once per outer loop item"
       ansible.builtin.include_role:
         name: "foundata.acmesh.run"
@@ -1498,36 +1503,29 @@
               key_file: "/etc/pki/tls/certs/{{ item['cert_dir_name'] }}/cert.key"
               reloadcmd: ""
             server: "https://localhost:14000/dir"
-            # acme.sh returns RENEW_SKIP before it persists account settings,
-            # so the issuance has to actually run for this check.
+            pre_hook: >-
+              printf '%s\n' "$MOLECULE_ACMESH_LOOP_VALUE" >
+              {{ (run_acmesh_cfg_home ~ '/molecule-loop-environment') | ansible.builtin.quote }}
+            # Run the issuance hook even when the existing certificate is valid.
             force: true
       loop:
         - cert_dir_name: "acmesh-direct.test"
           domain: "acmesh-direct.test"
           webroot: "/var/www/acmesh-test"
-          # acme.sh persists this into account.conf, which makes it observable.
           environment:
-            HTTPS_INSECURE: 1
+            MOLECULE_ACMESH_LOOP_VALUE: "from-outer-loop"
       loop_control:
         label: "{{ item['cert_dir_name'] }}"
 
-    - name: "Molecule | Verify | Loop include: read account.conf to check the environment passthrough"
+    - name: "Molecule | Verify | Loop include: read the value observed by the issuance hook"
       ansible.builtin.slurp:
-        src: "{{ run_acmesh_cfg_config_home }}/account.conf"
-      register: __testing_acmesh_loopinclude_accountconf
-      no_log: true
+        src: "{{ run_acmesh_cfg_home }}/molecule-loop-environment"
+      register: __testing_acmesh_loopinclude_environment
 
     - name: "Molecule | Verify | Loop include: assert the environment reached acme.sh"
       ansible.builtin.assert:
         that:
-          - "'HTTPS_INSECURE' in (__testing_acmesh_loopinclude_accountconf['content'] | ansible.builtin.b64decode)"
-        fail_msg: >-
-          run_acmesh_environment did not reach acme.sh when the role was
-          included in a loop: the value is templated from the outer loop
-          item and a role task shadowed "item" while dereferencing it.
-        success_msg: >-
-          The environment templated from the outer loop item reached acme.sh.
-      no_log: true
+          - (__testing_acmesh_loopinclude_environment['content'] | ansible.builtin.b64decode | ansible.builtin.trim) == 'from-outer-loop'
 
     - name: "Molecule | Verify | Loop include: read the certificate's acme.sh configuration"
       ansible.builtin.slurp:
