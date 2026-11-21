@@ -176,7 +176,7 @@
 
 - name: "Setup | Install | Default | Check the selected Git revision"
   ansible.builtin.include_tasks:
-    file: "pinned-revision.yml"
+    file: "{{ role_path }}/tasks/setup/install/pinned-revision.yml"
   when:
     - __run_acmesh_manage_pinned_revision
 

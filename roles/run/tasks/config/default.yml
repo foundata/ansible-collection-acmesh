@@ -126,8 +126,8 @@
     - "run_acmesh_reload_systemd_daemon"
 
 - name: "Config | Default | Configure the renewal timer"
-  ansible.builtin.import_tasks:
-    file: "renewal-timer.yml"
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/config/renewal-timer.yml"
 
 # Reload commands run as root in acmesh-reload-* services. Staged
 # deployments start them explicitly after publication; direct deployments
